@@ -174,6 +174,7 @@ IF (ENABLE_DRAFTS)
     list(APPEND dafka_headers
         include/dafka_publisher.h
         include/dafka_subscriber.h
+        include/dafka_store.h
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -194,6 +195,7 @@ IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
         src/dafka_publisher.c
         src/dafka_subscriber.c
+        src/dafka_store.c
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -394,6 +396,7 @@ IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
     dafka_publisher
     dafka_subscriber
+    dafka_store
     )
 ENDIF (ENABLE_DRAFTS)
 

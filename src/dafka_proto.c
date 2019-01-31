@@ -41,8 +41,6 @@ struct _dafka_proto_t {
     char address [256];                 //  address
     uint64_t sequence;                  //  sequence
     char subject [256];                 //  subject
-    uint64_t begin_offset;              //  begin_offset
-    uint64_t end_offset;                //  end_offset
 };
 
 //  --------------------------------------------------------------------------
@@ -302,7 +300,7 @@ dafka_proto_t *
 
     char *topic = zconfig_get (config, "topic", NULL);
     if (topic) {
-        zstr_free (&topic);
+        zstr_free (&self->topic);
         self->topic = strdup (topic);
     }
 
@@ -397,35 +395,19 @@ dafka_proto_t *
             }
             {
             char *es = NULL;
-            char *s = zconfig_get (content, "begin_offset", NULL);
+            char *s = zconfig_get (content, "sequence", NULL);
             if (!s) {
-                zsys_error ("content/begin_offset not found");
+                zsys_error ("content/sequence not found");
                 dafka_proto_destroy (&self);
                 return NULL;
             }
             uint64_t uvalue = (uint64_t) strtoll (s, &es, 10);
             if (es != s+strlen (s)) {
-                zsys_error ("content/begin_offset: %s is not a number", s);
+                zsys_error ("content/sequence: %s is not a number", s);
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            self->begin_offset = uvalue;
-            }
-            {
-            char *es = NULL;
-            char *s = zconfig_get (content, "end_offset", NULL);
-            if (!s) {
-                zsys_error ("content/end_offset not found");
-                dafka_proto_destroy (&self);
-                return NULL;
-            }
-            uint64_t uvalue = (uint64_t) strtoll (s, &es, 10);
-            if (es != s+strlen (s)) {
-                zsys_error ("content/end_offset: %s is not a number", s);
-                dafka_proto_destroy (&self);
-                return NULL;
-            }
-            self->end_offset = uvalue;
+            self->sequence = uvalue;
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -543,8 +525,6 @@ dafka_proto_dup (dafka_proto_t *other)
     dafka_proto_set_address (copy, dafka_proto_address (other));
     dafka_proto_set_sequence (copy, dafka_proto_sequence (other));
     dafka_proto_set_subject (copy, dafka_proto_subject (other));
-    dafka_proto_set_begin_offset (copy, dafka_proto_begin_offset (other));
-    dafka_proto_set_end_offset (copy, dafka_proto_end_offset (other));
 
     return copy;
 }
@@ -616,8 +596,7 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
 
         case DAFKA_PROTO_ASK:
             GET_STRING (self->subject);
-            GET_NUMBER8 (self->begin_offset);
-            GET_NUMBER8 (self->end_offset);
+            GET_NUMBER8 (self->sequence);
             GET_STRING (self->address);
             break;
 
@@ -675,8 +654,7 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             break;
         case DAFKA_PROTO_ASK:
             frame_size += 1 + strlen (self->subject);
-            frame_size += 8;            //  begin_offset
-            frame_size += 8;            //  end_offset
+            frame_size += 8;            //  sequence
             frame_size += 1 + strlen (self->address);
             break;
         case DAFKA_PROTO_ANSWER:
@@ -708,8 +686,7 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
 
         case DAFKA_PROTO_ASK:
             PUT_STRING (self->subject);
-            PUT_NUMBER8 (self->begin_offset);
-            PUT_NUMBER8 (self->end_offset);
+            PUT_NUMBER8 (self->sequence);
             PUT_STRING (self->address);
             break;
 
@@ -786,8 +763,7 @@ dafka_proto_print (dafka_proto_t *self)
             zsys_debug ("DAFKA_PROTO_ASK:");
             zsys_debug ("    topic='%s'", self->topic);
             zsys_debug ("    subject='%s'", self->subject);
-            zsys_debug ("    begin_offset=%ld", (long) self->begin_offset);
-            zsys_debug ("    end_offset=%ld", (long) self->end_offset);
+            zsys_debug ("    sequence=%ld", (long) self->sequence);
             zsys_debug ("    address='%s'", self->address);
             break;
 
@@ -879,8 +855,7 @@ dafka_proto_zpl (dafka_proto_t *self, zconfig_t *parent)
 
             zconfig_t *config = zconfig_new ("content", root);
             zconfig_putf (config, "subject", "%s", self->subject);
-            zconfig_putf (config, "begin_offset", "%ld", (long) self->begin_offset);
-            zconfig_putf (config, "end_offset", "%ld", (long) self->end_offset);
+            zconfig_putf (config, "sequence", "%ld", (long) self->sequence);
             zconfig_putf (config, "address", "%s", self->address);
             break;
             }
@@ -1101,42 +1076,6 @@ dafka_proto_set_subject (dafka_proto_t *self, const char *value)
 }
 
 
-//  --------------------------------------------------------------------------
-//  Get/set the begin_offset field
-
-uint64_t
-dafka_proto_begin_offset (dafka_proto_t *self)
-{
-    assert (self);
-    return self->begin_offset;
-}
-
-void
-dafka_proto_set_begin_offset (dafka_proto_t *self, uint64_t begin_offset)
-{
-    assert (self);
-    self->begin_offset = begin_offset;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get/set the end_offset field
-
-uint64_t
-dafka_proto_end_offset (dafka_proto_t *self)
-{
-    assert (self);
-    return self->end_offset;
-}
-
-void
-dafka_proto_set_end_offset (dafka_proto_t *self, uint64_t end_offset)
-{
-    assert (self);
-    self->end_offset = end_offset;
-}
-
-
 
 //  --------------------------------------------------------------------------
 //  Selftest
@@ -1242,8 +1181,7 @@ dafka_proto_test (bool verbose)
     dafka_proto_set_id (self, DAFKA_PROTO_ASK);
     dafka_proto_set_topic (self, "Hello");
     dafka_proto_set_subject (self, "Life is short but Now lasts for ever");
-    dafka_proto_set_begin_offset (self, 123);
-    dafka_proto_set_end_offset (self, 123);
+    dafka_proto_set_sequence (self, 123);
     dafka_proto_set_address (self, "Life is short but Now lasts for ever");
     // convert to zpl
     config = dafka_proto_zpl (self, NULL);
@@ -1266,8 +1204,7 @@ dafka_proto_test (bool verbose)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
-        assert (dafka_proto_begin_offset (self) == 123);
-        assert (dafka_proto_end_offset (self) == 123);
+        assert (dafka_proto_sequence (self) == 123);
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         if (instance == 2) {
             dafka_proto_destroy (&self);

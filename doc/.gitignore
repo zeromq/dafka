@@ -13,10 +13,12 @@
 # Ignore the source doc texts generated from program sources
 dafka_publisher.txt
 dafka_publisher.doc
-dafka_proto.txt
-dafka_proto.doc
 dafka_subscriber.txt
 dafka_subscriber.doc
+dafka_proto.txt
+dafka_proto.doc
+dafka_store.txt
+dafka_store.doc
 
 # Make sure to track the manually maintained project description
 !*.adoc
