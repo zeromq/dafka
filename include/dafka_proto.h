@@ -23,10 +23,10 @@ extern "C" {
 //  @interface
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
-#define DAFKA_PROTO_MSG 'm'                 //
-#define DAFKA_PROTO_RELIABLE 'r'            //
-#define DAFKA_PROTO_ASK 'a'                 //
-#define DAFKA_PROTO_ANSWER 'w'              //
+#define DAFKA_PROTO_MSG 'M'                  //
+#define DAFKA_PROTO_RELIABLE 'R'             //
+#define DAFKA_PROTO_ASK 'A'                  //
+#define DAFKA_PROTO_ANSWER 'W'               //
 
 //  Create a new empty dafka_proto
 DAFKA_EXPORT dafka_proto_t *
@@ -81,19 +81,19 @@ DAFKA_EXPORT void
 
 //  Subscribe a socket to a specific message id and a topic.
 DAFKA_EXPORT void
-    dafka_proto_subscribe (zsock_t *sub, uint8_t id, const char *topic);
+    dafka_proto_subscribe (zsock_t *sub, char id, const char *topic);
 
 //  Unsubscribe a socket form a specific message id and a topic.
 DAFKA_EXPORT void
-    dafka_proto_unsubscribe (zsock_t *sub, uint8_t id, const char *topic);
+    dafka_proto_unsubscribe (zsock_t *sub, char id, const char *topic);
 
 //  Get the dafka_proto message id
-DAFKA_EXPORT int
+DAFKA_EXPORT char
     dafka_proto_id (dafka_proto_t *self);
 
 //  Set the dafka_proto message id
 DAFKA_EXPORT void
-    dafka_proto_set_id (dafka_proto_t *self, int id);
+    dafka_proto_set_id (dafka_proto_t *self, char id);
 
 //  Get the dafka_proto message id as printable text
 DAFKA_EXPORT const char *
