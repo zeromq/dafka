@@ -30,6 +30,7 @@ struct _dafka_subscriber_t {
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
     zsock_t *socket;            // Socket to subscribe to messages
+    dafka_proto_t *msg;         // Reusable message
 };
 
 
@@ -51,6 +52,7 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     char *addresses = (char *) args;
     self->socket = zsock_new_sub (addresses, NULL);
     zpoller_add (self->poller, self->socket);
+    self->msg = dafka_proto_new ();
 
     return self;
 }
@@ -68,6 +70,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 
         //  Free class properties
         zsock_destroy (&self->socket);
+        dafka_proto_destroy (&self->msg);
 
         //  Free actor properties
         self->terminated = true;
@@ -94,16 +97,15 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 static void
 dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
 {
-    dafka_proto_t *msg;
-    dafka_proto_recv (msg, self->socket);
-    if (!msg)
+    zsys_info ("Reading message from subscribtion");
+    int rc = dafka_proto_recv (self->msg, self->socket);
+    if (rc != 0)
        return;        //  Interrupted
 
-    const char *address = dafka_proto_address (msg);
-    const char *topic = dafka_proto_topic (msg);
-    zframe_t *content = dafka_proto_content (msg);
+    const char *address = dafka_proto_address (self->msg);
+    const char *topic = dafka_proto_topic (self->msg);
+    zframe_t *content = dafka_proto_content (self->msg);
     zsock_bsend (self->pipe, "ssf", topic, address, content);
-    dafka_proto_destroy (&msg);
 }
 
 //  Here we handle incoming message from the node
