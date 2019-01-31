@@ -10,7 +10,7 @@
     export_macro = "DAFKA_EXPORT">
 
     <message name = "MSG" id="'M'">
-        <feild name = "content" type = "frame" />
+        <field name = "content" type = "frame" />
     </message>
 
     <message name = "RELIABLE" id="'R'">
@@ -28,7 +28,7 @@
 
     <message name = "ANSWER" id = "'W'">
         <field name = "subject" type = "string" />
-        <field name = "sender" type = "string" />
+        <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
     </message>

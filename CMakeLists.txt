@@ -25,7 +25,32 @@ set(pkg_config_names_private "")
 ########################################################################
 # options
 ########################################################################
-OPTION (ENABLE_DRAFTS "Build and install draft classes and methods" ON)
+if (NOT CMAKE_BUILD_TYPE)
+    if (EXISTS "${SOURCE_DIR}/.git")
+        set (CMAKE_BUILD_TYPE Debug)
+    else ()
+# http://xit0.org/2013/04/cmake-use-git-branch-and-commit-details-in-project/
+# http://stackoverflow.com/questions/6797395/cmake-execute-process-always-fails-with-no-such-file-or-directory-when-i-cal
+        execute_process(
+            COMMAND git rev-parse --show-toplevel
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            RESULT_VARIABLE git_result
+            OUTPUT_VARIABLE git_root
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        message(STATUS "git workspace root [${git_result}]: ${git_root}")
+        if ( "${git_result}" STREQUAL "0" )
+            set (CMAKE_BUILD_TYPE Debug)
+        else ()
+            set (CMAKE_BUILD_TYPE Release)
+        endif ()
+    endif ()
+endif ()
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    OPTION (ENABLE_DRAFTS "Build and install draft classes and methods" ON)
+else ()
+    OPTION (ENABLE_DRAFTS "Build and install draft classes and methods" OFF)
+endif ()
 IF (ENABLE_DRAFTS)
     ADD_DEFINITIONS (-DDAFKA_BUILD_DRAFT_API)
 ENDIF (ENABLE_DRAFTS)
@@ -142,12 +167,12 @@ message(STATUS "Detected DAFKA Version - ${DAFKA_VERSION}")
 set (dafka_headers
     include/dafka_library.h
     include/dafka.h
+    include/dafka_proto.h
 )
 
 IF (ENABLE_DRAFTS)
     list(APPEND dafka_headers
         include/dafka_publisher.h
-        include/dafka_proto.h
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -161,12 +186,12 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_proto.c
 )
 
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
         src/dafka_publisher.c
-        src/dafka_proto.c
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -360,12 +385,12 @@ if(UNIX)
 endif()
 
 set(TEST_CLASSES
+    dafka_proto
 )
 
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
     dafka_publisher
-    dafka_proto
     )
 ENDIF (ENABLE_DRAFTS)
 

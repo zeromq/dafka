@@ -4,12 +4,12 @@
 ################################################################################
 include_HEADERS = \
     dafka.h \
+    dafka_proto.h \
     dafka_library.h
 
 if ENABLE_DRAFTS
 include_HEADERS += \
-    dafka_publisher.h \
-    dafka_proto.h
+    dafka_publisher.h
 
 endif
 

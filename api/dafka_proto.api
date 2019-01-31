@@ -88,6 +88,20 @@
     <argument name = "topic" type = "string" />
 </method>
 
+<method name = "subscribe" singleton = "1">
+    Subscribe a socket to a specific message id and a topic.
+    <argument name = "sub" type = "zsock" />
+    <argument name = "id" type = "number" size = "1" />
+    <argument name = "topic" type = "string" />
+</method>
+
+<method name = "unsubscribe" singleton = "1">
+    Unsubscribe a socket form a specific message id and a topic.
+    <argument name = "sub" type = "zsock" />
+    <argument name = "id" type = "number" size = "1" />
+    <argument name = "topic" type = "string" />
+</method>
+
 <method name = "id">
     Get the dafka_proto message id
     <return type = "integer" />
@@ -103,6 +117,18 @@
     <return type = "string" />
 </method>
 
+<method name = "content">
+    Get a copy of the content field
+    <return type = "zframe" />
+</method>
+<method name = "get content">
+    Get the content field and transfer ownership to caller
+    <return type = "zframe" />
+</method>
+    Set the content field, transferring ownership from caller
+<method name = "set content">
+    <argument name = "content_p" type = "zframe" by_reference = "1" />
+</method>
 <method name = "address">
     Get the address field
     <return type = "string" />
@@ -118,18 +144,6 @@
 <method name = "set sequence">
     Set the sequence field
     <argument name = "sequence" type = "number" size = "8" />
-</method>
-<method name = "content">
-    Get a copy of the content field
-    <return type = "zframe" />
-</method>
-<method name = "get content">
-    Get the content field and transfer ownership to caller
-    <return type = "zframe" />
-</method>
-    Set the content field, transferring ownership from caller
-<method name = "set content">
-    <argument name = "content_p" type = "zframe" by_reference = "1" />
 </method>
 <method name = "subject">
     Get the subject field
@@ -154,13 +168,5 @@
 <method name = "set end_offset">
     Set the end_offset field
     <argument name = "end_offset" type = "number" size = "8" />
-</method>
-<method name = "sender">
-    Get the sender field
-    <return type = "string" />
-</method>
-<method name = "set sender">
-    Set the sender field
-    <argument name = "sender" type = "string" />
 </method>
 </class>

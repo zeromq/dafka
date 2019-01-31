@@ -13,12 +13,12 @@ lib_LTLIBRARIES += src/libdafka.la
 pkgconfig_DATA = src/libdafka.pc
 
 src_libdafka_la_SOURCES = \
+    src/dafka_proto.c \
     src/platform.h
 
 if ENABLE_DRAFTS
 src_libdafka_la_SOURCES += \
-    src/dafka_publisher.c \
-    src/dafka_proto.c
+    src/dafka_publisher.c
 
 endif
 
@@ -54,11 +54,6 @@ src_dafka_selftest_CPPFLAGS = ${AM_CPPFLAGS}
 src_dafka_selftest_LDADD = ${program_libs}
 src_dafka_selftest_SOURCES = src/dafka_selftest.c
 endif #ENABLE_DAFKA_SELFTEST
-
-# Install api files into /usr/local/share/zproject
-apidir = @datadir@/zproject/dafka
-dist_api_DATA = \
-    api/dafka_proto.api
 
 # define custom target for all products of /src
 src: \

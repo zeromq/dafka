@@ -37,13 +37,12 @@ struct _dafka_proto_t {
     int id;                             //  dafka_proto message ID
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
+    zframe_t *content;                  //  content
     char address [256];                 //  address
     uint64_t sequence;                  //  sequence
-    zframe_t *content;                  //  content
     char subject [256];                 //  subject
     uint64_t begin_offset;              //  begin_offset
     uint64_t end_offset;                //  end_offset
-    char sender [256];                  //  sender
 };
 
 //  --------------------------------------------------------------------------
@@ -308,6 +307,28 @@ dafka_proto_t *
     zconfig_t *content = NULL;
     switch (self->id) {
         case DAFKA_PROTO_MSG:
+            content = zconfig_locate (config, "content");
+            if (!content) {
+                zsys_error ("Can't find 'content' section");
+                dafka_proto_destroy (&self);
+                return NULL;
+            }
+            {
+            char *s = zconfig_get (content, "content", NULL);
+            if (!s) {
+                dafka_proto_destroy (&self);
+                return NULL;
+            }
+            byte *bvalue;
+            BYTES_FROM_STR (bvalue, s);
+            if (!bvalue) {
+                dafka_proto_destroy (&self);
+                return NULL;
+            }
+            zframe_t *frame = zframe_new (bvalue, strlen (s) / 2);
+            free (bvalue);
+            self->content = frame;
+            }
             break;
         case DAFKA_PROTO_RELIABLE:
             content = zconfig_locate (config, "content");
@@ -429,12 +450,12 @@ dafka_proto_t *
             strncpy (self->subject, s, 256);
             }
             {
-            char *s = zconfig_get (content, "sender", NULL);
+            char *s = zconfig_get (content, "address", NULL);
             if (!s) {
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->sender, s, 256);
+            strncpy (self->address, s, 256);
             }
             {
             char *es = NULL;
@@ -513,16 +534,15 @@ dafka_proto_dup (dafka_proto_t *other)
     dafka_proto_set_topic (copy, dafka_proto_topic (other));
 
     // Copy the rest of the fields
-    dafka_proto_set_address (copy, dafka_proto_address (other));
-    dafka_proto_set_sequence (copy, dafka_proto_sequence (other));
     {
         zframe_t *dup_frame = zframe_dup (dafka_proto_content (other));
         dafka_proto_set_content (copy, &dup_frame);
     }
+    dafka_proto_set_address (copy, dafka_proto_address (other));
+    dafka_proto_set_sequence (copy, dafka_proto_sequence (other));
     dafka_proto_set_subject (copy, dafka_proto_subject (other));
     dafka_proto_set_begin_offset (copy, dafka_proto_begin_offset (other));
     dafka_proto_set_end_offset (copy, dafka_proto_end_offset (other));
-    dafka_proto_set_sender (copy, dafka_proto_sender (other));
 
     return copy;
 }
@@ -569,6 +589,14 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
 
     switch (self->id) {
         case DAFKA_PROTO_MSG:
+            //  Get next frame off socket
+            if (!zsock_rcvmore (input)) {
+                zsys_warning ("dafka_proto: content is missing");
+                rc = -2;        //  Malformed
+                goto malformed;
+            }
+            zframe_destroy (&self->content);
+            self->content = zframe_recv (input);
             break;
 
         case DAFKA_PROTO_RELIABLE:
@@ -593,7 +621,7 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
 
         case DAFKA_PROTO_ANSWER:
             GET_STRING (self->subject);
-            GET_STRING (self->sender);
+            GET_STRING (self->address);
             GET_NUMBER8 (self->sequence);
             //  Get next frame off socket
             if (!zsock_rcvmore (input)) {
@@ -637,6 +665,8 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
     size_t frame_size = 1 + strlen(self->topic) + 1; //  Message ID, topic and NULL
 
     switch (self->id) {
+        case DAFKA_PROTO_MSG:
+            break;
         case DAFKA_PROTO_RELIABLE:
             frame_size += 1 + strlen (self->address);
             frame_size += 8;            //  sequence
@@ -649,7 +679,7 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             break;
         case DAFKA_PROTO_ANSWER:
             frame_size += 1 + strlen (self->subject);
-            frame_size += 1 + strlen (self->sender);
+            frame_size += 1 + strlen (self->address);
             frame_size += 8;            //  sequence
             break;
     }
@@ -664,6 +694,10 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
     size_t nbr_frames = 1;              //  Total number of frames to send
 
     switch (self->id) {
+        case DAFKA_PROTO_MSG:
+            nbr_frames++;
+            break;
+
         case DAFKA_PROTO_RELIABLE:
             PUT_STRING (self->address);
             PUT_NUMBER8 (self->sequence);
@@ -679,7 +713,7 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
 
         case DAFKA_PROTO_ANSWER:
             PUT_STRING (self->subject);
-            PUT_STRING (self->sender);
+            PUT_STRING (self->address);
             PUT_NUMBER8 (self->sequence);
             nbr_frames++;
             break;
@@ -688,6 +722,14 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
     //  Now send the data frame
     zmq_msg_send (&frame, zsock_resolve (output), --nbr_frames? ZMQ_SNDMORE: 0);
 
+    //  Now send any frame fields, in order
+    if (self->id == DAFKA_PROTO_MSG) {
+        //  If content isn't set, send an empty frame
+        if (self->content)
+            zframe_send (&self->content, output, ZFRAME_REUSE + (--nbr_frames? ZFRAME_MORE: 0));
+        else
+            zmq_send (zsock_resolve (output), NULL, 0, (--nbr_frames? ZMQ_SNDMORE: 0));
+    }
     //  Now send any frame fields, in order
     if (self->id == DAFKA_PROTO_RELIABLE) {
         //  If content isn't set, send an empty frame
@@ -719,6 +761,11 @@ dafka_proto_print (dafka_proto_t *self)
         case DAFKA_PROTO_MSG:
             zsys_debug ("DAFKA_PROTO_MSG:");
             zsys_debug ("    topic='%s'", self->topic);
+            zsys_debug ("    content=");
+            if (self->content)
+                zframe_print (self->content, NULL);
+            else
+                zsys_debug ("(NULL)");
             break;
 
         case DAFKA_PROTO_RELIABLE:
@@ -746,7 +793,7 @@ dafka_proto_print (dafka_proto_t *self)
             zsys_debug ("DAFKA_PROTO_ANSWER:");
             zsys_debug ("    topic='%s'", self->topic);
             zsys_debug ("    subject='%s'", self->subject);
-            zsys_debug ("    sender='%s'", self->sender);
+            zsys_debug ("    address='%s'", self->address);
             zsys_debug ("    sequence=%ld", (long) self->sequence);
             zsys_debug ("    content=");
             if (self->content)
@@ -782,6 +829,13 @@ dafka_proto_zpl (dafka_proto_t *self, zconfig_t *parent)
 
             zconfig_putf (root, "topic", "%s", self->topic);
 
+            zconfig_t *config = zconfig_new ("content", root);
+            {
+            char *hex = NULL;
+            STR_FROM_BYTES (hex, zframe_data (self->content), zframe_size (self->content));
+            zconfig_putf (config, "content", "%s", hex);
+            zstr_free (&hex);
+            }
             break;
             }
         case DAFKA_PROTO_RELIABLE:
@@ -843,7 +897,7 @@ dafka_proto_zpl (dafka_proto_t *self, zconfig_t *parent)
 
             zconfig_t *config = zconfig_new ("content", root);
             zconfig_putf (config, "subject", "%s", self->subject);
-            zconfig_putf (config, "sender", "%s", self->sender);
+            zconfig_putf (config, "address", "%s", self->address);
             zconfig_putf (config, "sequence", "%ld", (long) self->sequence);
             {
             char *hex = NULL;
@@ -933,6 +987,53 @@ dafka_proto_set_topic (dafka_proto_t *self, const char *topic)
     self->topic = strdup (topic);
 }
 
+void
+dafka_proto_subscribe (zsock_t *sub, uint8_t id, const char *topic) {
+    char* subscription = zsys_sprintf ("%c%s",(char)id, topic);
+    zsock_set_subscribe (sub, subscription);
+    zstr_free (&subscription);
+}
+
+void
+dafka_proto_unsubscribe (zsock_t *sub, uint8_t id, const char *topic) {
+    char* subscription = zsys_sprintf ("%c%s",(char)id, topic);
+    zsock_set_unsubscribe (sub, subscription);
+    zstr_free (&subscription);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get the content field without transferring ownership
+
+zframe_t *
+dafka_proto_content (dafka_proto_t *self)
+{
+    assert (self);
+    return self->content;
+}
+
+//  Get the content field and transfer ownership to caller
+
+zframe_t *
+dafka_proto_get_content (dafka_proto_t *self)
+{
+    zframe_t *content = self->content;
+    self->content = NULL;
+    return content;
+}
+
+//  Set the content field, transferring ownership from caller
+
+void
+dafka_proto_set_content (dafka_proto_t *self, zframe_t **frame_p)
+{
+    assert (self);
+    assert (frame_p);
+    zframe_destroy (&self->content);
+    self->content = *frame_p;
+    *frame_p = NULL;
+}
+
 
 //  --------------------------------------------------------------------------
 //  Get/set the address field
@@ -971,39 +1072,6 @@ dafka_proto_set_sequence (dafka_proto_t *self, uint64_t sequence)
 {
     assert (self);
     self->sequence = sequence;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get the content field without transferring ownership
-
-zframe_t *
-dafka_proto_content (dafka_proto_t *self)
-{
-    assert (self);
-    return self->content;
-}
-
-//  Get the content field and transfer ownership to caller
-
-zframe_t *
-dafka_proto_get_content (dafka_proto_t *self)
-{
-    zframe_t *content = self->content;
-    self->content = NULL;
-    return content;
-}
-
-//  Set the content field, transferring ownership from caller
-
-void
-dafka_proto_set_content (dafka_proto_t *self, zframe_t **frame_p)
-{
-    assert (self);
-    assert (frame_p);
-    zframe_destroy (&self->content);
-    self->content = *frame_p;
-    *frame_p = NULL;
 }
 
 
@@ -1065,28 +1133,6 @@ dafka_proto_set_end_offset (dafka_proto_t *self, uint64_t end_offset)
 }
 
 
-//  --------------------------------------------------------------------------
-//  Get/set the sender field
-
-const char *
-dafka_proto_sender (dafka_proto_t *self)
-{
-    assert (self);
-    return self->sender;
-}
-
-void
-dafka_proto_set_sender (dafka_proto_t *self, const char *value)
-{
-    assert (self);
-    assert (value);
-    if (value == self->sender)
-        return;
-    strncpy (self->sender, value, 255);
-    self->sender [255] = 0;
-}
-
-
 
 //  --------------------------------------------------------------------------
 //  Selftest
@@ -1123,6 +1169,8 @@ dafka_proto_test (bool verbose)
     self = dafka_proto_new ();
     dafka_proto_set_id (self, DAFKA_PROTO_MSG);
     dafka_proto_set_topic (self, "Hello");
+    zframe_t *msg_content = zframe_new ("Captcha Diem", 12);
+    dafka_proto_set_content (self, &msg_content);
     // convert to zpl
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
@@ -1143,6 +1191,9 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
+        assert (zframe_streq (dafka_proto_content (self), "Captcha Diem"));
+        if (instance == 2)
+            zframe_destroy (&msg_content);
         if (instance == 2) {
             dafka_proto_destroy (&self);
             self = self_temp;
@@ -1222,7 +1273,7 @@ dafka_proto_test (bool verbose)
     dafka_proto_set_id (self, DAFKA_PROTO_ANSWER);
     dafka_proto_set_topic (self, "Hello");
     dafka_proto_set_subject (self, "Life is short but Now lasts for ever");
-    dafka_proto_set_sender (self, "Life is short but Now lasts for ever");
+    dafka_proto_set_address (self, "Life is short but Now lasts for ever");
     dafka_proto_set_sequence (self, 123);
     zframe_t *answer_content = zframe_new ("Captcha Diem", 12);
     dafka_proto_set_content (self, &answer_content);
@@ -1247,7 +1298,7 @@ dafka_proto_test (bool verbose)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
-        assert (streq (dafka_proto_sender (self), "Life is short but Now lasts for ever"));
+        assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
         assert (zframe_streq (dafka_proto_content (self), "Captcha Diem"));
         if (instance == 2)

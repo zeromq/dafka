@@ -4,8 +4,9 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    MSG             = signature %d'm'
+    MSG             = signature %d'm' content
     signature       = %xAA %xA0             ; two octets
+    content         = frame                 ;
 
     ;  No description
 
@@ -24,9 +25,9 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    ANSWER          = signature %d'w' subject sender sequence content
+    ANSWER          = signature %d'w' subject address sequence content
     subject         = string                ;
-    sender          = string                ;
+    address         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
 
