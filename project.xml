@@ -12,6 +12,7 @@
     <use project = "czmq" />
 
     <class name = "dafka_publisher" />
+    <class name = "dafka_subscriber" />
     <class name = "dafka_proto" state = "stable"  />
     <model name = "dafka_proto" />
 </project>
