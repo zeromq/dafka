@@ -191,15 +191,18 @@ dafka_subscriber_test (bool verbose)
     assert (sub);
 
     zsock_send (sub, "ss", "SUBSCRIBE", "hello");
+    usleep (100);
 
-    zframe_t *content = zframe_new ("HELLO", 5);
+    zframe_t *content = zframe_new ("HELLO MATE", 10);
     int rc = dafka_publisher_publish (pub, content);
 
     char *topic;
     char *address;
     zsock_brecv (sub, "ssf", &topic, &address, &content);
+    char *content_str = zframe_strdup (content);
     assert (streq (topic, "hello"));
-    printf ("%s;%s", topic, address);
+    assert (streq (content_str, "HELLO MATE"));
+    zstr_free (&content_str);
     zframe_destroy (&content);
 
     dafka_publisher_destroy (&pub);
