@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_stored - description
+    dakfa_console_producer - description
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -13,34 +13,37 @@
 
 /*
 @header
-    dafka_stored -
+    dakfa_console_producer -
 @discuss
 @end
 */
 
 #include "dafka_classes.h"
 
+int main (int argc, char *argv [])
+{
+    zsys_set_linger ((size_t ) -1);
 
-int main (int argc, char** argv) {
     zargs_t *args = zargs_new (argc, argv);
 
-    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 2) {
-        puts ("Usage: dafka_stored endpoint publisher_endpoints");
+    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 3) {
+        puts ("Usage: dafka_console_producer endpoint topic msg");
         return 0;
     }
 
     const char *endpoint = zargs_first (args);
-    const char *publisher_endpoints = zargs_next (args);
+    const char *topic = zargs_next (args);
+    const char *msg = zargs_next (args);
 
     zargs_destroy (&args);
 
-    const char *store_args[2] = {endpoint, publisher_endpoints};
-    zactor_t *store = zactor_new (dafka_store_actor, store_args);
+    dafka_publisher_t *publisher = dafka_publisher_new (topic, endpoint);
+    sleep(1);
 
-    char* command = zstr_recv (store);
-    zstr_free (&command); // Interrupted
+    zframe_t *frame = zframe_new (msg, strlen (msg));
+    dafka_publisher_publish (publisher, &frame);
 
-    zactor_destroy (&store);
+    dafka_publisher_destroy (&publisher);
 
     return 0;
 }

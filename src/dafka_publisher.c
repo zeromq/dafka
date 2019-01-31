@@ -38,6 +38,7 @@ dafka_publisher_new (const char *topic, const char *endpoint)
     assert (self);
     //  Initialize class properties here
     self->socket = zsock_new_pub(endpoint);
+    assert (self->socket);
     self->msg = dafka_proto_new ();
     dafka_proto_set_id (self->msg, DAFKA_PROTO_RELIABLE);
     dafka_proto_set_topic (self->msg, topic);
