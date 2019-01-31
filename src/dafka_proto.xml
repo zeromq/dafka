@@ -21,8 +21,7 @@
 
     <message name = "ASK" id="'A'">
         <field name = "subject" type = "string" />
-        <field name = "begin_offset" type = "number" size="8" />
-        <field name = "end_offset" type = "number" size="8" />
+        <field name = "sequence" type = "number" size = "8" />
         <field name = "address" type = "string" />
     </message>
 

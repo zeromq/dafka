@@ -11,6 +11,7 @@
     <abi current = "0" revision = "1" age = "0" />
     <use project = "czmq" />
 
+    <actor name = "dafka_store" />
     <class name = "dafka_publisher" />
     <class name = "dafka_subscriber" />
     <class name = "dafka_proto" state = "stable"  />

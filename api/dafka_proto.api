@@ -153,20 +153,4 @@
     Set the subject field
     <argument name = "subject" type = "string" />
 </method>
-<method name = "begin_offset">
-    Get the begin_offset field
-    <return type = "number" size = "8" />
-</method>
-<method name = "set begin_offset">
-    Set the begin_offset field
-    <argument name = "begin_offset" type = "number" size = "8" />
-</method>
-<method name = "end_offset">
-    Get the end_offset field
-    <return type = "number" size = "8" />
-</method>
-<method name = "set end_offset">
-    Set the end_offset field
-    <argument name = "end_offset" type = "number" size = "8" />
-</method>
 </class>

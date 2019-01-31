@@ -17,10 +17,9 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    ASK             = signature %d'a' subject begin_offset end_offset address
+    ASK             = signature %d'a' subject sequence address
     subject         = string                ;
-    begin_offset    = number-8              ;
-    end_offset      = number-8              ;
+    sequence        = number-8              ;
     address         = string                ;
 
     ;  No description

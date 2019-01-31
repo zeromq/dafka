@@ -135,22 +135,6 @@ DAFKA_EXPORT const char *
 DAFKA_EXPORT void
     dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
 
-//  Get the begin_offset field
-DAFKA_EXPORT uint64_t
-    dafka_proto_begin_offset (dafka_proto_t *self);
-
-//  Set the begin_offset field
-DAFKA_EXPORT void
-    dafka_proto_set_begin_offset (dafka_proto_t *self, uint64_t begin_offset);
-
-//  Get the end_offset field
-DAFKA_EXPORT uint64_t
-    dafka_proto_end_offset (dafka_proto_t *self);
-
-//  Set the end_offset field
-DAFKA_EXPORT void
-    dafka_proto_set_end_offset (dafka_proto_t *self, uint64_t end_offset);
-
 //  Self test of this class.
 DAFKA_EXPORT void
     dafka_proto_test (bool verbose);

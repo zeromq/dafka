@@ -19,7 +19,8 @@ src_libdafka_la_SOURCES = \
 if ENABLE_DRAFTS
 src_libdafka_la_SOURCES += \
     src/dafka_publisher.c \
-    src/dafka_subscriber.c
+    src/dafka_subscriber.c \
+    src/dafka_store.c
 
 endif
 
