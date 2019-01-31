@@ -49,12 +49,12 @@ endif
 
 src_libdafka_la_LIBADD = ${project_libs}
 
-if ENABLE_DAKFA_CONSOLE_PRODUCER
-bin_PROGRAMS += src/dakfa_console_producer
-src_dakfa_console_producer_CPPFLAGS = ${AM_CPPFLAGS}
-src_dakfa_console_producer_LDADD = ${program_libs}
-src_dakfa_console_producer_SOURCES = src/dakfa_console_producer.c
-endif #ENABLE_DAKFA_CONSOLE_PRODUCER
+if ENABLE_DAFKA_CONSOLE_PRODUCER
+bin_PROGRAMS += src/dafka_console_producer
+src_dafka_console_producer_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_console_producer_LDADD = ${program_libs}
+src_dafka_console_producer_SOURCES = src/dafka_console_producer.c
+endif #ENABLE_DAFKA_CONSOLE_PRODUCER
 
 if ENABLE_DAFKA_STORED
 bin_PROGRAMS += src/dafka_stored
@@ -78,7 +78,7 @@ dist_api_DATA = \
 
 # define custom target for all products of /src
 src: \
-		src/dakfa_console_producer \
+		src/dafka_console_producer \
 		src/dafka_stored \
 		src/dafka_selftest \
 		src/libdafka.la

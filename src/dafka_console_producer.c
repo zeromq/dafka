@@ -26,22 +26,33 @@ int main (int argc, char *argv [])
 
     zargs_t *args = zargs_new (argc, argv);
 
-    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 3) {
-        puts ("Usage: dafka_console_producer endpoint topic msg");
+    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 2) {
+        puts ("Usage: dafka_console_producer endpoint topic");
         return 0;
     }
 
     const char *endpoint = zargs_first (args);
     const char *topic = zargs_next (args);
-    const char *msg = zargs_next (args);
 
     zargs_destroy (&args);
 
     dafka_publisher_t *publisher = dafka_publisher_new (topic, endpoint);
-    sleep(1);
 
-    zframe_t *frame = zframe_new (msg, strlen (msg));
-    dafka_publisher_publish (publisher, &frame);
+    char *msg = NULL;
+    size_t size = 0;
+
+    while (true) {
+        int64_t msg_size = getline (&msg, &size, stdin);
+        if (msg_size == -1)
+            break;
+
+        while (msg[msg_size - 1] == '\n' || msg[msg_size - 1] == '\r' || msg[msg_size - 1] == EOF)
+            msg_size--;
+
+        zframe_t *frame = zframe_new (msg, (size_t) msg_size);
+        dafka_publisher_publish (publisher, &frame);
+        zstr_free (&msg);
+    }
 
     dafka_publisher_destroy (&publisher);
 
