@@ -301,8 +301,10 @@ dafka_proto_t *
     }
 
     char *topic = zconfig_get (config, "topic", NULL);
-    if (topic)
+    if (topic) {
+        zstr_free (&topic);
         self->topic = strdup (topic);
+    }
 
     zconfig_t *content = NULL;
     switch (self->id) {

@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_subscriber - class description
+    dafka_subscriber -
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -18,19 +18,28 @@
 extern "C" {
 #endif
 
+
 //  @interface
-//  Create a new dafka_subscriber
-DAFKA_EXPORT dafka_subscriber_t *
-    dafka_subscriber_new (void);
-
-//  Destroy the dafka_subscriber
+//  Create new dafka_subscriber actor instance.
+//  @TODO: Describe the purpose of this actor!
+//
+//      zactor_t *dafka_subscriber = zactor_new (dafka_subscriber, "publisher-address");
+//
+//  Destroy dafka_subscriber instance.
+//
+//      zactor_destroy (&dafka_subscriber);
+//
+//  Enable verbose logging of commands and activity:
+//
+//      zstr_send (dafka_subscriber, "VERBOSE");
+//
+//  This is the dafka_subscriber constructor as a zactor_fn;
 DAFKA_EXPORT void
-    dafka_subscriber_destroy (dafka_subscriber_t **self_p);
+    dafka_subscriber_actor (zsock_t *pipe, void *args);
 
-//  Self test of this class
+//  Self test of this actor
 DAFKA_EXPORT void
     dafka_subscriber_test (bool verbose);
-
 //  @end
 
 #ifdef __cplusplus

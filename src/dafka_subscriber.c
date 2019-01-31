@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_subscriber - class description
+    dafka_subscriber -
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -20,44 +20,149 @@
 
 #include "dafka_classes.h"
 
-//  Structure of our class
+//  Structure of our actor
 
 struct _dafka_subscriber_t {
-    int filler;     //  Declare class properties here
+    //  Actor properties
+    zsock_t *pipe;              //  Actor command pipe
+    zpoller_t *poller;          //  Socket poller
+    bool terminated;            //  Did caller ask us to quit?
+    bool verbose;               //  Verbose logging enabled?
+    //  Class properties
+    zsock_t *socket;            // Socket to subscribe to messages
 };
 
 
 //  --------------------------------------------------------------------------
-//  Create a new dafka_subscriber
+//  Create a new dafka_subscriber instance
 
-dafka_subscriber_t *
-dafka_subscriber_new (void)
+static dafka_subscriber_t *
+dafka_subscriber_new (zsock_t *pipe, void *args)
 {
     dafka_subscriber_t *self = (dafka_subscriber_t *) zmalloc (sizeof (dafka_subscriber_t));
     assert (self);
-    //  Initialize class properties here
+
+    //  Initialize actor properties
+    self->pipe = pipe;
+    self->terminated = false;
+    self->poller = zpoller_new (self->pipe, NULL);
+
+    //  Initialize class properties
+    char *addresses = (char *) args;
+    self->socket = zsock_new_sub (addresses, NULL);
+    zpoller_add (self->poller, self->socket);
+
     return self;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Destroy the dafka_subscriber
+//  Destroy the dafka_subscriber instance
 
-void
+static void
 dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 {
     assert (self_p);
     if (*self_p) {
         dafka_subscriber_t *self = *self_p;
-        //  Free class properties here
-        //  Free object itself
+
+        //  Free class properties
+        zsock_destroy (&self->socket);
+
+        //  Free actor properties
+        self->terminated = true;
+        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
 }
 
+
+//  Subscribe this actor to an topic. Return a value greater or equal to zero if
+//  was successful. Otherwise -1.
+
+static void
+dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
+{
+    assert (self);
+    dafka_proto_subscribe (self->socket, DAFKA_PROTO_RELIABLE, topic);
+}
+
+
+//  Here we handle incoming message from the subscribtions
+
+static void
+dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
+{
+    dafka_proto_t *msg;
+    dafka_proto_recv (msg, self->socket);
+    if (!msg)
+       return;        //  Interrupted
+
+    const char *address = dafka_proto_address (msg);
+    const char *topic = dafka_proto_topic (msg);
+    zframe_t *content = dafka_proto_content (msg);
+    zsock_bsend (self->pipe, "ssf", topic, address, content);
+    dafka_proto_destroy (&msg);
+}
+
+//  Here we handle incoming message from the node
+
+static void
+dafka_subscriber_recv_api (dafka_subscriber_t *self)
+{
+    //  Get the whole message of the pipe in one go
+    zmsg_t *request = zmsg_recv (self->pipe);
+    if (!request)
+       return;        //  Interrupted
+
+    char *command = zmsg_popstr (request);
+    if (streq (command, "SUBSCRIBE")) {
+        char *topic = zmsg_popstr (request);
+        dafka_subscriber_subscribe (self, topic);
+        zstr_free (&topic);
+    }
+    else
+    if (streq (command, "VERBOSE"))
+        self->verbose = true;
+    else
+    if (streq (command, "$TERM"))
+        //  The $TERM command is send by zactor_destroy() method
+        self->terminated = true;
+    else {
+        zsys_error ("invalid command '%s'", command);
+        assert (false);
+    }
+    zstr_free (&command);
+    zmsg_destroy (&request);
+}
+
+
 //  --------------------------------------------------------------------------
-//  Self test of this class
+//  This is the actor which runs in its own thread.
+
+void
+dafka_subscriber_actor (zsock_t *pipe, void *args)
+{
+    dafka_subscriber_t * self = dafka_subscriber_new (pipe, args);
+    if (!self)
+        return;          //  Interrupted
+
+    //  Signal actor successfully initiated
+    zsock_signal (self->pipe, 0);
+
+    while (!self->terminated) {
+        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
+        if (which == self->pipe)
+            dafka_subscriber_recv_api (self);
+        if (which == self->socket)
+            dafka_subscriber_recv_subscriptions (self);
+    }
+    dafka_subscriber_destroy (&self);
+}
+
+//  --------------------------------------------------------------------------
+//  Self test of this actor.
 
 // If your selftest reads SCMed fixture data, please keep it in
 // src/selftest-ro; if your test creates filesystem objects, please
@@ -76,12 +181,14 @@ void
 dafka_subscriber_test (bool verbose)
 {
     printf (" * dafka_subscriber: ");
-
     //  @selftest
-    //  Simple create/destroy test
-    dafka_subscriber_t *self = dafka_subscriber_new ();
-    assert (self);
-    dafka_subscriber_destroy (&self);
+    zactor_t *dafka_subscriber = zactor_new (dafka_subscriber_actor, "inproc://hello1");
+    assert (dafka_subscriber);
+
+    zsock_send (dafka_subscriber, "ss", "SUBSCRIBE", "HELLO");
+
+    zactor_destroy (&dafka_subscriber);
     //  @end
+
     printf ("OK\n");
 }
