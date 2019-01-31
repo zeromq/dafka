@@ -1,0 +1,49 @@
+<class
+    name = "dafka_proto"
+    signature = "0"
+    topic = "1"
+    title = "dafka_proto"
+    script = "zproto_codec_c"
+    package_dir = "../include"
+    source_dir = "."
+    project_header = "dafka_classes.h"
+    export_macro = "DAFKA_EXPORT">
+
+    <header>
+        <field name = "topic" type = "string" />
+    </header>
+
+    <message name = "MSG" id="'M'">
+        <feild name = "content" type = "frame" />
+    </message>
+
+    <message name = "RELIABLE" id="'R'">
+        <field name = "address" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+        <field name = "content" type = "frame" />
+    </message>
+
+    <message name = "ASK" id="'A'">
+        <field name = "subject" type = "string" />
+        <field name = "begin_offset" type = "number" size="8" />
+        <field name = "end_offset" type = "number" size="8" />
+        <field name = "address" type = "string" />
+    </message>
+
+    <message name = "ANSWER" id = "'W'">
+        <field name = "subject" type = "string" />
+        <field name = "sender" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+        <field name = "content" type = "frame" />
+    </message>
+<!--
+    <message name = "ASK ALL" id = "'L'">
+        <field name = "subject" type = "string" />
+    </message>
+
+    <message name = "ACK" id = "'C'">
+        <field name = "subject" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+    </message>
+-->
+</class>
