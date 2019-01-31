@@ -4,22 +4,19 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    MSG             = signature %d'm' topic
+    MSG             = signature %d'm'
     signature       = %xAA %xA0             ; two octets
-    topic           = string                ;
 
     ;  No description
 
-    RELIABLE        = signature %d'r' topic address sequence content
-    topic           = string                ;
+    RELIABLE        = signature %d'r' address sequence content
     address         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
 
     ;  No description
 
-    ASK             = signature %d'a' topic subject begin_offset end_offset address
-    topic           = string                ;
+    ASK             = signature %d'a' subject begin_offset end_offset address
     subject         = string                ;
     begin_offset    = number-8              ;
     end_offset      = number-8              ;
@@ -27,8 +24,7 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    ANSWER          = signature %d'w' topic subject sender sequence content
-    topic           = string                ;
+    ANSWER          = signature %d'w' subject sender sequence content
     subject         = string                ;
     sender          = string                ;
     sequence        = number-8              ;

@@ -9,10 +9,6 @@
     project_header = "dafka_classes.h"
     export_macro = "DAFKA_EXPORT">
 
-    <header>
-        <field name = "topic" type = "string" />
-    </header>
-
     <message name = "MSG" id="'M'">
         <feild name = "content" type = "frame" />
     </message>

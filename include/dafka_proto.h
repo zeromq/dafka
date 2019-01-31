@@ -21,23 +21,19 @@
 /*  These are the dafka_proto messages:
 
     MSG -
-        topic               string
 
     RELIABLE -
-        topic               string
         address             string
         sequence            number 8
         content             frame
 
     ASK -
-        topic               string
         subject             string
         begin_offset        number 8
         end_offset          number 8
         address             string
 
     ANSWER -
-        topic               string
         subject             string
         sender              string
         sequence            number 8
@@ -90,6 +86,15 @@ DAFKA_EXPORT int
     dafka_proto_send (dafka_proto_t *self, zsock_t *output);
 
 
+//  Get the topic of the message for publishing over pub/sub
+DAFKA_EXPORT const char *
+    dafka_proto_topic (dafka_proto_t *self);
+
+//  Set the topic of the message for publishing over pub/sub
+DAFKA_EXPORT  void
+    dafka_proto_set_topic (dafka_proto_t *self, const char* topic);
+
+
 //  Print contents of message to stdout
 DAFKA_EXPORT void
     dafka_proto_print (dafka_proto_t *self);
@@ -111,12 +116,6 @@ DAFKA_EXPORT void
     dafka_proto_set_id (dafka_proto_t *self, int id);
 DAFKA_EXPORT const char *
     dafka_proto_command (dafka_proto_t *self);
-
-//  Get/set the topic field
-DAFKA_EXPORT const char *
-    dafka_proto_topic (dafka_proto_t *self);
-DAFKA_EXPORT void
-    dafka_proto_set_topic (dafka_proto_t *self, const char *value);
 
 //  Get/set the address field
 DAFKA_EXPORT const char *
