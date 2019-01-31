@@ -6,7 +6,7 @@
 all-local: doc
 
 # Public programs ("main" tags in project.xml), auto-regenerated:
-MAN1 = dakfa_console_producer.1 dafka_stored.1
+MAN1 = dafka_console_producer.1 dafka_stored.1
 # Public classes ("class" tags in project.xml), auto-regenerated:
 MAN3 = dafka_publisher.3 dafka_subscriber.3 dafka_proto.3 dafka_store.3
 # Project overview, written by a human after initial skeleton:
@@ -83,10 +83,10 @@ dafka_store.txt: $(top_srcdir)/src/dafka_store.c
 ### Note: for mains, we keep the source name rather than flattened name:c
 ### so that the manpages for binary programs match their name, at expense
 ### of perhaps being built in a subdirectory under doc/.
-GENERATED_DOCS += dakfa_console_producer.txt dakfa_console_producer.doc
-dakfa_console_producer.txt: $(top_srcdir)/src/dakfa_console_producer.c
+GENERATED_DOCS += dafka_console_producer.txt dafka_console_producer.doc
+dafka_console_producer.txt: $(top_srcdir)/src/dafka_console_producer.c
 	mkdir -p "$(builddir)/$(@D)"
-	"$(srcdir)/mkman" "dakfa_console_producer" "$(builddir)/dakfa_console_producer.txt" "$(srcdir)/.."
+	"$(srcdir)/mkman" "dafka_console_producer" "$(builddir)/dafka_console_producer.txt" "$(srcdir)/.."
 
 GENERATED_DOCS += dafka_stored.txt dafka_stored.doc
 dafka_stored.txt: $(top_srcdir)/src/dafka_stored.c

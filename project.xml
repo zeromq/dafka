@@ -17,6 +17,6 @@
     <class name = "dafka_proto" state = "stable"  />
     <model name = "dafka_proto" />
 
-    <main name = "dakfa_console_producer" />
+    <main name = "dafka_console_producer" />
     <main name = "dafka_stored" />
 </project>
