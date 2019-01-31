@@ -1,0 +1,165 @@
+<!--
+    dafka_proto - dafka_proto
+
+    Codec class for dafka_proto.
+
+    ** WARNING *************************************************************
+    THIS SOURCE FILE IS 100% GENERATED. If you edit this file, you will lose
+    your changes at the next build cycle. This is great for temporary printf
+    statements. DO NOT MAKE ANY CHANGES YOU WISH TO KEEP. The correct places
+    for commits are:
+
+     * The XML model used for this code generation: dafka_proto.xml, or
+     * The code generation script that built this file: zproto_codec_c
+    ************************************************************************
+ -->
+<class name = "dafka_proto">
+    <constant name = "msg" value = "'m'" >
+
+    </constant>
+    <constant name = "reliable" value = "'r'" >
+
+    </constant>
+    <constant name = "ask" value = "'a'" >
+
+    </constant>
+    <constant name = "answer" value = "'w'" >
+
+    </constant>
+
+<constructor>
+    Create a new empty dafka_proto
+</constructor>
+
+<constructor name = "new_zpl">
+    Create a new dafka_proto from zpl/zconfig_t *
+    <argument name = "config" type = "zconfig" />
+</constructor>
+
+<destructor>
+    Destroy a dafka_proto instance
+</destructor>
+
+<method name = "dup">
+    Create a deep copy of a dafka_proto instance
+    <return type="dafka_proto" fresh="1" />
+</method>
+
+<method name = "recv">
+    Receive a dafka_proto from the socket. Returns 0 if OK, -1 if
+    there was an error. Blocks if there is no message waiting.
+    <argument name = "input" type = "zsock" />
+    <return type = "integer" />
+</method>
+
+<method name = "send">
+    Send the dafka_proto to the output socket, does not destroy it
+    <argument name = "output" type = "zsock" />
+    <return type = "integer" />
+</method>
+
+<method name = "print">
+    Print contents of message to stdout
+</method>
+
+<method name = "zpl">
+    Export class as zconfig_t*. Caller is responsibe for destroying the instance
+    <argument name = "parent" type = "zconfig" />
+    <return type = "zconfig" fresh = "1" />
+</method>
+
+
+<method name = "routing id">
+    Get the message routing id, as a frame
+    <return type = "zframe" />
+</method>
+
+<method name = "set routing id">
+    Set the message routing id from a frame
+    <argument name = "routing id" type = "zframe" />
+</method>
+
+<method name = "id">
+    Get the dafka_proto message id
+    <return type = "integer" />
+</method>
+
+<method name = "set id">
+    Set the dafka_proto message id
+    <argument name = "id" type = "integer" />
+</method>
+
+<method name = "command">
+    Get the dafka_proto message id as printable text
+    <return type = "string" />
+</method>
+
+<method name = "topic">
+    Get the topic field
+    <return type = "string" />
+</method>
+<method name = "set topic">
+    Set the topic field
+    <argument name = "topic" type = "string" />
+</method>
+<method name = "address">
+    Get the address field
+    <return type = "string" />
+</method>
+<method name = "set address">
+    Set the address field
+    <argument name = "address" type = "string" />
+</method>
+<method name = "sequence">
+    Get the sequence field
+    <return type = "number" size = "8" />
+</method>
+<method name = "set sequence">
+    Set the sequence field
+    <argument name = "sequence" type = "number" size = "8" />
+</method>
+<method name = "content">
+    Get a copy of the content field
+    <return type = "zframe" />
+</method>
+<method name = "get content">
+    Get the content field and transfer ownership to caller
+    <return type = "zframe" />
+</method>
+    Set the content field, transferring ownership from caller
+<method name = "set content">
+    <argument name = "content_p" type = "zframe" by_reference = "1" />
+</method>
+<method name = "subject">
+    Get the subject field
+    <return type = "string" />
+</method>
+<method name = "set subject">
+    Set the subject field
+    <argument name = "subject" type = "string" />
+</method>
+<method name = "begin_offset">
+    Get the begin_offset field
+    <return type = "number" size = "8" />
+</method>
+<method name = "set begin_offset">
+    Set the begin_offset field
+    <argument name = "begin_offset" type = "number" size = "8" />
+</method>
+<method name = "end_offset">
+    Get the end_offset field
+    <return type = "number" size = "8" />
+</method>
+<method name = "set end_offset">
+    Set the end_offset field
+    <argument name = "end_offset" type = "number" size = "8" />
+</method>
+<method name = "sender">
+    Get the sender field
+    <return type = "string" />
+</method>
+<method name = "set sender">
+    Set the sender field
+    <argument name = "sender" type = "string" />
+</method>
+</class>
