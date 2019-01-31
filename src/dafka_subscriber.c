@@ -182,12 +182,26 @@ dafka_subscriber_test (bool verbose)
 {
     printf (" * dafka_subscriber: ");
     //  @selftest
-    zactor_t *dafka_subscriber = zactor_new (dafka_subscriber_actor, "inproc://hello1");
-    assert (dafka_subscriber);
+    dafka_publisher_t *pub = dafka_publisher_new ("hello", "inproc://hellopub");
+    assert (pub);
 
-    zsock_send (dafka_subscriber, "ss", "SUBSCRIBE", "HELLO");
+    zactor_t *sub = zactor_new (dafka_subscriber_actor, "inproc://hellopub");
+    assert (sub);
 
-    zactor_destroy (&dafka_subscriber);
+    zsock_send (sub, "ss", "SUBSCRIBE", "hello");
+
+    zframe_t *content = zframe_new ("HELLO", 5);
+    int rc = dafka_publisher_publish (pub, content);
+
+    char *topic;
+    char *address;
+    zsock_brecv (sub, "ssf", &topic, &address, &content);
+    assert (streq (topic, "hello"));
+    printf ("%s;%s", topic, address);
+    zframe_destroy (&content);
+
+    dafka_publisher_destroy (&pub);
+    zactor_destroy (&sub);
     //  @end
 
     printf ("OK\n");
