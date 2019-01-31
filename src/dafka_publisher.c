@@ -23,7 +23,10 @@
 //  Structure of our class
 
 struct _dafka_publisher_t {
-    int filler;     //  Declare class properties here
+    zsock_t *socket;            // Socket to publish messages to
+    const char *topic;          // Name of the topic
+    zuuid_t *address;           // Name of this publisher
+    int sequence;               // Sequence number for reliable messages
 };
 
 
@@ -31,11 +34,15 @@ struct _dafka_publisher_t {
 //  Create a new dafka_publisher
 
 dafka_publisher_t *
-dafka_publisher_new (void)
+dafka_publisher_new (char *topic)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
     //  Initialize class properties here
+    self->socket = zsock_new_pub("@tcp://*:*");
+    self->topic = topic;
+    self->address = zuuid_new ();
+    self->sequence = 0;
     return self;
 }
 
@@ -50,11 +57,41 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
     if (*self_p) {
         dafka_publisher_t *self = *self_p;
         //  Free class properties here
+        zsock_destroy (&self->socket);
         //  Free object itself
         free (self);
         *self_p = NULL;
     }
 }
+
+
+//  --------------------------------------------------------------------------
+//  Publish content
+
+int
+dafka_publisher_publish (dafka_publisher_t *self, zframe_t *content) {
+    dafka_proto_t *msg = dafka_proto_new ();
+    dafka_proto_set_id (msg, DAFKA_PROTO_MSG);
+    dafka_proto_set_topic (msg, self->topic);
+    dafka_proto_set_content (msg, &content);
+    return dafka_proto_send (msg, self->socket);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Publish content reliable
+
+int
+dafka_publisher_publish_reliable (dafka_publisher_t *self, zframe_t *content) {
+    dafka_proto_t *msg = dafka_proto_new ();
+    dafka_proto_set_id (msg, DAFKA_PROTO_RELIABLE);
+    dafka_proto_set_topic (msg, self->topic);
+    dafka_proto_set_address (msg, zuuid_str (self->address));
+    dafka_proto_set_sequence (msg, self->sequence++);
+    dafka_proto_set_content (msg, &content);
+    return dafka_proto_send (msg, self->socket);
+}
+
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
@@ -78,9 +115,19 @@ dafka_publisher_test (bool verbose)
     printf (" * dafka_publisher: ");
 
     //  @selftest
-    //  Simple create/destroy test
-    dafka_publisher_t *self = dafka_publisher_new ();
+    dafka_publisher_t *self = dafka_publisher_new ("hello");
     assert (self);
+
+    // Send MSG
+    zframe_t *content = zframe_new ("HELLO", 5);
+    int rc = dafka_publisher_publish (self, content);
+    assert (rc == 0);
+
+    // Send RELIABLE
+    content = zframe_new ("HELLO", 5);
+    rc = dafka_publisher_publish_reliable (self, content);
+    assert (rc == 0);
+
     dafka_publisher_destroy (&self);
     //  @end
     printf ("OK\n");
