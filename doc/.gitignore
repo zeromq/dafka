@@ -13,6 +13,8 @@
 # Ignore the source doc texts generated from program sources
 dafka_publisher.txt
 dafka_publisher.doc
+dafka_subscriber.txt
+dafka_subscriber.doc
 dafka_proto.txt
 dafka_proto.doc
 

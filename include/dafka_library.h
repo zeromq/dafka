@@ -70,6 +70,8 @@ typedef struct _dafka_proto_t dafka_proto_t;
 #ifdef DAFKA_BUILD_DRAFT_API
 typedef struct _dafka_publisher_t dafka_publisher_t;
 #define DAFKA_PUBLISHER_T_DEFINED
+typedef struct _dafka_subscriber_t dafka_subscriber_t;
+#define DAFKA_SUBSCRIBER_T_DEFINED
 #endif // DAFKA_BUILD_DRAFT_API
 
 
@@ -77,6 +79,7 @@ typedef struct _dafka_publisher_t dafka_publisher_t;
 #include "dafka_proto.h"
 #ifdef DAFKA_BUILD_DRAFT_API
 #include "dafka_publisher.h"
+#include "dafka_subscriber.h"
 #endif // DAFKA_BUILD_DRAFT_API
 
 #ifdef DAFKA_BUILD_DRAFT_API
