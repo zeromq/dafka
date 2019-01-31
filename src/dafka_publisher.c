@@ -32,7 +32,7 @@ struct _dafka_publisher_t {
 //  Create a new dafka_publisher
 
 dafka_publisher_t *
-dafka_publisher_new (char *topic, char *endpoint)
+dafka_publisher_new (const char *topic, const char *endpoint)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
@@ -72,12 +72,21 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
 //  Publish content
 
 int
-dafka_publisher_publish (dafka_publisher_t *self, zframe_t *content) {
-    dafka_proto_set_content (self->msg, &content);
+dafka_publisher_publish (dafka_publisher_t *self, zframe_t **content) {
+    dafka_proto_set_content (self->msg, content);
     int rc = dafka_proto_send (self->msg, self->socket);
     uint64_t sequence = dafka_proto_sequence (self->msg);
-    dafka_proto_set_sequence (self->msg, sequence++);
+    dafka_proto_set_sequence (self->msg, sequence + 1);
     return rc;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Publish content
+
+const char *
+dafka_publisher_address (dafka_publisher_t *self) {
+    return dafka_proto_address (self->msg);
 }
 
 
@@ -108,7 +117,7 @@ dafka_publisher_test (bool verbose)
 
     // Send MSG
     zframe_t *content = zframe_new ("HELLO", 5);
-    int rc = dafka_publisher_publish (self, content);
+    int rc = dafka_publisher_publish (self, &content);
     assert (rc == 0);
 
     dafka_publisher_destroy (&self);

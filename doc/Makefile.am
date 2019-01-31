@@ -6,7 +6,7 @@
 all-local: doc
 
 # Public programs ("main" tags in project.xml), auto-regenerated:
-MAN1 =
+MAN1 = dafka_stored.1
 # Public classes ("class" tags in project.xml), auto-regenerated:
 MAN3 = dafka_publisher.3 dafka_subscriber.3 dafka_proto.3 dafka_store.3
 # Project overview, written by a human after initial skeleton:
@@ -83,6 +83,11 @@ dafka_store.txt: $(top_srcdir)/src/dafka_store.c
 ### Note: for mains, we keep the source name rather than flattened name:c
 ### so that the manpages for binary programs match their name, at expense
 ### of perhaps being built in a subdirectory under doc/.
+GENERATED_DOCS += dafka_stored.txt dafka_stored.doc
+dafka_stored.txt: $(top_srcdir)/src/dafka_stored.c
+	mkdir -p "$(builddir)/$(@D)"
+	"$(srcdir)/mkman" "dafka_stored" "$(builddir)/dafka_stored.txt" "$(srcdir)/.."
+
 
 clean-local:
 	rm -f *.1 *.3 *.7 $(GENERATED_DOCS)

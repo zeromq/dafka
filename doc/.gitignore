@@ -19,6 +19,8 @@ dafka_proto.txt
 dafka_proto.doc
 dafka_store.txt
 dafka_store.doc
+dafka_stored.txt
+dafka_stored.doc
 
 # Make sure to track the manually maintained project description
 !*.adoc

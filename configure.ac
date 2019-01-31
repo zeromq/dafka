@@ -522,6 +522,16 @@ fi
      AC_MSG_RESULT([$enable_dist_cmakefiles])])
 AM_CONDITIONAL(ENABLE_DIST_CMAKEFILES, test "x$enable_dist_cmakefiles" = "xyes")
 
+# Check for dafka_stored intent
+AC_ARG_ENABLE([dafka_stored],
+    AS_HELP_STRING([--enable-dafka_stored],
+        [Compile and install 'dafka_stored' [default=yes]]),
+    [enable_dafka_stored=$enableval],
+    [enable_dafka_stored=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_STORED], [test x$enable_dafka_stored != xno])
+AM_COND_IF([ENABLE_DAFKA_STORED], [AC_MSG_NOTICE([ENABLE_DAFKA_STORED defined])])
+
 # Check for dafka_selftest intent
 AC_ARG_ENABLE([dafka_selftest],
     AS_HELP_STRING([--enable-dafka_selftest],
