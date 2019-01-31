@@ -32,12 +32,12 @@ struct _dafka_publisher_t {
 //  Create a new dafka_publisher
 
 dafka_publisher_t *
-dafka_publisher_new (char *topic)
+dafka_publisher_new (char *topic, char *endpoint)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
     //  Initialize class properties here
-    self->socket = zsock_new_pub("@tcp://*:*");
+    self->socket = zsock_new_pub(endpoint);
     self->msg = dafka_proto_new ();
     dafka_proto_set_id (self->msg, DAFKA_PROTO_RELIABLE);
     dafka_proto_set_topic (self->msg, topic);
@@ -103,7 +103,7 @@ dafka_publisher_test (bool verbose)
     printf (" * dafka_publisher: ");
 
     //  @selftest
-    dafka_publisher_t *self = dafka_publisher_new ("hello");
+    dafka_publisher_t *self = dafka_publisher_new ("hello", "inproc://hello");
     assert (self);
 
     // Send MSG

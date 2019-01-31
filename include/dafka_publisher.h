@@ -21,7 +21,7 @@ extern "C" {
 //  @interface
 //  Create a new dafka_publisher
 DAFKA_EXPORT dafka_publisher_t *
-    dafka_publisher_new (char *topic);
+    dafka_publisher_new (char *topic, char *endpoint);
 
 //  Destroy the dafka_publisher
 DAFKA_EXPORT void
