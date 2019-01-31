@@ -88,6 +88,9 @@ static void
 dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 {
     assert (self);
+    if (self->verbose)
+        zsys_debug ("Subscribe to %s", topic);
+
     dafka_proto_subscribe (self->socket, DAFKA_PROTO_RELIABLE, topic);
 }
 
@@ -97,7 +100,6 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 static void
 dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
 {
-    zsys_info ("Reading message from subscribtion");
     int rc = dafka_proto_recv (self->msg, self->socket);
     if (rc != 0)
        return;        //  Interrupted
@@ -189,6 +191,9 @@ dafka_subscriber_test (bool verbose)
 
     zactor_t *sub = zactor_new (dafka_subscriber_actor, "inproc://hellopub");
     assert (sub);
+
+    if (verbose)
+        zstr_send (sub, "VERBOSE");
 
     zsock_send (sub, "ss", "SUBSCRIBE", "hello");
     usleep (100);
