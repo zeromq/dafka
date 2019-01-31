@@ -31,10 +31,6 @@ DAFKA_EXPORT void
 DAFKA_EXPORT int
     dafka_publisher_publish (dafka_publisher_t *self, zframe_t *content);
 
-//  Publish content reliable
-DAFKA_EXPORT int
-    dafka_publisher_publish_reliable (dafka_publisher_t *self, zframe_t *content);
-
 //  Self test of this class
 DAFKA_EXPORT void
     dafka_publisher_test (bool verbose);
