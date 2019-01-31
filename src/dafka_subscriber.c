@@ -30,7 +30,11 @@ struct _dafka_subscriber_t {
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
     zsock_t *socket;            // Socket to subscribe to messages
-    dafka_proto_t *msg;         // Reusable message
+    dafka_proto_t *consumer_msg;// Reusable consumer message
+    zsock_t *asker;             // Publisher to ask for missed messages
+    zhashx_t *sequence_index;   // Index containing the latest sequence for each
+                                // known publisher
+    dafka_proto_t *publisher_msg;   // Reusable publisher message
 };
 
 
@@ -49,10 +53,20 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     self->poller = zpoller_new (self->pipe, NULL);
 
     //  Initialize class properties
-    char *addresses = (char *) args;
+    char *addresses = ((char **) args)[0];
+    char *consumer_pub_endpoint = ((char **) args)[1];
     self->socket = zsock_new_sub (addresses, NULL);
     zpoller_add (self->poller, self->socket);
-    self->msg = dafka_proto_new ();
+    self->consumer_msg = dafka_proto_new ();
+
+    self->asker = zsock_new_pub (consumer_pub_endpoint);
+    self->sequence_index = zhashx_new ();
+    self->publisher_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->publisher_msg, DAFKA_PROTO_ASK);
+    zuuid_t *asker_uuid = zuuid_new ();
+    dafka_proto_set_address (self->publisher_msg, zuuid_str (asker_uuid));
+    dafka_proto_subscribe (self->socket, DAFKA_PROTO_ANSWER, zuuid_str (asker_uuid));
+    zuuid_destroy(&asker_uuid);
 
     return self;
 }
@@ -70,7 +84,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 
         //  Free class properties
         zsock_destroy (&self->socket);
-        dafka_proto_destroy (&self->msg);
+        dafka_proto_destroy (&self->consumer_msg);
 
         //  Free actor properties
         self->terminated = true;
@@ -100,14 +114,29 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 static void
 dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
 {
-    int rc = dafka_proto_recv (self->msg, self->socket);
+    int rc = dafka_proto_recv (self->consumer_msg, self->socket);
     if (rc != 0)
        return;        //  Interrupted
 
-    const char *address = dafka_proto_address (self->msg);
-    const char *topic = dafka_proto_topic (self->msg);
-    zframe_t *content = dafka_proto_content (self->msg);
-    zsock_bsend (self->pipe, "ssf", topic, address, content);
+    char id = dafka_proto_id (self->consumer_msg);
+    const char *address = dafka_proto_address (self->consumer_msg);
+    const char *topic = dafka_proto_topic (self->consumer_msg);
+    zframe_t *content = dafka_proto_content (self->consumer_msg);
+    uint64_t msg_sequence = dafka_proto_sequence (self->consumer_msg);
+
+    // Check if we missed some messages
+    uint64_t *last_known_sequence = (uint64_t *) zhashx_lookup (self->sequence_index, address);
+    if (last_known_sequence && !(msg_sequence == *last_known_sequence + 1)) {
+        uint64_t no_of_missed_messages = msg_sequence - *last_known_sequence;
+        for (uint64_t index = 0; index < no_of_missed_messages; index++) {
+            dafka_proto_set_subject (self->publisher_msg, address);
+            dafka_proto_set_sequence (self->publisher_msg, (uint64_t) last_known_sequence + index + 1);
+            dafka_proto_send (self->publisher_msg, self->asker);
+        }
+    } else {
+        if (id == DAFKA_PROTO_RELIABLE || id == DAFKA_PROTO_ANSWER)
+            zsock_bsend (self->pipe, "ssf", topic, address, content);
+    }
 }
 
 //  Here we handle incoming message from the node
@@ -189,7 +218,8 @@ dafka_subscriber_test (bool verbose)
     dafka_publisher_t *pub = dafka_publisher_new ("hello", "inproc://hellopub");
     assert (pub);
 
-    zactor_t *sub = zactor_new (dafka_subscriber_actor, "inproc://hellopub");
+    char *consumer_args[] = {"inproc://hellopub", "inproc://helloasker"};
+    zactor_t *sub = zactor_new (dafka_subscriber_actor, consumer_args);
     assert (sub);
 
     if (verbose)
@@ -199,7 +229,7 @@ dafka_subscriber_test (bool verbose)
     usleep (100);
 
     zframe_t *content = zframe_new ("HELLO MATE", 10);
-    int rc = dafka_publisher_publish (pub, content);
+    int rc = dafka_publisher_publish (pub, &content);
 
     char *topic;
     char *address;
