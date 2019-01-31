@@ -147,6 +147,7 @@ set (dafka_headers
 IF (ENABLE_DRAFTS)
     list(APPEND dafka_headers
         include/dafka_publisher.h
+        include/dafka_proto.h
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -165,6 +166,7 @@ set (dafka_sources
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
         src/dafka_publisher.c
+        src/dafka_proto.c
     )
 ENDIF (ENABLE_DRAFTS)
 
@@ -363,6 +365,7 @@ set(TEST_CLASSES
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
     dafka_publisher
+    dafka_proto
     )
 ENDIF (ENABLE_DRAFTS)
 

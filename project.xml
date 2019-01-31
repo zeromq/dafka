@@ -12,6 +12,6 @@
     <use project = "czmq" />
 
     <class name = "dafka_publisher" />
-
+    <class name = "dafka_proto"  />
     <model name = "dafka_proto" />
 </project>

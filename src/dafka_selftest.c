@@ -34,6 +34,7 @@ all_tests [] = {
 #ifdef DAFKA_BUILD_DRAFT_API
 // Tests for draft public classes:
     { "dafka_publisher", dafka_publisher_test, false, true, NULL },
+    { "dafka_proto", dafka_proto_test, false, true, NULL },
 #endif // DAFKA_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel
 };

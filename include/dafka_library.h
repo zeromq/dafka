@@ -72,12 +72,15 @@
 #ifdef DAFKA_BUILD_DRAFT_API
 typedef struct _dafka_publisher_t dafka_publisher_t;
 #define DAFKA_PUBLISHER_T_DEFINED
+typedef struct _dafka_proto_t dafka_proto_t;
+#define DAFKA_PROTO_T_DEFINED
 #endif // DAFKA_BUILD_DRAFT_API
 
 
 //  Public classes, each with its own header file
 #ifdef DAFKA_BUILD_DRAFT_API
 #include "dafka_publisher.h"
+#include "dafka_proto.h"
 #endif // DAFKA_BUILD_DRAFT_API
 
 #ifdef DAFKA_BUILD_DRAFT_API

@@ -68,7 +68,6 @@
     <return type = "zconfig" fresh = "1" />
 </method>
 
-
 <method name = "routing id">
     Get the message routing id, as a frame
     <return type = "zframe" />
@@ -77,6 +76,16 @@
 <method name = "set routing id">
     Set the message routing id from a frame
     <argument name = "routing id" type = "zframe" />
+</method>
+
+<method name = "topic">
+    Get the topic of the message for publishing over pub/sub
+    <return type = "string" />
+</method>
+
+<method name = "set topic">
+    Set the topic of the message for publishing over pub/sub
+    <argument name = "topic" type = "string" />
 </method>
 
 <method name = "id">
@@ -94,14 +103,6 @@
     <return type = "string" />
 </method>
 
-<method name = "topic">
-    Get the topic field
-    <return type = "string" />
-</method>
-<method name = "set topic">
-    Set the topic field
-    <argument name = "topic" type = "string" />
-</method>
 <method name = "address">
     Get the address field
     <return type = "string" />
