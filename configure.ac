@@ -522,6 +522,16 @@ fi
      AC_MSG_RESULT([$enable_dist_cmakefiles])])
 AM_CONDITIONAL(ENABLE_DIST_CMAKEFILES, test "x$enable_dist_cmakefiles" = "xyes")
 
+# Check for dakfa_console_producer intent
+AC_ARG_ENABLE([dakfa_console_producer],
+    AS_HELP_STRING([--enable-dakfa_console_producer],
+        [Compile and install 'dakfa_console_producer' [default=yes]]),
+    [enable_dakfa_console_producer=$enableval],
+    [enable_dakfa_console_producer=yes])
+
+AM_CONDITIONAL([ENABLE_DAKFA_CONSOLE_PRODUCER], [test x$enable_dakfa_console_producer != xno])
+AM_COND_IF([ENABLE_DAKFA_CONSOLE_PRODUCER], [AC_MSG_NOTICE([ENABLE_DAKFA_CONSOLE_PRODUCER defined])])
+
 # Check for dafka_stored intent
 AC_ARG_ENABLE([dafka_stored],
     AS_HELP_STRING([--enable-dafka_stored],

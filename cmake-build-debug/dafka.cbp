@@ -77,6 +77,16 @@
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
+			<Target title="distclean">
+				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 distclean"/>
+					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
 			<Target title="Nightly">
 				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
 				<Option type="4"/>
@@ -97,11 +107,55 @@
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
-			<Target title="rebuild_cache">
+			<Target title="dakfa_console_producer">
+				<Option output="/home/somdoron/git/dafka/cmake-build-debug/dakfa_console_producer" prefix_auto="0" extension_auto="0"/>
 				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
-				<Option type="4"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DDAFKA_BUILD_DRAFT_API"/>
+					<Add option="-DZMQ_BUILD_DRAFT_API=1"/>
+					<Add option="-DCZMQ_BUILD_DRAFT_API=1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/home/somdoron/git/dafka/src"/>
+					<Add directory="/home/somdoron/git/dafka/include"/>
+					<Add directory="/home/somdoron/git/dafka/cmake-build-debug"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8/x86_64-redhat-linux"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/include"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
 				<MakeCommands>
-					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 dakfa_console_producer"/>
+					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="dakfa_console_producer/fast">
+				<Option output="/home/somdoron/git/dafka/cmake-build-debug/dakfa_console_producer" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DDAFKA_BUILD_DRAFT_API"/>
+					<Add option="-DZMQ_BUILD_DRAFT_API=1"/>
+					<Add option="-DCZMQ_BUILD_DRAFT_API=1"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/home/somdoron/git/dafka/src"/>
+					<Add directory="/home/somdoron/git/dafka/include"/>
+					<Add directory="/home/somdoron/git/dafka/cmake-build-debug"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8/x86_64-redhat-linux"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/../../../../include/c++/8/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/8/include"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 dakfa_console_producer/fast"/>
 					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
 					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
@@ -367,6 +421,26 @@
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
+			<Target title="clang-format-diff">
+				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clang-format-diff"/>
+					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="copy-selftest-ro">
+				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 copy-selftest-ro"/>
+					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
 			<Target title="dafka_selftest">
 				<Option output="/home/somdoron/git/dafka/cmake-build-debug/dafka_selftest" prefix_auto="0" extension_auto="0"/>
 				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
@@ -421,21 +495,11 @@
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
-			<Target title="clang-format-diff">
+			<Target title="rebuild_cache">
 				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
 				<Option type="4"/>
 				<MakeCommands>
-					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clang-format-diff"/>
-					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
-					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
-					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
-				</MakeCommands>
-			</Target>
-			<Target title="copy-selftest-ro">
-				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
-				<Option type="4"/>
-				<MakeCommands>
-					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 copy-selftest-ro"/>
+					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
 					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
 					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
@@ -446,16 +510,6 @@
 				<Option type="4"/>
 				<MakeCommands>
 					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 make-selftest-rw"/>
-					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
-					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
-					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
-				</MakeCommands>
-			</Target>
-			<Target title="distclean">
-				<Option working_dir="/home/somdoron/git/dafka/cmake-build-debug"/>
-				<Option type="4"/>
-				<MakeCommands>
-					<Build command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 distclean"/>
 					<CompileFile command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
 					<Clean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 					<DistClean command="/usr/bin/gmake -j8 -f &quot;/home/somdoron/git/dafka/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
@@ -502,6 +556,9 @@
 		</Unit>
 		<Unit filename="/home/somdoron/git/dafka/src/dafka_subscriber.c">
 			<Option target="dafka_objects"/>
+		</Unit>
+		<Unit filename="/home/somdoron/git/dafka/src/dakfa_console_producer.c">
+			<Option target="dakfa_console_producer"/>
 		</Unit>
 		<Unit filename="/home/somdoron/git/dafka/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>

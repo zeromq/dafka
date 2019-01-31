@@ -277,7 +277,7 @@ dafka_store_actor (zsock_t *pipe, void *arg)
     zsys_info ("Store: running...");
 
     while (!self->terminated) {
-        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
+        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, -1);
         if (which == self->pipe)
             dafka_store_recv_api (self);
         if (which == self->sub)
