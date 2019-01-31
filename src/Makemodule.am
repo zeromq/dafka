@@ -49,6 +49,13 @@ endif
 
 src_libdafka_la_LIBADD = ${project_libs}
 
+if ENABLE_DAFKA_STORED
+bin_PROGRAMS += src/dafka_stored
+src_dafka_stored_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_stored_LDADD = ${program_libs}
+src_dafka_stored_SOURCES = src/dafka_stored.c
+endif #ENABLE_DAFKA_STORED
+
 if ENABLE_DAFKA_SELFTEST
 check_PROGRAMS += src/dafka_selftest
 noinst_PROGRAMS += src/dafka_selftest
@@ -64,6 +71,7 @@ dist_api_DATA = \
 
 # define custom target for all products of /src
 src: \
+		src/dafka_stored \
 		src/dafka_selftest \
 		src/libdafka.la
 

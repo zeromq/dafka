@@ -352,6 +352,32 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dafkaConfig.cmake
 # executables
 ########################################################################
 add_executable(
+    dafka_stored
+    "${SOURCE_DIR}/src/dafka_stored.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_stored
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_stored
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+install(TARGETS dafka_stored
+    RUNTIME DESTINATION bin
+)
+add_executable(
     dafka_selftest
     "${SOURCE_DIR}/src/dafka_selftest.c"
 )
@@ -456,6 +482,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/libdafka.pc
                     ${CMAKE_BINARY_DIR}/src/libdafka.so
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
+                    ${CMAKE_BINARY_DIR}/src/dafka_stored
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
 )
 

@@ -22,6 +22,8 @@ save.xml
 
 # Executables
 src/dafka_selftest
+src/dafka_stored
+src/dafka_selftest
 *.exe
 *.out
 *.app

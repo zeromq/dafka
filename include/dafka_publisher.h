@@ -21,7 +21,7 @@ extern "C" {
 //  @interface
 //  Create a new dafka_publisher
 DAFKA_EXPORT dafka_publisher_t *
-    dafka_publisher_new (char *topic, char *endpoint);
+    dafka_publisher_new (const char *topic, const char *endpoint);
 
 //  Destroy the dafka_publisher
 DAFKA_EXPORT void
@@ -29,7 +29,10 @@ DAFKA_EXPORT void
 
 //  Publish content
 DAFKA_EXPORT int
-    dafka_publisher_publish (dafka_publisher_t *self, zframe_t *content);
+    dafka_publisher_publish (dafka_publisher_t *self, zframe_t **content);
+
+DAFKA_EXPORT const char *
+    dafka_publisher_address (dafka_publisher_t *self);
 
 //  Self test of this class
 DAFKA_EXPORT void
