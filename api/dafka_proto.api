@@ -14,16 +14,16 @@
     ************************************************************************
  -->
 <class name = "dafka_proto">
-    <constant name = "msg" value = "'m'" >
+    <constant name = "msg" value = "'M'" >
 
     </constant>
-    <constant name = "reliable" value = "'r'" >
+    <constant name = "reliable" value = "'R'" >
 
     </constant>
-    <constant name = "ask" value = "'a'" >
+    <constant name = "ask" value = "'A'" >
 
     </constant>
-    <constant name = "answer" value = "'w'" >
+    <constant name = "answer" value = "'W'" >
 
     </constant>
 
@@ -91,25 +91,25 @@
 <method name = "subscribe" singleton = "1">
     Subscribe a socket to a specific message id and a topic.
     <argument name = "sub" type = "zsock" />
-    <argument name = "id" type = "number" size = "1" />
+    <argument name = "id" type = "char" />
     <argument name = "topic" type = "string" />
 </method>
 
 <method name = "unsubscribe" singleton = "1">
     Unsubscribe a socket form a specific message id and a topic.
     <argument name = "sub" type = "zsock" />
-    <argument name = "id" type = "number" size = "1" />
+    <argument name = "id" type = "char" />
     <argument name = "topic" type = "string" />
 </method>
 
 <method name = "id">
     Get the dafka_proto message id
-    <return type = "integer" />
+    <return type = "char" />
 </method>
 
 <method name = "set id">
     Set the dafka_proto message id
-    <argument name = "id" type = "integer" />
+    <argument name = "id" type = "char" />
 </method>
 
 <method name = "command">

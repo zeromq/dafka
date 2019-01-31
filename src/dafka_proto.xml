@@ -1,7 +1,7 @@
 <class
     name = "dafka_proto"
     signature = "0"
-    topic = "1"
+    pubsub = "1"
     title = "dafka_proto"
     script = "zproto_codec_c"
     package_dir = "../include"

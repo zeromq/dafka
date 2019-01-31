@@ -33,8 +33,8 @@
 
 struct _dafka_proto_t {
     zframe_t *routing_id;               //  Routing_id from ROUTER, if any
+    char id;                            //  dafka_proto message ID
     char *topic;                        //  Topic to send and receive over pub/sub
-    int id;                             //  dafka_proto message ID
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
     zframe_t *content;                  //  content
@@ -933,7 +933,7 @@ dafka_proto_set_routing_id (dafka_proto_t *self, zframe_t *routing_id)
 //  --------------------------------------------------------------------------
 //  Get/set the dafka_proto id
 
-int
+char
 dafka_proto_id (dafka_proto_t *self)
 {
     assert (self);
@@ -941,7 +941,7 @@ dafka_proto_id (dafka_proto_t *self)
 }
 
 void
-dafka_proto_set_id (dafka_proto_t *self, int id)
+dafka_proto_set_id (dafka_proto_t *self, char id)
 {
     self->id = id;
 }
@@ -987,20 +987,22 @@ dafka_proto_set_topic (dafka_proto_t *self, const char *topic)
     self->topic = strdup (topic);
 }
 
+//  --------------------------------------------------------------------------
+//  Subscribe/Unsubscribe for SUB socket
+
 void
-dafka_proto_subscribe (zsock_t *sub, uint8_t id, const char *topic) {
-    char* subscription = zsys_sprintf ("%c%s",(char)id, topic);
+dafka_proto_subscribe (zsock_t *sub, char id, const char *topic) {
+    char* subscription = zsys_sprintf ("%c%s",id, topic);
     zsock_set_subscribe (sub, subscription);
     zstr_free (&subscription);
 }
 
 void
-dafka_proto_unsubscribe (zsock_t *sub, uint8_t id, const char *topic) {
-    char* subscription = zsys_sprintf ("%c%s",(char)id, topic);
+dafka_proto_unsubscribe (zsock_t *sub, char id, const char *topic) {
+    char* subscription = zsys_sprintf ("%c%s", id, topic);
     zsock_set_unsubscribe (sub, subscription);
     zstr_free (&subscription);
 }
-
 
 //  --------------------------------------------------------------------------
 //  Get the content field without transferring ownership
