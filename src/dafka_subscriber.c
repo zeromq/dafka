@@ -34,9 +34,27 @@ struct _dafka_subscriber_t {
     zsock_t *asker;             // Publisher to ask for missed messages
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
-    dafka_proto_t *publisher_msg;   // Reusable publisher message
+    dafka_proto_t *ask_msg;   // Reusable publisher message
 };
 
+//  Static helper methods
+
+static void
+uint64_destroy (void **self_p) {
+    assert (self_p);
+    if (*self_p) {
+        uint64_t *self = *self_p;
+        free (self);
+        *self_p = NULL;
+    }
+}
+
+static void *
+uint64_dup (const void *self) {
+    uint64_t *value = malloc(sizeof (uint64_t));
+    memcpy (value, self, sizeof (uint64_t));
+    return value;
+}
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_subscriber instance
@@ -59,12 +77,15 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     zpoller_add (self->poller, self->socket);
     self->consumer_msg = dafka_proto_new ();
 
-    self->asker = zsock_new_pub (consumer_pub_endpoint);
     self->sequence_index = zhashx_new ();
-    self->publisher_msg = dafka_proto_new ();
-    dafka_proto_set_id (self->publisher_msg, DAFKA_PROTO_ASK);
+    zhashx_set_destructor(self->sequence_index, uint64_destroy);
+    zhashx_set_duplicator (self->sequence_index, uint64_dup);
+
+    self->asker = zsock_new_pub (consumer_pub_endpoint);
+    self->ask_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->ask_msg, DAFKA_PROTO_ASK);
     zuuid_t *asker_uuid = zuuid_new ();
-    dafka_proto_set_address (self->publisher_msg, zuuid_str (asker_uuid));
+    dafka_proto_set_address (self->ask_msg, zuuid_str (asker_uuid));
     dafka_proto_subscribe (self->socket, DAFKA_PROTO_ANSWER, zuuid_str (asker_uuid));
     zuuid_destroy(&asker_uuid);
 
@@ -124,18 +145,26 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
     zframe_t *content = dafka_proto_content (self->consumer_msg);
     uint64_t msg_sequence = dafka_proto_sequence (self->consumer_msg);
 
+    // TODO: Extract into struct and/or add zstr_concat
+    char *sequence_key = (char *) malloc(strlen (address) + strlen (topic) + 2);
+    strcpy (sequence_key, topic);
+    strcat (sequence_key, "/");
+    strcat (sequence_key, address);
+
     // Check if we missed some messages
-    uint64_t *last_known_sequence = (uint64_t *) zhashx_lookup (self->sequence_index, address);
+    uint64_t *last_known_sequence = (uint64_t *) zhashx_lookup (self->sequence_index, sequence_key);
     if (last_known_sequence && !(msg_sequence == *last_known_sequence + 1)) {
         uint64_t no_of_missed_messages = msg_sequence - *last_known_sequence;
         for (uint64_t index = 0; index < no_of_missed_messages; index++) {
-            dafka_proto_set_subject (self->publisher_msg, address);
-            dafka_proto_set_sequence (self->publisher_msg, (uint64_t) last_known_sequence + index + 1);
-            dafka_proto_send (self->publisher_msg, self->asker);
+            dafka_proto_set_subject (self->ask_msg, address);
+            dafka_proto_set_sequence (self->ask_msg, (uint64_t) last_known_sequence + index + 1);
+            dafka_proto_send (self->ask_msg, self->asker);
         }
     } else {
-        if (id == DAFKA_PROTO_RELIABLE || id == DAFKA_PROTO_ANSWER)
+        if (id == DAFKA_PROTO_RELIABLE || id == DAFKA_PROTO_ANSWER) {
             zsock_bsend (self->pipe, "ssf", topic, address, content);
+            zhashx_insert (self->sequence_index, sequence_key, &msg_sequence);
+        }
     }
 }
 
