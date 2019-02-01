@@ -60,8 +60,8 @@ int main (int argc, char *argv [])
     char *address;
     zframe_t *content;
     while (true) {
-        zsock_brecv (consumer, "ssf", &topic, &address, &content);
-        if (!content)
+        rc = zsock_brecv (consumer, "ssf", &topic, &address, &content);
+        if (rc == -1)
             break;      // Interrupted
 
         char *content_str = zframe_strdup (content);
