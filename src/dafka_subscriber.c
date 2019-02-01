@@ -106,7 +106,10 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 
         //  Free class properties
         zsock_destroy (&self->socket);
+        zsock_destroy (&self->consumer_pub);
         dafka_proto_destroy (&self->consumer_msg);
+        dafka_proto_destroy (&self->fetch_msg);
+        zhashx_destroy (&self->sequence_index);
 
         //  Free actor properties
         self->terminated = true;
