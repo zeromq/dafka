@@ -317,9 +317,7 @@ dafka_subscriber_test (bool verbose)
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    dafka_publisher_args pub_args;
-    pub_args.topic = "hello";
-    pub_args.config = config;
+    dafka_publisher_args_t pub_args = {"hello", config};
     zactor_t *pub =  zactor_new (dafka_publisher_actor, &pub_args);
     assert (pub);
 

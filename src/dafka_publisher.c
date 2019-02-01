@@ -53,7 +53,7 @@ s_send_head (zloop_t *loop, int timer_id, void *arg);
 //  Create a new dafka_publisher instance
 
 static dafka_publisher_t *
-dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
+dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
@@ -227,7 +227,7 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 void
 dafka_publisher_actor (zsock_t *pipe, void *args)
 {
-    dafka_publisher_args *pub_args = (dafka_publisher_args *) args;
+    dafka_publisher_args_t *pub_args = (dafka_publisher_args_t *) args;
     dafka_publisher_t * self = dafka_publisher_new (pipe, pub_args);
     if (!self)
         return;          //  Interrupted
@@ -302,9 +302,7 @@ dafka_publisher_test (bool verbose)
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    dafka_publisher_args args;
-    args.topic = strdup ("dummy");
-    args.config = config;
+    dafka_publisher_args_t args = {"dummy", config};
     zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, &args);
     assert (dafka_publisher);
 

@@ -26,17 +26,32 @@ int main (int argc, char *argv [])
 
     zargs_t *args = zargs_new (argc, argv);
 
-    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 3) {
-        puts ("Usage: dafka_console_consumer consumer_endpoint subscriber_endpoints topic");
+    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 1) {
+        puts ("Usage: dafka_console_consumer [--verbose] [-c config] [--pub tower-pub-address] [--sub tower-sub-address] topic");
         return 0;
     }
 
-    const char *consumer_endpoint = zargs_first (args);
-    const char *subscriber_endpoints = zargs_next (args);
-    const char *topic = zargs_next (args);
+    zconfig_t *config;
 
-    char *consumer_args[] = { (char *) subscriber_endpoints, (char *) consumer_endpoint };
-    zactor_t *consumer = zactor_new (dafka_subscriber_actor, consumer_args);
+    if (zargs_has (args, "-c"))
+        config = zconfig_load (zargs_get (args, "-c"));
+    else
+        config = zconfig_new ("root", NULL);
+
+    if (zargs_has (args, "--verbose")) {
+        zconfig_put (config, "beacon/verbose", "1");
+        zconfig_put (config, "consumer/verbose", "1");
+    }
+
+    if (zargs_has (args, "--pub"))
+        zconfig_put (config, "beacon/pub_address", zargs_get (args, "--pub"));
+
+    if (zargs_has (args, "--sub"))
+        zconfig_put (config, "beacon/sub_address", zargs_get (args, "--sub"));
+
+    const char *topic = zargs_first (args);
+
+    zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
     assert (consumer);
 
     int rc = zsock_send (consumer, "ss", "SUBSCRIBE", topic);
@@ -55,8 +70,9 @@ int main (int argc, char *argv [])
         zframe_destroy (&content);
     }
 
-    zargs_destroy (&args);
     zactor_destroy (&consumer);
+    zconfig_destroy (&config);
+    zargs_destroy (&args);
 
     return 0;
 }

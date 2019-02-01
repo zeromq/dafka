@@ -124,6 +124,9 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
     dafka_store_t *self = (dafka_store_t *) zmalloc (sizeof (dafka_store_t));
     assert (self);
 
+    if (atoi(zconfig_get (config, "store/verbose", "0")))
+        self->verbose = true;
+
     self->pipe = pipe;
     self->terminated = false;
 
@@ -228,8 +231,8 @@ dafka_store_recv_sub (dafka_store_t *self) {
             store_key_init (&key, subject, address, sequence);
             zhashx_insert (self->store, &key, dafka_proto_get_content (self->income_msg));
 
-            zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u",
-                    subject, address, sequence);
+            if (self->verbose)
+                zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u", subject, address, sequence);
 
             // Sending an ack to the producer
             dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_ACK);
@@ -257,7 +260,8 @@ dafka_store_recv_sub (dafka_store_t *self) {
                 zframe_t *frame = zhashx_lookup (self->store, &key);
 
                 if (frame) {
-                    zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
+                    if (self->verbose)
+                        zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
                                subject, address, sequence + i);
 
                     // TODO: add zframe_copy that will make a zmq_msg_copy instead of full frame copy
@@ -269,8 +273,9 @@ dafka_store_recv_sub (dafka_store_t *self) {
                     dafka_proto_set_content (self->outgoing_msg, &frame);
                     dafka_proto_send (self->outgoing_msg, self->pub);
                 } else {
-                    zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                               subject, address, sequence);
+                    if (self->verbose)
+                        zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
+                               subject, address, sequence + i);
                     break;
                 }
             }
@@ -296,7 +301,8 @@ dafka_store_actor (zsock_t *pipe, void *arg)
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
 
-    zsys_info ("Store: running...");
+    if (self->verbose)
+        zsys_info ("Store: running...");
 
     while (!self->terminated) {
         void *which = (zsock_t *) zpoller_wait (self->poller, -1);
@@ -308,7 +314,8 @@ dafka_store_actor (zsock_t *pipe, void *arg)
             dafka_beacon_recv (self->beacon, self->sub, self->verbose, "Store");
     }
 
-    zsys_info ("Store: stopped");
+    if (self->verbose)
+        zsys_info ("Store: stopped");
 
     dafka_store_destroy (&self);
 }

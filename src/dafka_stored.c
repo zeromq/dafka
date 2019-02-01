@@ -25,7 +25,7 @@ int main (int argc, char** argv) {
     zargs_t *args = zargs_new (argc, argv);
 
     if (zargs_hasx (args, "--help", "-h", NULL)) {
-        puts ("Usage: dafka_stored [-c config] [--pub tower-pub-address] [--sub tower-sub-address]");
+        puts ("Usage: dafka_stored [--verbose] [-c config] [--pub tower-pub-address] [--sub tower-sub-address]");
         return 0;
     }
 
@@ -36,9 +36,16 @@ int main (int argc, char** argv) {
     else
         config = zconfig_new ("root", NULL);
 
-//    if (zargs_get (args, "--pub")) {
-//        zconfig_put (config, )
-//    }
+    if (zargs_has (args, "--verbose")) {
+        zconfig_put (config, "beacon/verbose", "1");
+        zconfig_put (config, "store/verbose", "1");
+    }
+
+    if (zargs_has (args, "--pub"))
+        zconfig_put (config, "beacon/pub_address", zargs_get (args, "--pub"));
+
+    if (zargs_has (args, "--sub"))
+        zconfig_put (config, "beacon/sub_address", zargs_get (args, "--sub"));
 
     zactor_t *store = zactor_new (dafka_store_actor, config);
 

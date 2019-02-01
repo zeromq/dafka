@@ -26,18 +26,33 @@ int main (int argc, char *argv [])
 
     zargs_t *args = zargs_new (argc, argv);
 
-    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 2) {
-        puts ("Usage: dafka_console_producer endpoint topic");
+    if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 1) {
+        puts ("Usage: dafka_console_producer [--verbose] [-c config] [--pub tower-pub-address] [--sub tower-sub-address] topic");
         return 0;
     }
 
-    const char *endpoint = zargs_first (args);
-    const char *topic = zargs_next (args);
+    zconfig_t *config;
 
-    zargs_destroy (&args);
+    if (zargs_has (args, "-c"))
+        config = zconfig_load (zargs_get (args, "-c"));
+    else
+        config = zconfig_new ("root", NULL);
 
-    const char *publisher_args[] = { topic, endpoint };
-    zactor_t *publisher = zactor_new (dafka_publisher_actor, publisher_args);
+    if (zargs_has (args, "--verbose")) {
+        zconfig_put (config, "beacon/verbose", "1");
+        zconfig_put (config, "producer/verbose", "1");
+    }
+
+    if (zargs_has (args, "--pub"))
+        zconfig_put (config, "beacon/pub_address", zargs_get (args, "--pub"));
+
+    if (zargs_has (args, "--sub"))
+        zconfig_put (config, "beacon/sub_address", zargs_get (args, "--sub"));
+
+    const char *topic = zargs_first (args);
+
+    dafka_publisher_args_t publisher_args =  { topic, config};
+    zactor_t *publisher = zactor_new (dafka_publisher_actor, &publisher_args);
 
     char *msg = NULL;
     size_t size = 0;
@@ -57,6 +72,8 @@ int main (int argc, char *argv [])
 
     zstr_free (&msg);
     zactor_destroy (&publisher);
+    zargs_destroy (&args);
+    zconfig_destroy (&config);
 
     return 0;
 }
