@@ -23,7 +23,9 @@ save.xml
 # Executables
 src/dafka_selftest
 src/dafka_console_producer
+src/dafka_console_consumer
 src/dafka_stored
+src/dafka_towerd
 src/dafka_selftest
 *.exe
 *.out

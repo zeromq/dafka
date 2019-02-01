@@ -31,7 +31,7 @@ struct _dafka_subscriber_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
-    zsock_t *socket;            // Subscriber to get messages from topics
+    zsock_t *consumer_sub;            // Subscriber to get messages from topics
     dafka_proto_t *consumer_msg;// Reusable consumer message
 
     zsock_t *consumer_pub;      // Publisher to ask for missed messages
@@ -74,7 +74,7 @@ dafka_subscriber_new (zsock_t *pipe, zconfig_t *config)
     self->terminated = false;
 
     //  Initialize class properties
-    self->socket = zsock_new_sub (NULL, NULL);
+    self->consumer_sub = zsock_new_sub (NULL, NULL);
     self->consumer_msg = dafka_proto_new ();
 
     self->sequence_index = zhashx_new ();
@@ -89,14 +89,14 @@ dafka_subscriber_new (zsock_t *pipe, zconfig_t *config)
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     zuuid_t *consumer_address = zuuid_new ();
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
-    dafka_proto_subscribe (self->socket, DAFKA_PROTO_DIRECT, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT, zuuid_str (consumer_address));
     zuuid_destroy(&consumer_address);
 
     self->beacon = zactor_new (dafka_beacon_actor, config);
     zsock_send (self->beacon, "ssi", "START", dafka_proto_address (self->fetch_msg), port);
     assert (zsock_wait (self->beacon) == 0);
 
-    self->poller = zpoller_new (self->pipe, self->socket, self->beacon, NULL);
+    self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, NULL);
 
     return self;
 }
@@ -113,7 +113,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
         dafka_subscriber_t *self = *self_p;
 
         //  Free class properties
-        zsock_destroy (&self->socket);
+        zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
         dafka_proto_destroy (&self->consumer_msg);
         dafka_proto_destroy (&self->fetch_msg);
@@ -139,7 +139,7 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
     if (self->verbose)
         zsys_debug ("Subscribe to %s", topic);
 
-    dafka_proto_subscribe (self->socket, DAFKA_PROTO_MSG, topic);
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
 }
 
 
@@ -148,7 +148,7 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 static void
 dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
 {
-    int rc = dafka_proto_recv (self->consumer_msg, self->socket);
+    int rc = dafka_proto_recv (self->consumer_msg, self->consumer_sub);
     if (rc != 0)
        return;        //  Interrupted
 
@@ -265,10 +265,10 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
         void *which = (zsock_t *) zpoller_wait (self->poller, 0);
         if (which == self->pipe)
             dafka_subscriber_recv_api (self);
-        if (which == self->socket)
+        if (which == self->consumer_sub)
             dafka_subscriber_recv_subscriptions (self);
         if (which == self->beacon)
-            dafka_beacon_recv (self->beacon, self->consumer_pub);
+            dafka_beacon_recv (self->beacon, self->consumer_sub, self->verbose, "Consumer");
     }
     bool verbose = self->verbose;
     dafka_subscriber_destroy (&self);
@@ -301,10 +301,10 @@ dafka_subscriber_test (bool verbose)
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
@@ -326,6 +326,8 @@ dafka_subscriber_test (bool verbose)
         zstr_send (pub, "VERBOSE");
     }
 
+    zclock_sleep (1000);
+
     zframe_t *content = zframe_new ("HELLO MATE", 10);
     int rc = dafka_publisher_publish (pub, &content);
     assert (rc == 0);
@@ -333,7 +335,7 @@ dafka_subscriber_test (bool verbose)
 
     rc = zsock_send (sub, "ss", "SUBSCRIBE", "hello");
     assert (rc == 0);
-    sleep (1);  // Make sure subscription is active before sending the next message
+    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
 
     // This message is discarded but triggers a FETCH from the store
     content = zframe_new ("HELLO ATEM", 10);
@@ -376,6 +378,7 @@ dafka_subscriber_test (bool verbose)
     zactor_destroy (&pub);
     zactor_destroy (&store);
     zactor_destroy (&sub);
+    zactor_destroy (&tower);
     //  @end
 
     printf ("OK\n");
