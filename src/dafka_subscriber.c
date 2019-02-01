@@ -202,6 +202,8 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
         zhashx_update (self->sequence_index, sequence_key, &msg_sequence);
         zsock_bsend (self->pipe, "ssf", subject, address, content);
     }
+
+    zstr_free (&sequence_key);
 }
 
 //  Here we handle incoming message from the node
