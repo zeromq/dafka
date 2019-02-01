@@ -29,9 +29,10 @@ struct _dafka_subscriber_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
-    zsock_t *socket;            // Socket to subscribe to messages
+    zsock_t *socket;            // Subscriber to get messages from topics
     dafka_proto_t *consumer_msg;// Reusable consumer message
-    zsock_t *consumer_sub;             // Publisher to ask for missed messages
+
+    zsock_t *consumer_pub;      // Publisher to ask for missed messages
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
     dafka_proto_t *fetch_msg;   // Reusable publisher message
@@ -81,7 +82,7 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     zhashx_set_destructor(self->sequence_index, uint64_destroy);
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
 
-    self->consumer_sub = zsock_new_pub (consumer_pub_endpoint);
+    self->consumer_pub = zsock_new_pub (consumer_pub_endpoint);
     self->fetch_msg = dafka_proto_new ();
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     zuuid_t *consumer_address = zuuid_new ();
@@ -140,31 +141,62 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
        return;        //  Interrupted
 
     char id = dafka_proto_id (self->consumer_msg);
-    const char *address = dafka_proto_address (self->consumer_msg);
-    const char *topic = dafka_proto_topic (self->consumer_msg);
     zframe_t *content = dafka_proto_content (self->consumer_msg);
     uint64_t msg_sequence = dafka_proto_sequence (self->consumer_msg);
 
+    const char *address;
+    const char *subject;
+    if (id == DAFKA_PROTO_MSG) {
+        address = dafka_proto_address (self->consumer_msg);
+        subject = dafka_proto_topic (self->consumer_msg);
+    }
+    else
+    if (id == DAFKA_PROTO_DIRECT) {
+        address = dafka_proto_address (self->consumer_msg);
+        subject = dafka_proto_subject (self->consumer_msg);
+    }
+    else
+        return;     // Unexpected message id
+
     // TODO: Extract into struct and/or add zstr_concat
-    char *sequence_key = (char *) malloc(strlen (address) + strlen (topic) + 2);
-    strcpy (sequence_key, topic);
+    char *sequence_key = (char *) malloc (strlen (address) + strlen (subject) + 2);
+    strcpy (sequence_key, subject);
     strcat (sequence_key, "/");
     strcat (sequence_key, address);
 
+    if (self->verbose)
+        zsys_debug ("Received message %c from %s on subject %s with sequence %u",
+                    id, address, subject, msg_sequence);
+
     // Check if we missed some messages
     uint64_t *last_known_sequence = (uint64_t *) zhashx_lookup (self->sequence_index, sequence_key);
-    if (last_known_sequence && !(msg_sequence == *last_known_sequence + 1)) {
+    if (!last_known_sequence) {
+        last_known_sequence = malloc (sizeof (uint64_t));
+        *last_known_sequence = -1;
+    }
+
+    if (id == DAFKA_PROTO_MSG && !(msg_sequence == *last_known_sequence + 1)) {
         uint64_t no_of_missed_messages = msg_sequence - *last_known_sequence;
-        for (uint64_t index = 0; index < no_of_missed_messages; index++) {
-            dafka_proto_set_subject (self->fetch_msg, address);
-            dafka_proto_set_sequence (self->fetch_msg, (uint64_t) last_known_sequence + index + 1);
-            dafka_proto_send (self->fetch_msg, self->consumer_sub);
-        }
-    } else {
-        if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT) {
-            zsock_bsend (self->pipe, "ssf", topic, address, content);
-            zhashx_insert (self->sequence_index, sequence_key, &msg_sequence);
-        }
+        if (self->verbose)
+            zsys_debug ("FETCHING %u messages on subject %s from %s starting at sequence %u",
+                        no_of_missed_messages,
+                        subject,
+                        address,
+                        *last_known_sequence + 1);
+
+        dafka_proto_set_subject (self->fetch_msg, subject);
+        dafka_proto_set_topic (self->fetch_msg, address);
+        dafka_proto_set_sequence (self->fetch_msg, (uint64_t) *last_known_sequence + 1);
+        dafka_proto_set_count (self->fetch_msg, no_of_missed_messages);
+        dafka_proto_send (self->fetch_msg, self->consumer_pub);
+    }
+
+    if (msg_sequence == *last_known_sequence + 1) {
+        if (self->verbose)
+            zsys_debug ("Send message %u to client", msg_sequence);
+
+        zhashx_insert (self->sequence_index, sequence_key, &msg_sequence);
+        zsock_bsend (self->pipe, "ssf", subject, address, content);
     }
 }
 
@@ -213,6 +245,9 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
 
+    if (self->verbose)
+        zsys_info ("Subscriber: running...");
+
     while (!self->terminated) {
         zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
         if (which == self->pipe)
@@ -247,25 +282,63 @@ dafka_subscriber_test (bool verbose)
     dafka_publisher_t *pub = dafka_publisher_new ("hello", "inproc://hellopub");
     assert (pub);
 
-    char *consumer_args[] = {"inproc://hellopub", "inproc://helloasker"};
+    char *store_args[] = {"inproc://hellostore", "inproc://hellopub,inproc://hellofetcher"};
+    zactor_t *store = zactor_new (dafka_store_actor, store_args);
+    assert (store);
+
+    char *consumer_args[] = {"inproc://hellopub,inproc://hellostore", "inproc://hellofetcher"};
     zactor_t *sub = zactor_new (dafka_subscriber_actor, consumer_args);
     assert (sub);
 
-    if (verbose)
+    if (verbose) {
+        zstr_send (store, "VERBOSE");
         zstr_send (sub, "VERBOSE");
-
-    zsock_send (sub, "ss", "SUBSCRIBE", "hello");
-    usleep (100);
+    }
 
     zframe_t *content = zframe_new ("HELLO MATE", 10);
     int rc = dafka_publisher_publish (pub, &content);
+    assert (rc == 0);
+    sleep (1);  // Make sure message is published before subscriber subscribes
+
+    rc = zsock_send (sub, "ss", "SUBSCRIBE", "hello");
+    assert (rc == 0);
+    sleep (1);  // Make sure subscription is active before sending the next message
+
+    // This message is discarded but triggers a FETCH from the store
+    content = zframe_new ("HELLO ATEM", 10);
+    rc = dafka_publisher_publish (pub, &content);
+    assert (rc == 0);
+    sleep (1);  // Make sure the first two messages have been received from the store and the subscriber is now up to date
+
+    content = zframe_new ("HELLO ATEM", 10);
+    rc = dafka_publisher_publish (pub, &content);
+    assert (rc == 0);
 
     char *topic;
     char *address;
+    char *content_str;
+
+    // Receive the first message from the STORE
     zsock_brecv (sub, "ssf", &topic, &address, &content);
-    char *content_str = zframe_strdup (content);
+    content_str = zframe_strdup (content);
     assert (streq (topic, "hello"));
     assert (streq (content_str, "HELLO MATE"));
+    zstr_free (&content_str);
+    zframe_destroy (&content);
+
+    // Receive the second message from the STORE as the original has been discarded
+    zsock_brecv (sub, "ssf", &topic, &address, &content);
+    content_str = zframe_strdup (content);
+    assert (streq (topic, "hello"));
+    assert (streq (content_str, "HELLO ATEM"));
+    zstr_free (&content_str);
+    zframe_destroy (&content);
+
+    // Receive the third message from the PUBLISHER
+    zsock_brecv (sub, "ssf", &topic, &address, &content);
+    content_str = zframe_strdup (content);
+    assert (streq (topic, "hello"));
+    assert (streq (content_str, "HELLO TEMA"));
     zstr_free (&content_str);
     zframe_destroy (&content);
 
