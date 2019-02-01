@@ -24,7 +24,7 @@ int main (int argc, char** argv) {
     zargs_t *args = zargs_new (argc, argv);
 
     if (zargs_hasx (args, "--help", "-h", NULL)) {
-        puts ("Usage: dafka_towerd [-c config] [--pub tower-pub-address] [--sub tower-sub-address]");
+        puts ("Usage: dafka_towerd [-c config] [--pub tower-pub-address] [--sub tower-sub-address] [--verbose]");
         return 0;
     }
 
@@ -34,6 +34,9 @@ int main (int argc, char** argv) {
         config = zconfig_load (zargs_get (args, "-c"));
     else
         config = zconfig_new ("root", NULL);
+
+    if (zargs_has (args, "--verbose"))
+        zconfig_put (config, "tower/verbose", "1");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
