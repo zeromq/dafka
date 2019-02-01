@@ -36,7 +36,8 @@ struct _dafka_store_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
 
-    dafka_proto_t *msg;
+    dafka_proto_t *income_msg;
+    dafka_proto_t *outgoing_msg;
     zsock_t *pub;
     zsock_t *sub;
 
@@ -124,7 +125,8 @@ dafka_store_new (zsock_t *pipe, char* endpoint, char *publisher_endpoints)
     self->pipe = pipe;
     self->terminated = false;
 
-    self->msg = dafka_proto_new ();
+    self->income_msg = dafka_proto_new ();
+    self->outgoing_msg = dafka_proto_new ();
     self->pub = zsock_new_pub (endpoint);
     self->sub = zsock_new_sub (NULL, NULL);
     zsock_attach (self->sub, publisher_endpoints, false);
@@ -157,7 +159,8 @@ dafka_store_destroy (dafka_store_t **self_p)
 
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
-        dafka_proto_destroy (&self->msg);
+        dafka_proto_destroy (&self->income_msg);
+        dafka_proto_destroy (&self->outgoing_msg);
         zhashx_destroy (&self->store);
 
         //  Free object itself
@@ -197,43 +200,43 @@ dafka_store_recv_api (dafka_store_t *self)
 
 static void
 dafka_store_recv_sub (dafka_store_t *self) {
-    int rc = dafka_proto_recv (self->msg, self->sub);
+    int rc = dafka_proto_recv (self->income_msg, self->sub);
     if (rc == -1) //  Interrupted
         return;
 
     store_key_t key = {0};
 
-    switch (dafka_proto_id (self->msg)) {
+    switch (dafka_proto_id (self->income_msg)) {
         case DAFKA_PROTO_MSG: {
-            const char *subject = dafka_proto_topic (self->msg);
-            const char *address = dafka_proto_address (self->msg);
-            uint64_t sequence = dafka_proto_sequence (self->msg);
+            const char *subject = dafka_proto_topic (self->income_msg);
+            const char *address = dafka_proto_address (self->income_msg);
+            uint64_t sequence = dafka_proto_sequence (self->income_msg);
 
             store_key_init (&key, subject, address, sequence);
-            zhashx_insert (self->store, &key, dafka_proto_get_content (self->msg));
+            zhashx_insert (self->store, &key, dafka_proto_get_content (self->income_msg));
 
             zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u",
                     subject, address, sequence);
 
             // Sending an ack to the producer
-            dafka_proto_set_id (self->msg,  DAFKA_PROTO_ACK);
-            dafka_proto_set_topic (self->msg, address);
-            dafka_proto_set_subject (self->msg, subject);
-            dafka_proto_set_sequence (self->msg, sequence);
-            dafka_proto_send (self->msg, self->pub);
+            dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_ACK);
+            dafka_proto_set_topic (self->outgoing_msg, address);
+            dafka_proto_set_subject (self->outgoing_msg, subject);
+            dafka_proto_set_sequence (self->outgoing_msg, sequence);
+            dafka_proto_send (self->outgoing_msg, self->pub);
 
             break;
         }
         case DAFKA_PROTO_FETCH: {
-            const char *subject = dafka_proto_subject (self->msg);
-            const char *address = dafka_proto_topic (self->msg);
-            uint64_t sequence = dafka_proto_sequence (self->msg);
-            uint32_t count = dafka_proto_count (self->msg);
+            const char *subject = dafka_proto_subject (self->income_msg);
+            const char *address = dafka_proto_topic (self->income_msg);
+            uint64_t sequence = dafka_proto_sequence (self->income_msg);
+            uint32_t count = dafka_proto_count (self->income_msg);
 
-            dafka_proto_set_topic (self->msg, dafka_proto_address (self->msg));
-            dafka_proto_set_subject (self->msg, subject);
-            dafka_proto_set_address (self->msg, address);
-            dafka_proto_set_id (self->msg, DAFKA_PROTO_DIRECT);
+            dafka_proto_set_topic (self->outgoing_msg, dafka_proto_address (self->income_msg));
+            dafka_proto_set_subject (self->outgoing_msg, subject);
+            dafka_proto_set_address (self->outgoing_msg, address);
+            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT);
 
             for (uint32_t i = 0; i < count; i++) {
                 store_key_init (&key, subject, address, sequence + i);
@@ -249,9 +252,9 @@ dafka_store_recv_sub (dafka_store_t *self) {
                     frame = zframe_dup (frame);
 
                     // The answer topic is the asker address
-                    dafka_proto_set_sequence (self->msg, sequence + i);
-                    dafka_proto_set_content (self->msg, &frame);
-                    dafka_proto_send (self->msg, self->pub);
+                    dafka_proto_set_sequence (self->outgoing_msg, sequence + i);
+                    dafka_proto_set_content (self->outgoing_msg, &frame);
+                    dafka_proto_send (self->outgoing_msg, self->pub);
                 } else {
                     zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
                                subject, address, sequence);
