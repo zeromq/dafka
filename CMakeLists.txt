@@ -168,10 +168,12 @@ set (dafka_headers
     include/dafka_library.h
     include/dafka.h
     include/dafka_proto.h
+    src/dafka_beacon.h
 )
 
 IF (ENABLE_DRAFTS)
     list(APPEND dafka_headers
+        include/dafka_tower.h
         include/dafka_store.h
         include/dafka_publisher.h
         include/dafka_subscriber.h
@@ -189,10 +191,12 @@ install(FILES ${dafka_headers} DESTINATION include)
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
     src/dafka_proto.c
+    src/dafka_beacon.c
 )
 
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
+        src/dafka_tower.c
         src/dafka_store.c
         src/dafka_publisher.c
         src/dafka_subscriber.c
@@ -430,6 +434,32 @@ install(TARGETS dafka_stored
     RUNTIME DESTINATION bin
 )
 add_executable(
+    dafka_towerd
+    "${SOURCE_DIR}/src/dafka_towerd.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_towerd
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_towerd
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+install(TARGETS dafka_towerd
+    RUNTIME DESTINATION bin
+)
+add_executable(
     dafka_selftest
     "${SOURCE_DIR}/src/dafka_selftest.c"
 )
@@ -472,6 +502,7 @@ set(TEST_CLASSES
 
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
+    dafka_tower
     dafka_store
     dafka_publisher
     dafka_subscriber
@@ -537,6 +568,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/dafka_console_producer
                     ${CMAKE_BINARY_DIR}/src/dafka_console_consumer
                     ${CMAKE_BINARY_DIR}/src/dafka_stored
+                    ${CMAKE_BINARY_DIR}/src/dafka_towerd
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
 )
 

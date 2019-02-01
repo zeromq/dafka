@@ -27,12 +27,22 @@
 //  Extra headers
 
 //  Opaque class structures to allow forward references
+#ifndef DAFKA_BEACON_T_DEFINED
+typedef struct _dafka_beacon_t dafka_beacon_t;
+#define DAFKA_BEACON_T_DEFINED
+#endif
 
 //  Internal API
 
+#include "dafka_beacon.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DAFKA_BUILD_DRAFT_API
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DAFKA_PRIVATE void
+    dafka_beacon_test (bool verbose);
 
 //  Self test for private classes
 DAFKA_PRIVATE void
