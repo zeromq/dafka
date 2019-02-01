@@ -512,14 +512,6 @@ dafka_proto_t *
                 return NULL;
             }
             {
-            char *s = zconfig_get (content, "subject", NULL);
-            if (!s) {
-                dafka_proto_destroy (&self);
-                return NULL;
-            }
-            strncpy (self->subject, s, 256);
-            }
-            {
             char *s = zconfig_get (content, "address", NULL);
             if (!s) {
                 dafka_proto_destroy (&self);
@@ -681,7 +673,6 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
             break;
 
         case DAFKA_PROTO_HEAD:
-            GET_STRING (self->subject);
             GET_STRING (self->address);
             GET_NUMBER8 (self->sequence);
             break;
@@ -738,7 +729,6 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             frame_size += 8;            //  sequence
             break;
         case DAFKA_PROTO_HEAD:
-            frame_size += 1 + strlen (self->subject);
             frame_size += 1 + strlen (self->address);
             frame_size += 8;            //  sequence
             break;
@@ -780,7 +770,6 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             break;
 
         case DAFKA_PROTO_HEAD:
-            PUT_STRING (self->subject);
             PUT_STRING (self->address);
             PUT_NUMBER8 (self->sequence);
             break;
@@ -861,7 +850,6 @@ dafka_proto_print (dafka_proto_t *self)
         case DAFKA_PROTO_HEAD:
             zsys_debug ("DAFKA_PROTO_HEAD:");
             zsys_debug ("    topic='%s'", self->topic);
-            zsys_debug ("    subject='%s'", self->subject);
             zsys_debug ("    address='%s'", self->address);
             zsys_debug ("    sequence=%ld", (long) self->sequence);
             break;
@@ -981,7 +969,6 @@ dafka_proto_zpl (dafka_proto_t *self, zconfig_t *parent)
             zconfig_putf (root, "topic", "%s", self->topic);
 
             zconfig_t *config = zconfig_new ("content", root);
-            zconfig_putf (config, "subject", "%s", self->subject);
             zconfig_putf (config, "address", "%s", self->address);
             zconfig_putf (config, "sequence", "%ld", (long) self->sequence);
             break;
@@ -1253,7 +1240,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1290,7 +1276,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1327,7 +1312,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1363,7 +1347,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1380,7 +1363,6 @@ dafka_proto_test (bool verbose)
     }
     dafka_proto_set_id (self, DAFKA_PROTO_HEAD);
     dafka_proto_set_topic (self, "Hello");
-    dafka_proto_set_subject (self, "Life is short but Now lasts for ever");
     dafka_proto_set_address (self, "Life is short but Now lasts for ever");
     dafka_proto_set_sequence (self, 123);
     // convert to zpl
@@ -1396,7 +1378,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1404,7 +1385,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
-        assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
         if (instance == 2) {

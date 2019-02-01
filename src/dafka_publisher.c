@@ -28,14 +28,16 @@
 struct _dafka_publisher_t {
     //  Actor properties
     zsock_t *pipe;              //  Actor command pipe
-    zpoller_t *poller;          //  Socket poller
-    bool terminated;            //  Did caller ask us to quit?
+    zloop_t *loop;                //  Event loop
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
     zsock_t *socket;            // Socket to publish messages to
-    dafka_proto_t *msg;         // Reusable message to publish
+    dafka_proto_t *msg;         // Reusable MSG message to publish
+    dafka_proto_t *head_msg;         // Reusable HEAD message to publish
 };
 
+static int
+s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg);
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_publisher instance
@@ -48,8 +50,8 @@ dafka_publisher_new (zsock_t *pipe, void *args)
 
     //  Initialize actor properties
     self->pipe = pipe;
-    self->terminated = false;
-    self->poller = zpoller_new (self->pipe, NULL);
+    self->loop = zloop_new ();
+    zloop_reader (self->loop, self->pipe, s_recv_api, self);
 
     //  Initialize class properties
     char *topic = ((char **) args)[0];
@@ -62,9 +64,14 @@ dafka_publisher_new (zsock_t *pipe, void *args)
     dafka_proto_set_topic (self->msg, topic);
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
-    zuuid_destroy (&address);
     dafka_proto_set_sequence (self->msg, 0);
 
+    self->head_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
+    dafka_proto_set_topic (self->head_msg, topic);
+    dafka_proto_set_address (self->head_msg, zuuid_str (address));
+
+    zuuid_destroy (&address);
     return self;
 }
 
@@ -82,9 +89,10 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         //  Free class properties
         zsock_destroy (&self->socket);
         dafka_proto_destroy (&self->msg);
+        dafka_proto_destroy (&self->head_msg);
 
         //  Free actor properties
-        zpoller_destroy (&self->poller);
+        zloop_destroy (&self->loop);
         free (self);
         *self_p = NULL;
     }
@@ -106,36 +114,52 @@ s_publish (dafka_publisher_t *self, zframe_t *content)
     return rc;
 }
 
+//  Send a HEAD message
+
+static int
+s_send_head (zloop_t *loop, int timer_id, void *arg)
+{
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    dafka_proto_set_sequence (self->head_msg, dafka_proto_sequence (self->msg));
+    return dafka_proto_send (self->head_msg, self->socket);
+}
+
 
 //  Here we handle incoming message from the node
 
-static void
-dafka_publisher_recv_api (dafka_publisher_t *self)
+static int
+s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 {
-    char *command = zstr_recv (self->pipe);
-    if (!command)
-       return;        //  Interrupted
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
 
+    char *command = zstr_recv (pipe);
+    if (!command)
+       return -1;       //  Interrupted
+
+    int rc = 0;
     if (streq (command, "PUBLISH")) {
         zframe_t *content = NULL;
-        zsock_brecv (self->pipe, "p", &content);
+        zsock_brecv (pipe, "p", &content);
         s_publish (self, content);
     }
     else
     if (streq (command, "GET ADDRESS"))
-        zstr_send (self->pipe, dafka_proto_address (self->msg));
+        zsock_bsend (self->pipe, "p", dafka_proto_address (self->msg));
     else
     if (streq (command, "VERBOSE"))
         self->verbose = true;
     else
     if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
-        self->terminated = true;
+        rc = -1;
     else {
         zsys_error ("invalid command '%s'", command);
         assert (false);
     }
     zstr_free (&command);
+    return rc;
 }
 
 
@@ -149,18 +173,16 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
     if (!self)
         return;          //  Interrupted
 
+    zloop_timer (self->loop, 1000, 0, s_send_head, self);
+
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
 
     if (self->verbose)
         zsys_info ("Publisher started");
 
-    while (!self->terminated) {
-        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
-        if (which == self->pipe)
-            dafka_publisher_recv_api (self);
-       //  Add other sockets when you need them.
-    }
+    zloop_start (self->loop);
+
     bool verbose = self->verbose;
     dafka_publisher_destroy (&self);
 
@@ -183,10 +205,12 @@ dafka_publisher_publish (zactor_t *self, zframe_t **content) {
 //  --------------------------------------------------------------------------
 //  Get the address the publisher
 
-char *
+const char *
 dafka_publisher_address (zactor_t *self) {
     zstr_send (self, "GET ADDRESS");
-    return zstr_recv (self);
+    const char *address;
+    zsock_brecv (self, "p", &address);
+    return address;
 }
 
 //  --------------------------------------------------------------------------

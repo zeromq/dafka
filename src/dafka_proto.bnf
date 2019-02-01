@@ -38,8 +38,7 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    HEAD            = signature %d'h' subject address sequence
-    subject         = string                ;
+    HEAD            = signature %d'h' address sequence
     address         = string                ;
     sequence        = number-8              ;
 

@@ -49,7 +49,6 @@
     </message>
 
     <message name = "HEAD" id = "'H'">
-        <field name = "subject" type = "string" />
         <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
