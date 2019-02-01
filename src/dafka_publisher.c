@@ -48,16 +48,15 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
 //  Create a new dafka_publisher instance
 
 static dafka_publisher_t *
-dafka_publisher_new (zsock_t *pipe, char* topic, zconfig_t *config)
+dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
+    assert (args);
 
     //  Initialize actor properties
     self->pipe = pipe;
     self->loop = zloop_new ();
-    zloop_reader (self->loop, self->pipe, s_recv_api, self);
-    zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
 
     //  Initialize class properties
     self->socket = zsock_new_pub (NULL);
@@ -66,21 +65,24 @@ dafka_publisher_new (zsock_t *pipe, char* topic, zconfig_t *config)
 
     self->msg = dafka_proto_new ();
     dafka_proto_set_id (self->msg, DAFKA_PROTO_MSG);
-    dafka_proto_set_topic (self->msg, topic);
+    dafka_proto_set_topic (self->msg, args->topic);
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
     dafka_proto_set_sequence (self->msg, 0);
 
     self->head_msg = dafka_proto_new ();
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
-    dafka_proto_set_topic (self->head_msg, topic);
+    dafka_proto_set_topic (self->head_msg, args->topic);
     dafka_proto_set_address (self->head_msg, zuuid_str (address));
 
-    self->beacon = zactor_new (dafka_beacon_actor, config);
+    self->beacon = zactor_new (dafka_beacon_actor, args->config);
     zsock_send (self->beacon, "ssi", "START", address, port);
     assert (zsock_wait (self->beacon) == 0);
 
     zuuid_destroy (&address);
+
+    zloop_reader (self->loop, self->pipe, s_recv_api, self);
+    zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
     return self;
 }
 
@@ -99,6 +101,7 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         zsock_destroy (&self->socket);
         dafka_proto_destroy (&self->msg);
         dafka_proto_destroy (&self->head_msg);
+        zactor_destroy (&self->beacon);
 
         //  Free actor properties
         zloop_destroy (&self->loop);
@@ -192,9 +195,8 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 void
 dafka_publisher_actor (zsock_t *pipe, void *args)
 {
-    char *topic = ((char **) args)[0];
-    zconfig_t *config = ((zconfig_t **) args)[1];
-    dafka_publisher_t * self = dafka_publisher_new (pipe, topic, config);
+    dafka_publisher_args *pub_args = (dafka_publisher_args *) args;
+    dafka_publisher_t * self = dafka_publisher_new (pipe, pub_args);
     if (!self)
         return;          //  Interrupted
 
@@ -267,11 +269,17 @@ dafka_publisher_test (bool verbose)
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-sub");
-    const void **args = { "dummy", config };
-    zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, args);
+
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
+
+    dafka_publisher_args args;
+    args.topic = strdup ("dummy");
+    args.config = config;
+    zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, &args);
     assert (dafka_publisher);
 
     zactor_destroy (&dafka_publisher);
+    zactor_destroy (&tower);
     //  @end
 
     printf ("OK\n");
