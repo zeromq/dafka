@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_publisher - class description
+    dafka_publisher -
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -15,28 +15,46 @@
 @header
     dafka_publisher -
 @discuss
+    TODO:
+        - Store send messages until an ACK has been received
+        - Send HEAD messages every X seconds
 @end
 */
 
 #include "dafka_classes.h"
 
-//  Structure of our class
+//  Structure of our actor
 
 struct _dafka_publisher_t {
+    //  Actor properties
+    zsock_t *pipe;              //  Actor command pipe
+    zpoller_t *poller;          //  Socket poller
+    bool terminated;            //  Did caller ask us to quit?
+    bool verbose;               //  Verbose logging enabled?
+    //  Class properties
     zsock_t *socket;            // Socket to publish messages to
     dafka_proto_t *msg;         // Reusable message to publish
 };
 
 
 //  --------------------------------------------------------------------------
-//  Create a new dafka_publisher
+//  Create a new dafka_publisher instance
 
-dafka_publisher_t *
-dafka_publisher_new (const char *topic, const char *endpoint)
+static dafka_publisher_t *
+dafka_publisher_new (zsock_t *pipe, void *args)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
-    //  Initialize class properties here
+
+    //  Initialize actor properties
+    self->pipe = pipe;
+    self->terminated = false;
+    self->poller = zpoller_new (self->pipe, NULL);
+
+    //  Initialize class properties
+    char *topic = ((char **) args)[0];
+    char *endpoint = ((char **) args)[1];
+
     self->socket = zsock_new_pub(endpoint);
     assert (self->socket);
     self->msg = dafka_proto_new ();
@@ -46,35 +64,42 @@ dafka_publisher_new (const char *topic, const char *endpoint)
     dafka_proto_set_address (self->msg, zuuid_str (address));
     zuuid_destroy (&address);
     dafka_proto_set_sequence (self->msg, 0);
+
     return self;
 }
 
 
 //  --------------------------------------------------------------------------
-//  Destroy the dafka_publisher
+//  Destroy the dafka_publisher instance
 
-void
+static void
 dafka_publisher_destroy (dafka_publisher_t **self_p)
 {
     assert (self_p);
     if (*self_p) {
         dafka_publisher_t *self = *self_p;
-        //  Free class properties here
+
+        //  Free class properties
         zsock_destroy (&self->socket);
         dafka_proto_destroy (&self->msg);
-        //  Free object itself
+
+        //  Free actor properties
+        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
 }
 
 
-//  --------------------------------------------------------------------------
 //  Publish content
 
-int
-dafka_publisher_publish (dafka_publisher_t *self, zframe_t **content) {
-    dafka_proto_set_content (self->msg, content);
+static int
+s_publish (dafka_publisher_t *self, zframe_t *content)
+{
+    assert (self);
+    assert (content);
+
+    dafka_proto_set_content (self->msg, &content);
     int rc = dafka_proto_send (self->msg, self->socket);
     uint64_t sequence = dafka_proto_sequence (self->msg);
     dafka_proto_set_sequence (self->msg, sequence + 1);
@@ -82,17 +107,90 @@ dafka_publisher_publish (dafka_publisher_t *self, zframe_t **content) {
 }
 
 
-//  --------------------------------------------------------------------------
-//  Publish content
+//  Here we handle incoming message from the node
 
-const char *
-dafka_publisher_address (dafka_publisher_t *self) {
-    return dafka_proto_address (self->msg);
+static void
+dafka_publisher_recv_api (dafka_publisher_t *self)
+{
+    char *command = zstr_recv (self->pipe);
+    if (!command)
+       return;        //  Interrupted
+
+    if (streq (command, "PUBLISH")) {
+        zframe_t *content = NULL;
+        zsock_brecv (self->pipe, "p", &content);
+        s_publish (self, content);
+    }
+    else
+    if (streq (command, "GET ADDRESS"))
+        zstr_send (self->pipe, dafka_proto_address (self->msg));
+    else
+    if (streq (command, "VERBOSE"))
+        self->verbose = true;
+    else
+    if (streq (command, "$TERM"))
+        //  The $TERM command is send by zactor_destroy() method
+        self->terminated = true;
+    else {
+        zsys_error ("invalid command '%s'", command);
+        assert (false);
+    }
+    zstr_free (&command);
 }
 
 
 //  --------------------------------------------------------------------------
-//  Self test of this class
+//  This is the actor which runs in its own thread.
+
+void
+dafka_publisher_actor (zsock_t *pipe, void *args)
+{
+    dafka_publisher_t * self = dafka_publisher_new (pipe, args);
+    if (!self)
+        return;          //  Interrupted
+
+    //  Signal actor successfully initiated
+    zsock_signal (self->pipe, 0);
+
+    if (self->verbose)
+        zsys_info ("Publisher started");
+
+    while (!self->terminated) {
+        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
+        if (which == self->pipe)
+            dafka_publisher_recv_api (self);
+       //  Add other sockets when you need them.
+    }
+    bool verbose = self->verbose;
+    dafka_publisher_destroy (&self);
+
+    if (verbose)
+        zsys_info ("Publisher stopped");
+}
+
+
+//  --------------------------------------------------------------------------
+//  Publish content
+
+int
+dafka_publisher_publish (zactor_t *self, zframe_t **content) {
+    assert (*content);
+    zstr_sendm (self, "PUBLISH");
+    zsock_bsend (self, "p", *content);
+    *content = NULL;
+}
+
+//  --------------------------------------------------------------------------
+//  Get the address the publisher
+
+char *
+dafka_publisher_address (zactor_t *self) {
+    zstr_send (self, "GET ADDRESS");
+    return zstr_recv (self);
+}
+
+//  --------------------------------------------------------------------------
+//  Self test of this actor.
 
 // If your selftest reads SCMed fixture data, please keep it in
 // src/selftest-ro; if your test creates filesystem objects, please
@@ -111,17 +209,14 @@ void
 dafka_publisher_test (bool verbose)
 {
     printf (" * dafka_publisher: ");
-
     //  @selftest
-    dafka_publisher_t *self = dafka_publisher_new ("hello", "inproc://hello");
-    assert (self);
+    //  Simple create/destroy test
+    const char *args[] = { "dummy", "inproc://dummy" };
+    zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, args);
+    assert (dafka_publisher);
 
-    // Send MSG
-    zframe_t *content = zframe_new ("HELLO", 5);
-    int rc = dafka_publisher_publish (self, &content);
-    assert (rc == 0);
-
-    dafka_publisher_destroy (&self);
+    zactor_destroy (&dafka_publisher);
     //  @end
+
     printf ("OK\n");
 }

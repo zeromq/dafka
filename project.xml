@@ -12,8 +12,9 @@
     <use project = "czmq" />
 
     <actor name = "dafka_store" />
-    <class name = "dafka_publisher" />
-    <class name = "dafka_subscriber" />
+    <actor name = "dafka_publisher" />
+    <actor name = "dafka_subscriber" />
+
     <class name = "dafka_proto" state = "stable"  />
     <model name = "dafka_proto" />
 

@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_publisher - class description
+    dafka_publisher -
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -18,26 +18,44 @@
 extern "C" {
 #endif
 
-//  @interface
-//  Create a new dafka_publisher
-DAFKA_EXPORT dafka_publisher_t *
-    dafka_publisher_new (const char *topic, const char *endpoint);
 
-//  Destroy the dafka_publisher
+//  @interface
+//  Create new dafka_publisher actor instance.
+//  @TODO: Describe the purpose of this actor!
+//
+//      zactor_t *dafka_publisher = zactor_new (dafka_publisher, NULL);
+//
+//  Destroy dafka_publisher instance.
+//
+//      zactor_destroy (&dafka_publisher);
+//
+//  Enable verbose logging of commands and activity:
+//
+//      zstr_send (dafka_publisher, "VERBOSE");
+//
+//  Start dafka_publisher actor.
+//
+//      zstr_sendx (dafka_publisher, "START", NULL);
+//
+//  Stop dafka_publisher actor.
+//
+//      zstr_sendx (dafka_publisher, "STOP", NULL);
+//
+//  This is the dafka_publisher constructor as a zactor_fn;
 DAFKA_EXPORT void
-    dafka_publisher_destroy (dafka_publisher_t **self_p);
+    dafka_publisher_actor (zsock_t *pipe, void *args);
 
 //  Publish content
 DAFKA_EXPORT int
-    dafka_publisher_publish (dafka_publisher_t *self, zframe_t **content);
+    dafka_publisher_publish (zactor_t *self, zframe_t **content);
 
-DAFKA_EXPORT const char *
-    dafka_publisher_address (dafka_publisher_t *self);
+//  Get the address the publisher
+DAFKA_EXPORT char *
+    dafka_publisher_address (zactor_t *self);
 
-//  Self test of this class
+//  Self test of this actor
 DAFKA_EXPORT void
     dafka_publisher_test (bool verbose);
-
 //  @end
 
 #ifdef __cplusplus

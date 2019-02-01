@@ -330,7 +330,8 @@ dafka_store_test (bool verbose)
     const char * store_args[2] = {store_endpoint, store_connection_string};
 
     // Creating the publisher
-    dafka_publisher_t *pub = dafka_publisher_new ("TEST", publisher_endpoint);
+    const char *publisher_args[] = { "TEST", publisher_endpoint };
+    zactor_t *pub = zactor_new (dafka_publisher_actor, publisher_args);
 
     // Creating the consumer pub socket
     zsock_t *consumer_pub = zsock_new_pub (consumer_endpoint);
@@ -384,7 +385,7 @@ dafka_store_test (bool verbose)
     zsock_destroy (&consumer_sub);
     zactor_destroy (&dafka_store);
     zsock_destroy (&consumer_pub);
-    dafka_publisher_destroy (&pub);
+    zactor_destroy (&pub);
     //  @end
 
     printf ("OK\n");
