@@ -73,7 +73,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
     dafka_proto_set_topic (self->msg, args->topic);
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
-    dafka_proto_set_sequence (self->msg, 0);
+    dafka_proto_set_sequence (self->msg, -1);
 
     self->head_msg = dafka_proto_new ();
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
@@ -144,11 +144,15 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
 {
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
-    dafka_proto_set_sequence (self->head_msg, dafka_proto_sequence (self->msg));
-    if (self->verbose)
-        zsys_debug ("Producer: Send HEAD message with sequence %u", dafka_proto_sequence (self->msg));
+    uint64_t *sequence = dafka_proto_sequence (self->msg);
+    if (sequence != -1) {
+        dafka_proto_set_sequence (self->head_msg, sequence);
+        if (self->verbose)
+            zsys_debug ("Producer: Send HEAD message with sequence %u", sequence);
 
-    return dafka_proto_send (self->head_msg, self->socket);
+        return dafka_proto_send (self->head_msg, self->socket);
+    }
+    return 0;
 }
 
 //  Here we handle incoming message from the beacon
