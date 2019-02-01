@@ -16,7 +16,8 @@
     dafka_subscriber -
 @discuss
     TODO:
-        - Handle HEAD messages
+        - Option start consuming from beginning or latest (config)
+        - Add parameter in console-consumer
 @end
 */
 
