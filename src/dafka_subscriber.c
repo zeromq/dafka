@@ -306,8 +306,12 @@ dafka_subscriber_test (bool verbose)
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-sub");
 
-    const void **publisher_args = { "dummy", config };
-    zactor_t *pub =  zactor_new (dafka_publisher_actor, publisher_args);
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
+
+    dafka_publisher_args pub_args;
+    pub_args.topic = "hello";
+    pub_args.config = config;
+    zactor_t *pub =  zactor_new (dafka_publisher_actor, &pub_args);
     assert (pub);
 
     zactor_t *store = zactor_new (dafka_store_actor, config);
@@ -319,6 +323,7 @@ dafka_subscriber_test (bool verbose)
     if (verbose) {
         zstr_send (store, "VERBOSE");
         zstr_send (sub, "VERBOSE");
+        zstr_send (pub, "VERBOSE");
     }
 
     zframe_t *content = zframe_new ("HELLO MATE", 10);
