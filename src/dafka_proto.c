@@ -1066,6 +1066,7 @@ void
 dafka_proto_set_topic (dafka_proto_t *self, const char *topic)
 {
     assert (self);
+    zstr_free (&self->topic);
     self->topic = strdup (topic);
 }
 
@@ -1252,6 +1253,7 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
+
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1288,6 +1290,7 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
+
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1324,6 +1327,7 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
+
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1359,6 +1363,7 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
+
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1391,6 +1396,7 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
+
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
