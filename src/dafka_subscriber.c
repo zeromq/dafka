@@ -316,7 +316,7 @@ dafka_subscriber_test (bool verbose)
     assert (rc == 0);
     sleep (1);  // Make sure the first two messages have been received from the store and the subscriber is now up to date
 
-    content = zframe_new ("HELLO ATEM", 10);
+    content = zframe_new ("HELLO TEMA", 10);
     rc = dafka_publisher_publish (pub, &content);
     assert (rc == 0);
 
