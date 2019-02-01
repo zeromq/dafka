@@ -172,29 +172,28 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
                     id, address, subject, msg_sequence);
 
     // Check if we missed some messages
-    uint64_t *last_known_sequence = (uint64_t *) zhashx_lookup (self->sequence_index, sequence_key);
-    if (!last_known_sequence) {
-        last_known_sequence = malloc (sizeof (uint64_t));
-        *last_known_sequence = -1;
+    uint64_t last_known_sequence = -1;
+    if (zhashx_lookup (self->sequence_index, sequence_key)) {
+        last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
     }
 
-    if (id == DAFKA_PROTO_MSG && !(msg_sequence == *last_known_sequence + 1)) {
-        uint64_t no_of_missed_messages = msg_sequence - *last_known_sequence;
+    if (id == DAFKA_PROTO_MSG && !(msg_sequence == last_known_sequence + 1)) {
+        uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
             zsys_debug ("FETCHING %u messages on subject %s from %s starting at sequence %u",
                         no_of_missed_messages,
                         subject,
                         address,
-                        *last_known_sequence + 1);
+                        last_known_sequence + 1);
 
         dafka_proto_set_subject (self->fetch_msg, subject);
         dafka_proto_set_topic (self->fetch_msg, address);
-        dafka_proto_set_sequence (self->fetch_msg, (uint64_t) *last_known_sequence + 1);
+        dafka_proto_set_sequence (self->fetch_msg, last_known_sequence + 1);
         dafka_proto_set_count (self->fetch_msg, no_of_missed_messages);
         dafka_proto_send (self->fetch_msg, self->consumer_pub);
     }
 
-    if (msg_sequence == *last_known_sequence + 1) {
+    if (msg_sequence == last_known_sequence + 1) {
         if (self->verbose)
             zsys_debug ("Send message %u to client", msg_sequence);
 
