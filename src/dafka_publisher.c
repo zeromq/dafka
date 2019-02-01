@@ -17,7 +17,6 @@
 @discuss
     TODO:
         - Store send messages until an ACK has been received
-        - Read HEAD interval from config file
 @end
 */
 
@@ -46,6 +45,9 @@ s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg);
 
 static int
 s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
+
+static int
+s_send_head (zloop_t *loop, int timer_id, void *arg);
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_publisher instance
@@ -87,6 +89,8 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
     zloop_reader (self->loop, self->socket, s_recv_socket, self);
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
     zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
+    size_t head_interval = atoi (zconfig_get (args->config, "head/interval", "1000"));
+    zloop_timer (self->loop, head_interval, 0, s_send_head, self);
     return self;
 }
 
@@ -217,8 +221,6 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
     dafka_publisher_t * self = dafka_publisher_new (pipe, pub_args);
     if (!self)
         return;          //  Interrupted
-
-    zloop_timer (self->loop, 1000, 0, s_send_head, self);
 
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
