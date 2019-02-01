@@ -21,9 +21,9 @@ extern "C" {
 #include "dafka.h"
 
 typedef struct {
-    char *topic;
+    const char *topic;
     zconfig_t *config;
-} dafka_publisher_args;
+} dafka_publisher_args_t;
 
 //  @interface
 //  Create new dafka_publisher actor instance.
