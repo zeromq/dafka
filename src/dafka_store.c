@@ -215,7 +215,12 @@ dafka_store_recv_sub (dafka_store_t *self) {
             zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u",
                     subject, address, sequence);
 
-            // TODO: send an ack
+            // Sending an ack to the producer
+            dafka_proto_set_id (self->msg,  DAFKA_PROTO_ACK);
+            dafka_proto_set_topic (self->msg, address);
+            dafka_proto_set_subject (self->msg, subject);
+            dafka_proto_set_sequence (self->msg, sequence);
+            dafka_proto_send (self->msg, self->pub);
 
             break;
         }
