@@ -131,9 +131,9 @@ s_publish (dafka_publisher_t *self, zframe_t *content)
         zsys_debug ("Producer: Send MSG message with sequence %u", dafka_proto_sequence (self->msg));
 
     dafka_proto_set_content (self->msg, &content);
-    int rc = dafka_proto_send (self->msg, self->socket);
     uint64_t sequence = dafka_proto_sequence (self->msg);
     dafka_proto_set_sequence (self->msg, sequence + 1);
+    int rc = dafka_proto_send (self->msg, self->socket);
     return rc;
 }
 
