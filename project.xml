@@ -18,5 +18,6 @@
     <model name = "dafka_proto" />
 
     <main name = "dafka_console_producer" />
+    <main name = "dafka_console_consumer" />
     <main name = "dafka_stored" />
 </project>

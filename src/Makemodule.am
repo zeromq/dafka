@@ -56,6 +56,13 @@ src_dafka_console_producer_LDADD = ${program_libs}
 src_dafka_console_producer_SOURCES = src/dafka_console_producer.c
 endif #ENABLE_DAFKA_CONSOLE_PRODUCER
 
+if ENABLE_DAFKA_CONSOLE_CONSUMER
+bin_PROGRAMS += src/dafka_console_consumer
+src_dafka_console_consumer_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_console_consumer_LDADD = ${program_libs}
+src_dafka_console_consumer_SOURCES = src/dafka_console_consumer.c
+endif #ENABLE_DAFKA_CONSOLE_CONSUMER
+
 if ENABLE_DAFKA_STORED
 bin_PROGRAMS += src/dafka_stored
 src_dafka_stored_CPPFLAGS = ${AM_CPPFLAGS}
@@ -79,6 +86,7 @@ dist_api_DATA = \
 # define custom target for all products of /src
 src: \
 		src/dafka_console_producer \
+		src/dafka_console_consumer \
 		src/dafka_stored \
 		src/dafka_selftest \
 		src/libdafka.la

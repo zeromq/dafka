@@ -23,11 +23,11 @@ extern "C" {
 //  @interface
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
-#define DAFKA_PROTO_MSG 'M'                  //
-#define DAFKA_PROTO_FETCH 'F'                //
-#define DAFKA_PROTO_DIRECT 'D'               //
-#define DAFKA_PROTO_ACK 'K'                  //
-#define DAFKA_PROTO_HEAD 'H'                 //
+#define DAFKA_PROTO_MSG 'm'                 //
+#define DAFKA_PROTO_FETCH 'f'               //
+#define DAFKA_PROTO_DIRECT 'd'              //
+#define DAFKA_PROTO_ACK 'k'                 //
+#define DAFKA_PROTO_HEAD 'h'                //
 
 //  Create a new empty dafka_proto
 DAFKA_EXPORT dafka_proto_t *
