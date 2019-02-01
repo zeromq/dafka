@@ -1,34 +1,47 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | RELIABLE | ASK | ANSWER )
+    dafka_proto     = *( MSG | FETCH | DIRECT | ACK | HEAD )
 
-    ;  No description
+    ;  Message from producer to consumers. The topic is the message subject.
 
-    MSG             = signature %d'm' content
+    MSG             = signature %d'm' address sequence content
     signature       = %xAA %xA0             ; two octets
-    content         = frame                 ;
-
-    ;  No description
-
-    RELIABLE        = signature %d'r' address sequence content
     address         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
 
-    ;  No description
+    ;  Consumer publish the message when a message is missing. Topic is the
+    ;  address of the producer (partition). Either the producer or a store
+    ;  daemon can answer.
 
-    ASK             = signature %d'a' subject sequence address
+    FETCH           = signature %d'f' subject sequence count address
     subject         = string                ;
     sequence        = number-8              ;
+    count           = number-4              ;
     address         = string                ;
 
-    ;  No description
+    ;  Direct message to an address. Currently it is a response for the fetch
+    ;  message. Topic is the address of the recipient.
 
-    ANSWER          = signature %d'w' subject address sequence content
+    DIRECT          = signature %d'd' subject address sequence content
     subject         = string                ;
     address         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
+
+    ;  Ack from a store daemon to a producer. Topic is the address of the
+    ;  producer.
+
+    ACK             = signature %d'k' subject sequence
+    subject         = string                ;
+    sequence        = number-8              ;
+
+    ;  No description
+
+    HEAD            = signature %d'h' subject address sequence
+    subject         = string                ;
+    address         = string                ;
+    sequence        = number-8              ;
 
     ; A frame is zero or more octets encoded as a ZeroMQ frame
     frame           = *OCTET
@@ -38,4 +51,5 @@ The following ABNF grammar defines the dafka_proto:
 
     ; Numbers are unsigned integers in network byte order
     number-1        = 1OCTET
+    number-4        = 4OCTET
     number-8        = 8OCTET

@@ -17,13 +17,16 @@
     <constant name = "msg" value = "'M'" >
 
     </constant>
-    <constant name = "reliable" value = "'R'" >
+    <constant name = "fetch" value = "'F'" >
 
     </constant>
-    <constant name = "ask" value = "'A'" >
+    <constant name = "direct" value = "'D'" >
 
     </constant>
-    <constant name = "answer" value = "'W'" >
+    <constant name = "ack" value = "'K'" >
+
+    </constant>
+    <constant name = "head" value = "'H'" >
 
     </constant>
 
@@ -117,18 +120,6 @@
     <return type = "string" />
 </method>
 
-<method name = "content">
-    Get a copy of the content field
-    <return type = "zframe" />
-</method>
-<method name = "get content">
-    Get the content field and transfer ownership to caller
-    <return type = "zframe" />
-</method>
-    Set the content field, transferring ownership from caller
-<method name = "set content">
-    <argument name = "content_p" type = "zframe" by_reference = "1" />
-</method>
 <method name = "address">
     Get the address field
     <return type = "string" />
@@ -145,6 +136,18 @@
     Set the sequence field
     <argument name = "sequence" type = "number" size = "8" />
 </method>
+<method name = "content">
+    Get a copy of the content field
+    <return type = "zframe" />
+</method>
+<method name = "get content">
+    Get the content field and transfer ownership to caller
+    <return type = "zframe" />
+</method>
+    Set the content field, transferring ownership from caller
+<method name = "set content">
+    <argument name = "content_p" type = "zframe" by_reference = "1" />
+</method>
 <method name = "subject">
     Get the subject field
     <return type = "string" />
@@ -152,5 +155,13 @@
 <method name = "set subject">
     Set the subject field
     <argument name = "subject" type = "string" />
+</method>
+<method name = "count">
+    Get the count field
+    <return type = "number" size = "4" />
+</method>
+<method name = "set count">
+    Set the count field
+    <argument name = "count" type = "number" size = "4" />
 </method>
 </class>

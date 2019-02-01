@@ -24,9 +24,10 @@ extern "C" {
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
 #define DAFKA_PROTO_MSG 'M'                  //
-#define DAFKA_PROTO_RELIABLE 'R'             //
-#define DAFKA_PROTO_ASK 'A'                  //
-#define DAFKA_PROTO_ANSWER 'W'               //
+#define DAFKA_PROTO_FETCH 'F'                //
+#define DAFKA_PROTO_DIRECT 'D'               //
+#define DAFKA_PROTO_ACK 'K'                  //
+#define DAFKA_PROTO_HEAD 'H'                 //
 
 //  Create a new empty dafka_proto
 DAFKA_EXPORT dafka_proto_t *
@@ -99,18 +100,6 @@ DAFKA_EXPORT void
 DAFKA_EXPORT const char *
     dafka_proto_command (dafka_proto_t *self);
 
-//  Get a copy of the content field
-DAFKA_EXPORT zframe_t *
-    dafka_proto_content (dafka_proto_t *self);
-
-//  Get the content field and transfer ownership to caller
-DAFKA_EXPORT zframe_t *
-    dafka_proto_get_content (dafka_proto_t *self);
-
-//
-DAFKA_EXPORT void
-    dafka_proto_set_content (dafka_proto_t *self, zframe_t **content_p);
-
 //  Get the address field
 DAFKA_EXPORT const char *
     dafka_proto_address (dafka_proto_t *self);
@@ -127,6 +116,18 @@ DAFKA_EXPORT uint64_t
 DAFKA_EXPORT void
     dafka_proto_set_sequence (dafka_proto_t *self, uint64_t sequence);
 
+//  Get a copy of the content field
+DAFKA_EXPORT zframe_t *
+    dafka_proto_content (dafka_proto_t *self);
+
+//  Get the content field and transfer ownership to caller
+DAFKA_EXPORT zframe_t *
+    dafka_proto_get_content (dafka_proto_t *self);
+
+//
+DAFKA_EXPORT void
+    dafka_proto_set_content (dafka_proto_t *self, zframe_t **content_p);
+
 //  Get the subject field
 DAFKA_EXPORT const char *
     dafka_proto_subject (dafka_proto_t *self);
@@ -134,6 +135,14 @@ DAFKA_EXPORT const char *
 //  Set the subject field
 DAFKA_EXPORT void
     dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
+
+//  Get the count field
+DAFKA_EXPORT uint32_t
+    dafka_proto_count (dafka_proto_t *self);
+
+//  Set the count field
+DAFKA_EXPORT void
+    dafka_proto_set_count (dafka_proto_t *self, uint32_t count);
 
 //  Self test of this class.
 DAFKA_EXPORT void

@@ -31,10 +31,10 @@ struct _dafka_subscriber_t {
     //  Class properties
     zsock_t *socket;            // Socket to subscribe to messages
     dafka_proto_t *consumer_msg;// Reusable consumer message
-    zsock_t *asker;             // Publisher to ask for missed messages
+    zsock_t *consumer_sub;             // Publisher to ask for missed messages
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
-    dafka_proto_t *ask_msg;   // Reusable publisher message
+    dafka_proto_t *fetch_msg;   // Reusable publisher message
 };
 
 //  Static helper methods
@@ -81,13 +81,13 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     zhashx_set_destructor(self->sequence_index, uint64_destroy);
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
 
-    self->asker = zsock_new_pub (consumer_pub_endpoint);
-    self->ask_msg = dafka_proto_new ();
-    dafka_proto_set_id (self->ask_msg, DAFKA_PROTO_ASK);
-    zuuid_t *asker_uuid = zuuid_new ();
-    dafka_proto_set_address (self->ask_msg, zuuid_str (asker_uuid));
-    dafka_proto_subscribe (self->socket, DAFKA_PROTO_ANSWER, zuuid_str (asker_uuid));
-    zuuid_destroy(&asker_uuid);
+    self->consumer_sub = zsock_new_pub (consumer_pub_endpoint);
+    self->fetch_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
+    zuuid_t *consumer_address = zuuid_new ();
+    dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->socket, DAFKA_PROTO_DIRECT, zuuid_str (consumer_address));
+    zuuid_destroy(&consumer_address);
 
     return self;
 }
@@ -126,7 +126,7 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
     if (self->verbose)
         zsys_debug ("Subscribe to %s", topic);
 
-    dafka_proto_subscribe (self->socket, DAFKA_PROTO_RELIABLE, topic);
+    dafka_proto_subscribe (self->socket, DAFKA_PROTO_MSG, topic);
 }
 
 
@@ -156,12 +156,12 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
     if (last_known_sequence && !(msg_sequence == *last_known_sequence + 1)) {
         uint64_t no_of_missed_messages = msg_sequence - *last_known_sequence;
         for (uint64_t index = 0; index < no_of_missed_messages; index++) {
-            dafka_proto_set_subject (self->ask_msg, address);
-            dafka_proto_set_sequence (self->ask_msg, (uint64_t) last_known_sequence + index + 1);
-            dafka_proto_send (self->ask_msg, self->asker);
+            dafka_proto_set_subject (self->fetch_msg, address);
+            dafka_proto_set_sequence (self->fetch_msg, (uint64_t) last_known_sequence + index + 1);
+            dafka_proto_send (self->fetch_msg, self->consumer_sub);
         }
     } else {
-        if (id == DAFKA_PROTO_RELIABLE || id == DAFKA_PROTO_ANSWER) {
+        if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT) {
             zsock_bsend (self->pipe, "ssf", topic, address, content);
             zhashx_insert (self->sequence_index, sequence_key, &msg_sequence);
         }

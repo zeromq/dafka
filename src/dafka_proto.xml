@@ -10,35 +10,48 @@
     export_macro = "DAFKA_EXPORT">
 
     <message name = "MSG" id="'M'">
-        <field name = "content" type = "frame" />
-    </message>
+        Message from producer to consumers.
+        The topic is the message subject.
 
-    <message name = "RELIABLE" id="'R'">
         <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
     </message>
 
-    <message name = "ASK" id="'A'">
+    <message name = "FETCH" id="'F'">
+        Consumer publish the message when a message is missing.
+        Topic is the address of the producer (partition).
+        Either the producer or a store daemon can answer.
+
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
+        <field name = "count" type = "number" size = "4" />
         <field name = "address" type = "string" />
     </message>
 
-    <message name = "ANSWER" id = "'W'">
+    <message name = "DIRECT" id = "'D'">
+        Direct message to an address.
+        Currently it is a response for the fetch message.
+        Topic is the address of the recipient.
+
         <field name = "subject" type = "string" />
         <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
     </message>
-<!--
-    <message name = "ASK ALL" id = "'L'">
-        <field name = "subject" type = "string" />
-    </message>
 
-    <message name = "ACK" id = "'C'">
+    <message name = "ACK" id = "'K'">
+        Ack from a store daemon to a producer.
+        Topic is the address of the producer.
+
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
--->
+
+    <message name = "HEAD" id = "'H'">
+        <field name = "subject" type = "string" />
+        <field name = "address" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+    </message>
+
 </class>
