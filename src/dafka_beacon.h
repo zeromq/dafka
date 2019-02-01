@@ -47,7 +47,7 @@ DAFKA_EXPORT void
     dafka_beacon_actor (zsock_t *pipe, void *args);
 
 DAFKA_PRIVATE void
-    dafka_beacon_recv (zactor_t *self, zsock_t *sub);
+    dafka_beacon_recv (zactor_t *self, zsock_t *sub, bool verbose, const char *log_prefix);
 
 //  Self test of this actor
 DAFKA_EXPORT void

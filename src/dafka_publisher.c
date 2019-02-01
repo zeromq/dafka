@@ -42,6 +42,9 @@ static int
 s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg);
 
 static int
+s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg);
+
+static int
 s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
 
 //  --------------------------------------------------------------------------
@@ -59,7 +62,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
     self->loop = zloop_new ();
 
     //  Initialize class properties
-    self->socket = zsock_new_pub (NULL);
+    self->socket = zsock_new_xpub (NULL);
     int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
 
@@ -76,11 +79,12 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args *args)
     dafka_proto_set_address (self->head_msg, zuuid_str (address));
 
     self->beacon = zactor_new (dafka_beacon_actor, args->config);
-    zsock_send (self->beacon, "ssi", "START", address, port);
+    zsock_send (self->beacon, "ssi", "START", zuuid_str (address), port);
     assert (zsock_wait (self->beacon) == 0);
 
     zuuid_destroy (&address);
 
+    zloop_reader (self->loop, self->socket, s_recv_socket, self);
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
     zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
     return self;
@@ -147,7 +151,21 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
 
-    dafka_beacon_recv (self->beacon, self->socket);
+    zmsg_t *msg = zmsg_recv (self->beacon);
+    zmsg_destroy (&msg);
+
+    // dafka_beacon_recv (self->beacon, self->producer_sub, self->verbose, "Producer");
+}
+
+static int
+s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg) {
+    assert (loop);
+    assert (pipe);
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+
+    zmsg_t *msg = zmsg_recv (self->socket);
+    zmsg_destroy (&msg);
 }
 
 //  Here we handle incoming message from the node
@@ -265,10 +283,10 @@ dafka_publisher_test (bool verbose)
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 

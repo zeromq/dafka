@@ -305,7 +305,7 @@ dafka_store_actor (zsock_t *pipe, void *arg)
         if (which == self->sub)
             dafka_store_recv_sub (self);
         if (which == self->beacon)
-            dafka_beacon_recv (self->beacon, self->sub);
+            dafka_beacon_recv (self->beacon, self->sub, self->verbose, "Store");
     }
 
     zsys_info ("Store: stopped");
@@ -338,10 +338,10 @@ dafka_store_test (bool verbose)
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
 
 //    char *consumer_address = "SUB";
 
