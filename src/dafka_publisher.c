@@ -127,6 +127,9 @@ s_publish (dafka_publisher_t *self, zframe_t *content)
     assert (self);
     assert (content);
 
+    if (self->verbose)
+        zsys_debug ("Producer: Send MSG message with sequence %u", dafka_proto_sequence (self->msg));
+
     dafka_proto_set_content (self->msg, &content);
     int rc = dafka_proto_send (self->msg, self->socket);
     uint64_t sequence = dafka_proto_sequence (self->msg);
@@ -142,6 +145,9 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
     dafka_proto_set_sequence (self->head_msg, dafka_proto_sequence (self->msg));
+    if (self->verbose)
+        zsys_debug ("Producer: Send HEAD message with sequence %u", dafka_proto_sequence (self->msg));
+
     return dafka_proto_send (self->head_msg, self->socket);
 }
 
@@ -226,7 +232,7 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
     zsock_signal (self->pipe, 0);
 
     if (self->verbose)
-        zsys_info ("Publisher started");
+        zsys_info ("Producer: Publisher started");
 
     zloop_start (self->loop);
 
@@ -234,7 +240,7 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
     dafka_publisher_destroy (&self);
 
     if (verbose)
-        zsys_info ("Publisher stopped");
+        zsys_info ("Producer: Publisher stopped");
 }
 
 
