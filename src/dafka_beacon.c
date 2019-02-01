@@ -34,7 +34,7 @@ struct _dafka_beacon_t {
     zhashx_t *peers;
 
     char *sender;
-    char *beacon_msg;
+    int port;
 
     int beacon_timeout;
     int interval;
@@ -103,7 +103,6 @@ beacon_destroy (dafka_beacon_t **self_p) {
         zhashx_destroy (&self->peers);
         zstr_free (&self->tower_pub_address);
         zstr_free (&self->tower_sub_address);
-        zstr_free (&self->beacon_msg);
         zstr_free (&self->sender);
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
@@ -118,7 +117,7 @@ void
 dafka_beacon_interval (int timer_id, dafka_beacon_t *self) {
     (void)timer_id;
 
-    zsock_send (self->pub, "sss", "B", self->sender, self->beacon_msg);
+    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
 }
 
 //  Start this actor. Return a value greater or equal to zero if initialization
@@ -130,7 +129,6 @@ dafka_beacon_start (dafka_beacon_t *self) {
 
     // Destroy old fields
     zstr_free (&self->sender);
-    zstr_free (&self->beacon_msg);
 
     // Cancel old timer if running
     if (self->timer_id != -1)
@@ -145,19 +143,19 @@ dafka_beacon_start (dafka_beacon_t *self) {
         return -1;
     }
 
-    self->beacon_msg = zsys_sprintf ("tcp://%s:%d", zsys_hostname (), port);
+    self->port = port;
 
     // Enable the beacon timer
     self->timer_id = ztimerset_add (self->timerset, (size_t) self->interval, (ztimerset_fn *) dafka_beacon_interval, self);
 
     // Sending the first beacon immediately
-    zsock_send (self->pub, "sss", "B", self->sender, self->beacon_msg);
+    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
 
     zsock_signal (self->pipe, 0);
 
     if (self->verbose)
-        zsys_debug ("Beacon: started. address: %s interval: %d uuid: %s",
-                    self->beacon_msg, self->interval, self->sender);
+        zsys_debug ("Beacon: started. port: %d interval: %d uuid: %s",
+                    self->port, self->interval, self->sender);
 
     return 0;
 }
