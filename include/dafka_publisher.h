@@ -50,7 +50,7 @@ DAFKA_EXPORT int
     dafka_publisher_publish (zactor_t *self, zframe_t **content);
 
 //  Get the address the publisher
-DAFKA_EXPORT char *
+DAFKA_EXPORT const char *
     dafka_publisher_address (zactor_t *self);
 
 //  Self test of this actor
