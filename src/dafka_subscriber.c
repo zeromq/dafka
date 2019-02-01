@@ -271,7 +271,7 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
         zsys_info ("Subscriber: running...");
 
     while (!self->terminated) {
-        void *which = (zsock_t *) zpoller_wait (self->poller, 0);
+        void *which = (zsock_t *) zpoller_wait (self->poller, -1);
         if (which == self->pipe)
             dafka_subscriber_recv_api (self);
         if (which == self->consumer_sub)
