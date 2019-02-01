@@ -131,8 +131,20 @@ dafka_tower_actor (zsock_t *pipe, void *args)
         if (which == self->pipe)
             dafka_tower_recv_api (self);
         else if (which == self->xsub) {
-            zmsg_t* msg = zmsg_recv (self->xsub);
-            zmsg_send (&msg, self->xpub);
+            char *sender;
+            int port;
+            zframe_t* topic = zframe_recv (self->xsub);
+            zsock_recv (self->xsub, "si", &sender, &port);
+
+            const char* peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
+            char *address = zsys_sprintf ("tcp://%s:%d", peer_address, port);
+
+            // Forwarding the msg
+            zframe_send (&topic, self->xpub, ZMQ_MORE);
+            zsock_send (self->xpub, "ss", sender, address);
+
+            zstr_free (&address);
+            zstr_free (&sender);
         } else if (which == self->xpub) {
             zframe_t * subscription = zframe_recv (self->xpub);
 
