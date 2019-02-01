@@ -137,9 +137,10 @@ dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
 {
     assert (self);
     if (self->verbose)
-        zsys_debug ("Subscribe to %s", topic);
+        zsys_debug ("Consumer: Subscribe to topic %s", topic);
 
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
 }
 
 
@@ -168,6 +169,11 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
         subject = dafka_proto_subject (self->consumer_msg);
     }
     else
+    if (id == DAFKA_PROTO_HEAD) {
+        address = dafka_proto_address (self->consumer_msg);
+        subject = dafka_proto_topic (self->consumer_msg);
+    }
+    else
         return;     // Unexpected message id
 
     // TODO: Extract into struct and/or add zstr_concat
@@ -177,7 +183,7 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
     strcat (sequence_key, address);
 
     if (self->verbose)
-        zsys_debug ("Received message %c from %s on subject %s with sequence %u",
+        zsys_debug ("Consumer: Received message %c from %s on subject %s with sequence %u",
                     id, address, subject, msg_sequence);
 
     // Check if we missed some messages
@@ -186,10 +192,11 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
     }
 
-    if (id == DAFKA_PROTO_MSG && !(msg_sequence == last_known_sequence + 1)) {
+    if ((id == DAFKA_PROTO_MSG && !(msg_sequence == last_known_sequence + 1)) ||
+        (id == DAFKA_PROTO_HEAD && !(msg_sequence == last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
-            zsys_debug ("FETCHING %u messages on subject %s from %s starting at sequence %u",
+            zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",
                         no_of_missed_messages,
                         subject,
                         address,
@@ -202,12 +209,14 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
         dafka_proto_send (self->fetch_msg, self->consumer_pub);
     }
 
-    if (msg_sequence == last_known_sequence + 1) {
-        if (self->verbose)
-            zsys_debug ("Send message %u to client", msg_sequence);
+    if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT) {
+        if (msg_sequence == last_known_sequence + 1) {
+            if (self->verbose)
+                zsys_debug ("Send message %u to client", msg_sequence);
 
-        zhashx_update (self->sequence_index, sequence_key, &msg_sequence);
-        zsock_bsend (self->pipe, "ssf", subject, address, content);
+            zhashx_update (self->sequence_index, sequence_key, &msg_sequence);
+            zsock_bsend (self->pipe, "ssf", subject, address, content);
+        }
     }
 
     zstr_free (&sequence_key);
