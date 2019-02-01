@@ -128,8 +128,8 @@ dafka_store_new (zsock_t *pipe, char* endpoint, char *publisher_endpoints)
     self->pub = zsock_new_pub (endpoint);
     self->sub = zsock_new_sub (NULL, NULL);
     zsock_attach (self->sub, publisher_endpoints, false);
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_RELIABLE, "");
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_ASK, "");
+    dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, "");
+    dafka_proto_subscribe (self->sub, DAFKA_PROTO_FETCH, "");
 
     self->store = zhashx_new ();
     zhashx_set_destructor (self->store, (zhashx_destructor_fn *) zframe_destroy);
@@ -206,7 +206,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
     store_key_t key = {0};
 
     switch (dafka_proto_id (self->msg)) {
-        case DAFKA_PROTO_RELIABLE: {
+        case DAFKA_PROTO_MSG: {
             const char *subject = dafka_proto_topic (self->msg);
             const char *address = dafka_proto_address (self->msg);
             uint64_t sequence = dafka_proto_sequence (self->msg);
@@ -221,7 +221,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
 
             break;
         }
-        case DAFKA_PROTO_ASK: {
+        case DAFKA_PROTO_FETCH: {
             const char *subject = dafka_proto_subject (self->msg);
             const char *address = dafka_proto_topic (self->msg);
             uint64_t sequence = dafka_proto_sequence (self->msg);
@@ -244,7 +244,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
                 dafka_proto_set_address (self->msg, address);
                 dafka_proto_set_sequence (self->msg, sequence);
                 dafka_proto_set_content (self->msg,  &frame);
-                dafka_proto_set_id (self->msg, DAFKA_PROTO_ANSWER);
+                dafka_proto_set_id (self->msg, DAFKA_PROTO_DIRECT);
                 dafka_proto_send (self->msg, self->pub);
             } else {
                 zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
@@ -329,7 +329,7 @@ dafka_store_test (bool verbose)
 
     // Creating the consumer sub socker and subscribe
     zsock_t *consumer_sub = zsock_new_sub (store_endpoint, NULL);
-    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_ANSWER, consumer_address);
+    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_DIRECT, consumer_address);
 
     // Publish message, store should receive and store
     zframe_t *content = zframe_new ("HELLO", 5);
@@ -344,13 +344,13 @@ dafka_store_test (bool verbose)
     dafka_proto_set_subject (msg, "TEST");
     dafka_proto_set_sequence (msg, 0);
     dafka_proto_set_address (msg, consumer_address);
-    dafka_proto_set_id (msg, DAFKA_PROTO_ASK);
+    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
     dafka_proto_send (msg, consumer_pub);
 
     // Consumer wait for a response from store
     int rc = dafka_proto_recv (msg, consumer_sub);
     assert (rc == 0);
-    assert (dafka_proto_id (msg) == DAFKA_PROTO_ANSWER);
+    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
     assert (streq (dafka_proto_topic (msg), consumer_address));
     assert (streq (dafka_proto_subject (msg), "TEST"));
     assert (dafka_proto_sequence (msg) == 0);

@@ -40,7 +40,7 @@ dafka_publisher_new (const char *topic, const char *endpoint)
     self->socket = zsock_new_pub(endpoint);
     assert (self->socket);
     self->msg = dafka_proto_new ();
-    dafka_proto_set_id (self->msg, DAFKA_PROTO_RELIABLE);
+    dafka_proto_set_id (self->msg, DAFKA_PROTO_MSG);
     dafka_proto_set_topic (self->msg, topic);
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
