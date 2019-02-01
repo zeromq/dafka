@@ -27,12 +27,13 @@
 struct _dafka_publisher_t {
     //  Actor properties
     zsock_t *pipe;              //  Actor command pipe
-    zloop_t *loop;                //  Event loop
+    zloop_t *loop;              //  Event loop
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
     zsock_t *socket;            // Socket to publish messages to
     dafka_proto_t *msg;         // Reusable MSG message to publish
-    dafka_proto_t *head_msg;         // Reusable HEAD message to publish
+    dafka_proto_t *head_msg;    // Reusable HEAD message to publish
+    size_t head_interval;
 
     zactor_t *beacon;
 };
@@ -64,6 +65,8 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->loop = zloop_new ();
 
     //  Initialize class properties
+    self->head_interval = atoi (zconfig_get (args->config, "head/interval", "1000"));
+
     self->socket = zsock_new_xpub (NULL);
     int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
@@ -89,8 +92,6 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     zloop_reader (self->loop, self->socket, s_recv_socket, self);
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
     zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
-    size_t head_interval = atoi (zconfig_get (args->config, "head/interval", "1000"));
-    zloop_timer (self->loop, head_interval, 0, s_send_head, self);
     return self;
 }
 
@@ -134,6 +135,11 @@ s_publish (dafka_publisher_t *self, zframe_t *content)
     uint64_t sequence = dafka_proto_sequence (self->msg);
     dafka_proto_set_sequence (self->msg, sequence + 1);
     int rc = dafka_proto_send (self->msg, self->socket);
+
+    // Starts the HEAD timer once the first message has been send
+    if (sequence == 0)
+        zloop_timer (self->loop, self->head_interval, 0, s_send_head, self);
+
     return rc;
 }
 
@@ -145,14 +151,11 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
     uint64_t *sequence = dafka_proto_sequence (self->msg);
-    if (sequence != -1) {
-        dafka_proto_set_sequence (self->head_msg, sequence);
-        if (self->verbose)
-            zsys_debug ("Producer: Send HEAD message with sequence %u", sequence);
+    dafka_proto_set_sequence (self->head_msg, sequence);
+    if (self->verbose)
+        zsys_debug ("Producer: Send HEAD message with sequence %u", sequence);
 
-        return dafka_proto_send (self->head_msg, self->socket);
-    }
-    return 0;
+    return dafka_proto_send (self->head_msg, self->socket);
 }
 
 //  Here we handle incoming message from the beacon
