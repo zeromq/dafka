@@ -378,6 +378,32 @@ install(TARGETS dafka_console_producer
     RUNTIME DESTINATION bin
 )
 add_executable(
+    dafka_console_consumer
+    "${SOURCE_DIR}/src/dafka_console_consumer.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_console_consumer
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_console_consumer
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+install(TARGETS dafka_console_consumer
+    RUNTIME DESTINATION bin
+)
+add_executable(
     dafka_stored
     "${SOURCE_DIR}/src/dafka_stored.c"
 )
@@ -509,6 +535,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/libdafka.so
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
                     ${CMAKE_BINARY_DIR}/src/dafka_console_producer
+                    ${CMAKE_BINARY_DIR}/src/dafka_console_consumer
                     ${CMAKE_BINARY_DIR}/src/dafka_stored
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
 )

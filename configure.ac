@@ -532,6 +532,16 @@ AC_ARG_ENABLE([dafka_console_producer],
 AM_CONDITIONAL([ENABLE_DAFKA_CONSOLE_PRODUCER], [test x$enable_dafka_console_producer != xno])
 AM_COND_IF([ENABLE_DAFKA_CONSOLE_PRODUCER], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSOLE_PRODUCER defined])])
 
+# Check for dafka_console_consumer intent
+AC_ARG_ENABLE([dafka_console_consumer],
+    AS_HELP_STRING([--enable-dafka_console_consumer],
+        [Compile and install 'dafka_console_consumer' [default=yes]]),
+    [enable_dafka_console_consumer=$enableval],
+    [enable_dafka_console_consumer=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_CONSOLE_CONSUMER], [test x$enable_dafka_console_consumer != xno])
+AM_COND_IF([ENABLE_DAFKA_CONSOLE_CONSUMER], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSOLE_CONSUMER defined])])
+
 # Check for dafka_stored intent
 AC_ARG_ENABLE([dafka_stored],
     AS_HELP_STRING([--enable-dafka_stored],
