@@ -257,7 +257,11 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
         if (which == self->socket)
             dafka_subscriber_recv_subscriptions (self);
     }
+    bool verbose = self->verbose;
     dafka_subscriber_destroy (&self);
+
+    if (verbose)
+        zsys_info ("Subscriber: stopped");
 }
 
 //  --------------------------------------------------------------------------
