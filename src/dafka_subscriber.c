@@ -297,7 +297,7 @@ void
 dafka_subscriber_test (bool verbose)
 {
     printf (" * dafka_subscriber: ");
-
+    //  @selftest
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
@@ -306,8 +306,7 @@ dafka_subscriber_test (bool verbose)
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-sub");
 
-    //  @selftest
-    char *publisher_args[] = { "hello", "inproc://hellopub" };
+    const void **publisher_args = { "dummy", config };
     zactor_t *pub =  zactor_new (dafka_publisher_actor, publisher_args);
     assert (pub);
 

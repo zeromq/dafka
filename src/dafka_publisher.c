@@ -17,7 +17,7 @@
 @discuss
     TODO:
         - Store send messages until an ACK has been received
-        - Send HEAD messages every X seconds
+        - Read HEAD interval from config file
 @end
 */
 
@@ -34,16 +34,21 @@ struct _dafka_publisher_t {
     zsock_t *socket;            // Socket to publish messages to
     dafka_proto_t *msg;         // Reusable MSG message to publish
     dafka_proto_t *head_msg;         // Reusable HEAD message to publish
+
+    zactor_t *beacon;
 };
 
 static int
 s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg);
 
+static int
+s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
+
 //  --------------------------------------------------------------------------
 //  Create a new dafka_publisher instance
 
 static dafka_publisher_t *
-dafka_publisher_new (zsock_t *pipe, void *args)
+dafka_publisher_new (zsock_t *pipe, char* topic, zconfig_t *config)
 {
     dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
     assert (self);
@@ -52,13 +57,13 @@ dafka_publisher_new (zsock_t *pipe, void *args)
     self->pipe = pipe;
     self->loop = zloop_new ();
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
+    zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
 
     //  Initialize class properties
-    char *topic = ((char **) args)[0];
-    char *endpoint = ((char **) args)[1];
-
-    self->socket = zsock_new_pub(endpoint);
+    self->socket = zsock_new_pub (NULL);
+    int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
+
     self->msg = dafka_proto_new ();
     dafka_proto_set_id (self->msg, DAFKA_PROTO_MSG);
     dafka_proto_set_topic (self->msg, topic);
@@ -70,6 +75,10 @@ dafka_publisher_new (zsock_t *pipe, void *args)
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
     dafka_proto_set_topic (self->head_msg, topic);
     dafka_proto_set_address (self->head_msg, zuuid_str (address));
+
+    self->beacon = zactor_new (dafka_beacon_actor, config);
+    zsock_send (self->beacon, "ssi", "START", address, port);
+    assert (zsock_wait (self->beacon) == 0);
 
     zuuid_destroy (&address);
     return self;
@@ -125,12 +134,26 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
     return dafka_proto_send (self->head_msg, self->socket);
 }
 
+//  Here we handle incoming message from the beacon
+
+static int
+s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
+{
+    assert (loop);
+    assert (pipe);
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+
+    dafka_beacon_recv (self->beacon, self->socket);
+}
 
 //  Here we handle incoming message from the node
 
 static int
 s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 {
+    assert (loop);
+    assert (pipe);
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
 
@@ -169,7 +192,9 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 void
 dafka_publisher_actor (zsock_t *pipe, void *args)
 {
-    dafka_publisher_t * self = dafka_publisher_new (pipe, args);
+    char *topic = ((char **) args)[0];
+    zconfig_t *config = ((zconfig_t **) args)[1];
+    dafka_publisher_t * self = dafka_publisher_new (pipe, topic, config);
     if (!self)
         return;          //  Interrupted
 
@@ -235,7 +260,14 @@ dafka_publisher_test (bool verbose)
     printf (" * dafka_publisher: ");
     //  @selftest
     //  Simple create/destroy test
-    const char *args[] = { "dummy", "inproc://dummy" };
+    zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
+    const void **args = { "dummy", config };
     zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, args);
     assert (dafka_publisher);
 
