@@ -179,8 +179,6 @@ dafka_store_recv_api (dafka_store_t *self)
 
     char *command = zmsg_popstr (request);
 
-    printf ("%s\n", command);
-
     if (streq (command, "VERBOSE"))
         self->verbose = true;
     else
@@ -225,30 +223,35 @@ dafka_store_recv_sub (dafka_store_t *self) {
             const char *subject = dafka_proto_subject (self->msg);
             const char *address = dafka_proto_topic (self->msg);
             uint64_t sequence = dafka_proto_sequence (self->msg);
+            uint32_t count = dafka_proto_count (self->msg);
 
-            store_key_init (&key, subject, address, sequence);
+            dafka_proto_set_topic (self->msg, dafka_proto_address (self->msg));
+            dafka_proto_set_subject (self->msg, subject);
+            dafka_proto_set_address (self->msg, address);
+            dafka_proto_set_id (self->msg, DAFKA_PROTO_DIRECT);
 
-            zframe_t *frame = zhashx_lookup (self->store, &key);
+            for (uint32_t i = 0; i < count; i++) {
+                store_key_init (&key, subject, address, sequence + i);
 
-            if (frame) {
-                zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                           subject, address, sequence);
+                zframe_t *frame = zhashx_lookup (self->store, &key);
 
-                // TODO: add zframe_copy that will make a zmq_msg_copy instead of full frame copy
-                // We can also use the zframe_frommem
-                frame = zframe_dup (frame);
+                if (frame) {
+                    zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
+                               subject, address, sequence + i);
 
-                // The answer topic is the asker address
-                dafka_proto_set_topic (self->msg, dafka_proto_address (self->msg));
-                dafka_proto_set_subject (self->msg, subject);
-                dafka_proto_set_address (self->msg, address);
-                dafka_proto_set_sequence (self->msg, sequence);
-                dafka_proto_set_content (self->msg,  &frame);
-                dafka_proto_set_id (self->msg, DAFKA_PROTO_DIRECT);
-                dafka_proto_send (self->msg, self->pub);
-            } else {
-                zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                           subject, address, sequence);
+                    // TODO: add zframe_copy that will make a zmq_msg_copy instead of full frame copy
+                    // We can also use the zframe_frommem
+                    frame = zframe_dup (frame);
+
+                    // The answer topic is the asker address
+                    dafka_proto_set_sequence (self->msg, sequence + i);
+                    dafka_proto_set_content (self->msg, &frame);
+                    dafka_proto_send (self->msg, self->pub);
+                } else {
+                    zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
+                               subject, address, sequence);
+                    break;
+                }
             }
 
             break;
@@ -338,11 +341,14 @@ dafka_store_test (bool verbose)
     content = zframe_new ("WORLD", 5);
     dafka_publisher_publish (pub, &content);
 
+    usleep (100);
+
     // Consumer ask for a message
     dafka_proto_t *msg = dafka_proto_new ();
     dafka_proto_set_topic (msg, dafka_publisher_address(pub));
     dafka_proto_set_subject (msg, "TEST");
     dafka_proto_set_sequence (msg, 0);
+    dafka_proto_set_count (msg, 2);
     dafka_proto_set_address (msg, consumer_address);
     dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
     dafka_proto_send (msg, consumer_pub);
@@ -354,8 +360,17 @@ dafka_store_test (bool verbose)
     assert (streq (dafka_proto_topic (msg), consumer_address));
     assert (streq (dafka_proto_subject (msg), "TEST"));
     assert (dafka_proto_sequence (msg) == 0);
-
     assert (zframe_streq (dafka_proto_content (msg), "HELLO"));
+
+    // Receiving the second message
+    dafka_proto_recv (msg, consumer_sub);
+    assert (rc == 0);
+    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
+    assert (streq (dafka_proto_topic (msg), consumer_address));
+    assert (streq (dafka_proto_subject (msg), "TEST"));
+    assert (dafka_proto_sequence (msg) == 1);
+    assert (zframe_streq (dafka_proto_content (msg), "WORLD"));
+
 
     dafka_proto_destroy (&msg);
     zsock_destroy (&consumer_sub);
