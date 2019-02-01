@@ -349,6 +349,7 @@ dafka_subscriber_test (bool verbose)
     zframe_destroy (&content);
 
     dafka_publisher_destroy (&pub);
+    zactor_destroy (&store);
     zactor_destroy (&sub);
     //  @end
 
