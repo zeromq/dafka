@@ -68,21 +68,21 @@ typedef struct _dafka_proto_t dafka_proto_t;
 #define DAFKA_PROTO_T_DEFINED
 //  Draft classes are by default not built in stable releases
 #ifdef DAFKA_BUILD_DRAFT_API
+typedef struct _dafka_store_t dafka_store_t;
+#define DAFKA_STORE_T_DEFINED
 typedef struct _dafka_publisher_t dafka_publisher_t;
 #define DAFKA_PUBLISHER_T_DEFINED
 typedef struct _dafka_subscriber_t dafka_subscriber_t;
 #define DAFKA_SUBSCRIBER_T_DEFINED
-typedef struct _dafka_store_t dafka_store_t;
-#define DAFKA_STORE_T_DEFINED
 #endif // DAFKA_BUILD_DRAFT_API
 
 
 //  Public classes, each with its own header file
 #include "dafka_proto.h"
 #ifdef DAFKA_BUILD_DRAFT_API
+#include "dafka_store.h"
 #include "dafka_publisher.h"
 #include "dafka_subscriber.h"
-#include "dafka_store.h"
 #endif // DAFKA_BUILD_DRAFT_API
 
 #ifdef DAFKA_BUILD_DRAFT_API

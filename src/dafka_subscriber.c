@@ -15,6 +15,8 @@
 @header
     dafka_subscriber -
 @discuss
+    TODO:
+        - Handle HEAD messages
 @end
 */
 
@@ -285,7 +287,8 @@ dafka_subscriber_test (bool verbose)
 {
     printf (" * dafka_subscriber: ");
     //  @selftest
-    dafka_publisher_t *pub = dafka_publisher_new ("hello", "inproc://hellopub");
+    char *publisher_args[] = { "hello", "inproc://hellopub" };
+    zactor_t *pub =  zactor_new (dafka_publisher_actor, publisher_args);
     assert (pub);
 
     char *store_args[] = {"inproc://hellostore", "inproc://hellopub,inproc://hellofetcher"};
@@ -348,7 +351,7 @@ dafka_subscriber_test (bool verbose)
     zstr_free (&content_str);
     zframe_destroy (&content);
 
-    dafka_publisher_destroy (&pub);
+    zactor_destroy (&pub);
     zactor_destroy (&store);
     zactor_destroy (&sub);
     //  @end

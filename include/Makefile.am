@@ -9,9 +9,9 @@ include_HEADERS = \
 
 if ENABLE_DRAFTS
 include_HEADERS += \
+    dafka_store.h \
     dafka_publisher.h \
-    dafka_subscriber.h \
-    dafka_store.h
+    dafka_subscriber.h
 
 endif
 

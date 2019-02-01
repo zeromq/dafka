@@ -36,7 +36,8 @@ int main (int argc, char *argv [])
 
     zargs_destroy (&args);
 
-    dafka_publisher_t *publisher = dafka_publisher_new (topic, endpoint);
+    const char *publisher_args[] = { topic, endpoint };
+    zactor_t *publisher = zactor_new (dafka_publisher_actor, publisher_args);
 
     char *msg = NULL;
     size_t size = 0;
@@ -54,7 +55,7 @@ int main (int argc, char *argv [])
         zstr_free (&msg);
     }
 
-    dafka_publisher_destroy (&publisher);
+    zactor_destroy (&publisher);
 
     return 0;
 }
