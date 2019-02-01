@@ -40,8 +40,10 @@ struct _dafka_store_t {
     dafka_proto_t *outgoing_msg;
     zsock_t *pub;
     zsock_t *sub;
+    zactor_t *beacon;
 
     zhashx_t *store;
+    char *address;
 };
 
 static void
@@ -117,7 +119,7 @@ take_ownership_dup (const void* self) {
 //  Create a new dafka_store instance
 
 static dafka_store_t *
-dafka_store_new (zsock_t *pipe, char* endpoint, char *publisher_endpoints)
+dafka_store_new (zsock_t *pipe, zconfig_t *config)
 {
     dafka_store_t *self = (dafka_store_t *) zmalloc (sizeof (dafka_store_t));
     assert (self);
@@ -125,13 +127,22 @@ dafka_store_new (zsock_t *pipe, char* endpoint, char *publisher_endpoints)
     self->pipe = pipe;
     self->terminated = false;
 
+    zuuid_t *uuid = zuuid_new ();
+    self->address = strdup (zuuid_str (uuid));
+    zuuid_destroy (&uuid);
+
     self->income_msg = dafka_proto_new ();
     self->outgoing_msg = dafka_proto_new ();
-    self->pub = zsock_new_pub (endpoint);
+    self->pub = zsock_new_pub (NULL);
+    int port = zsock_bind (self->pub, "tcp://*:*");
+    assert (port != -1);
     self->sub = zsock_new_sub (NULL, NULL);
-    zsock_attach (self->sub, publisher_endpoints, false);
     dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, "");
     dafka_proto_subscribe (self->sub, DAFKA_PROTO_FETCH, "");
+
+    self->beacon = zactor_new (dafka_beacon_actor, config);
+    zsock_send (self->beacon, "ssi", "START", self->address, port);
+    assert (zsock_wait (self->beacon) == 0);
 
     self->store = zhashx_new ();
     zhashx_set_destructor (self->store, (zhashx_destructor_fn *) zframe_destroy);
@@ -141,7 +152,7 @@ dafka_store_new (zsock_t *pipe, char* endpoint, char *publisher_endpoints)
     zhashx_set_key_hasher (self->store, (zhashx_hash_fn *) store_hash);
     zhashx_set_key_comparator (self->store, (zhashx_comparator_fn *) store_key_cmp);
 
-    self->poller = zpoller_new (self->pipe, self->sub, NULL);
+    self->poller = zpoller_new (self->pipe, self->sub, self->beacon, NULL);
 
     return self;
 }
@@ -157,11 +168,13 @@ dafka_store_destroy (dafka_store_t **self_p)
     if (*self_p) {
         dafka_store_t *self = *self_p;
 
+        zstr_free (&self->address);
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
         dafka_proto_destroy (&self->income_msg);
         dafka_proto_destroy (&self->outgoing_msg);
         zhashx_destroy (&self->store);
+        zactor_destroy (&self->beacon);
 
         //  Free object itself
         zpoller_destroy (&self->poller);
@@ -276,9 +289,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
 void
 dafka_store_actor (zsock_t *pipe, void *arg)
 {
-    char **args = (char**)arg;
-
-    dafka_store_t * self = dafka_store_new (pipe, args[0], args[1]);
+    dafka_store_t * self = dafka_store_new (pipe, arg);
     if (!self)
         return;          //  Interrupted
 
@@ -288,11 +299,13 @@ dafka_store_actor (zsock_t *pipe, void *arg)
     zsys_info ("Store: running...");
 
     while (!self->terminated) {
-        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, -1);
+        void *which = (zsock_t *) zpoller_wait (self->poller, -1);
         if (which == self->pipe)
             dafka_store_recv_api (self);
         if (which == self->sub)
             dafka_store_recv_sub (self);
+        if (which == self->beacon)
+            dafka_beacon_recv (self->beacon, self->sub);
     }
 
     zsys_info ("Store: stopped");
@@ -322,70 +335,74 @@ dafka_store_test (bool verbose)
     printf (" * dafka_store: ");
     //  @selftest
     //  Simple create/destroy test
-    const char *store_endpoint = "inproc://store";
-    const char *publisher_endpoint = "inproc://publisher";
-    const char *consumer_endpoint = "inproc://consumer";
-    const char *store_connection_string = "inproc://publisher,inproc://consumer";
-    char *consumer_address = "SUB";
-    const char * store_args[2] = {store_endpoint, store_connection_string};
+    zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
 
-    // Creating the publisher
-    const char *publisher_args[] = { "TEST", publisher_endpoint };
-    zactor_t *pub = zactor_new (dafka_publisher_actor, publisher_args);
+//    char *consumer_address = "SUB";
 
-    // Creating the consumer pub socket
-    zsock_t *consumer_pub = zsock_new_pub (consumer_endpoint);
+//    // Creating the publisher
+//    dafka_publisher_t *pub = dafka_publisher_new ("TEST", config);
+
+//    // Creating the consumer pub socket
+//    zsock_t *consumer_pub = zsock_new_pub (consumer_endpoint);
 
     // Creating the store
-    zactor_t *dafka_store = zactor_new (dafka_store_actor, store_args);
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
+    zactor_t *store = zactor_new (dafka_store_actor, config);
 
-    // Creating the consumer sub socker and subscribe
-    zsock_t *consumer_sub = zsock_new_sub (store_endpoint, NULL);
-    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_DIRECT, consumer_address);
+//    // Creating the consumer sub socker and subscribe
+//    zsock_t *consumer_sub = zsock_new_sub (store_endpoint, NULL);
+//    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_DIRECT, consumer_address);
+//
+//    // Publish message, store should receive and store
+//    zframe_t *content = zframe_new ("HELLO", 5);
+//    dafka_publisher_publish (pub, &content);
+//
+//    content = zframe_new ("WORLD", 5);
+//    dafka_publisher_publish (pub, &content);
+//
+//    usleep (100);
+//
+//    // Consumer ask for a message
+//    dafka_proto_t *msg = dafka_proto_new ();
+//    dafka_proto_set_topic (msg, dafka_publisher_address(pub));
+//    dafka_proto_set_subject (msg, "TEST");
+//    dafka_proto_set_sequence (msg, 0);
+//    dafka_proto_set_count (msg, 2);
+//    dafka_proto_set_address (msg, consumer_address);
+//    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
+//    dafka_proto_send (msg, consumer_pub);
+//
+//    // Consumer wait for a response from store
+//    int rc = dafka_proto_recv (msg, consumer_sub);
+//    assert (rc == 0);
+//    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
+//    assert (streq (dafka_proto_topic (msg), consumer_address));
+//    assert (streq (dafka_proto_subject (msg), "TEST"));
+//    assert (dafka_proto_sequence (msg) == 0);
+//    assert (zframe_streq (dafka_proto_content (msg), "HELLO"));
+//
+//    // Receiving the second message
+//    dafka_proto_recv (msg, consumer_sub);
+//    assert (rc == 0);
+//    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
+//    assert (streq (dafka_proto_topic (msg), consumer_address));
+//    assert (streq (dafka_proto_subject (msg), "TEST"));
+//    assert (dafka_proto_sequence (msg) == 1);
+//    assert (zframe_streq (dafka_proto_content (msg), "WORLD"));
+//
 
-    // Publish message, store should receive and store
-    zframe_t *content = zframe_new ("HELLO", 5);
-    dafka_publisher_publish (pub, &content);
-
-    content = zframe_new ("WORLD", 5);
-    dafka_publisher_publish (pub, &content);
-
-    usleep (100);
-
-    // Consumer ask for a message
-    dafka_proto_t *msg = dafka_proto_new ();
-    dafka_proto_set_topic (msg, dafka_publisher_address(pub));
-    dafka_proto_set_subject (msg, "TEST");
-    dafka_proto_set_sequence (msg, 0);
-    dafka_proto_set_count (msg, 2);
-    dafka_proto_set_address (msg, consumer_address);
-    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
-    dafka_proto_send (msg, consumer_pub);
-
-    // Consumer wait for a response from store
-    int rc = dafka_proto_recv (msg, consumer_sub);
-    assert (rc == 0);
-    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-    assert (streq (dafka_proto_topic (msg), consumer_address));
-    assert (streq (dafka_proto_subject (msg), "TEST"));
-    assert (dafka_proto_sequence (msg) == 0);
-    assert (zframe_streq (dafka_proto_content (msg), "HELLO"));
-
-    // Receiving the second message
-    dafka_proto_recv (msg, consumer_sub);
-    assert (rc == 0);
-    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-    assert (streq (dafka_proto_topic (msg), consumer_address));
-    assert (streq (dafka_proto_subject (msg), "TEST"));
-    assert (dafka_proto_sequence (msg) == 1);
-    assert (zframe_streq (dafka_proto_content (msg), "WORLD"));
-
-
-    dafka_proto_destroy (&msg);
-    zsock_destroy (&consumer_sub);
-    zactor_destroy (&dafka_store);
-    zsock_destroy (&consumer_pub);
-    zactor_destroy (&pub);
+//    dafka_proto_destroy (&msg);
+//    zsock_destroy (&consumer_sub);
+    zactor_destroy (&store);
+    zactor_destroy (&tower);
+//    zsock_destroy (&consumer_pub);
+//    dafka_publisher_destroy (&pub);
     //  @end
 
     printf ("OK\n");

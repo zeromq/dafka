@@ -552,6 +552,16 @@ AC_ARG_ENABLE([dafka_stored],
 AM_CONDITIONAL([ENABLE_DAFKA_STORED], [test x$enable_dafka_stored != xno])
 AM_COND_IF([ENABLE_DAFKA_STORED], [AC_MSG_NOTICE([ENABLE_DAFKA_STORED defined])])
 
+# Check for dafka_towerd intent
+AC_ARG_ENABLE([dafka_towerd],
+    AS_HELP_STRING([--enable-dafka_towerd],
+        [Compile and install 'dafka_towerd' [default=yes]]),
+    [enable_dafka_towerd=$enableval],
+    [enable_dafka_towerd=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_TOWERD], [test x$enable_dafka_towerd != xno])
+AM_COND_IF([ENABLE_DAFKA_TOWERD], [AC_MSG_NOTICE([ENABLE_DAFKA_TOWERD defined])])
+
 # Check for dafka_selftest intent
 AC_ARG_ENABLE([dafka_selftest],
     AS_HELP_STRING([--enable-dafka_selftest],

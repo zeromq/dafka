@@ -38,6 +38,7 @@ struct _dafka_subscriber_t {
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
     dafka_proto_t *fetch_msg;   // Reusable publisher message
+    zactor_t* beacon;           // Beacon actor
 };
 
 //  Static helper methods
@@ -63,7 +64,7 @@ uint64_dup (const void *self) {
 //  Create a new dafka_subscriber instance
 
 static dafka_subscriber_t *
-dafka_subscriber_new (zsock_t *pipe, void *args)
+dafka_subscriber_new (zsock_t *pipe, zconfig_t *config)
 {
     dafka_subscriber_t *self = (dafka_subscriber_t *) zmalloc (sizeof (dafka_subscriber_t));
     assert (self);
@@ -71,26 +72,31 @@ dafka_subscriber_new (zsock_t *pipe, void *args)
     //  Initialize actor properties
     self->pipe = pipe;
     self->terminated = false;
-    self->poller = zpoller_new (self->pipe, NULL);
 
     //  Initialize class properties
-    char *addresses = ((char **) args)[0];
-    char *consumer_pub_endpoint = ((char **) args)[1];
-    self->socket = zsock_new_sub (addresses, NULL);
-    zpoller_add (self->poller, self->socket);
+    self->socket = zsock_new_sub (NULL, NULL);
     self->consumer_msg = dafka_proto_new ();
 
     self->sequence_index = zhashx_new ();
     zhashx_set_destructor(self->sequence_index, uint64_destroy);
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
 
-    self->consumer_pub = zsock_new_pub (consumer_pub_endpoint);
+    self->consumer_pub = zsock_new_pub (NULL);
+    int port = zsock_bind (self->consumer_pub, "tcp://*:*");
+    assert (port != -1);
+
     self->fetch_msg = dafka_proto_new ();
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     zuuid_t *consumer_address = zuuid_new ();
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->socket, DAFKA_PROTO_DIRECT, zuuid_str (consumer_address));
     zuuid_destroy(&consumer_address);
+
+    self->beacon = zactor_new (dafka_beacon_actor, config);
+    zsock_send (self->beacon, "ssi", "START", dafka_proto_address (self->fetch_msg), port);
+    assert (zsock_wait (self->beacon) == 0);
+
+    self->poller = zpoller_new (self->pipe, self->socket, self->beacon, NULL);
 
     return self;
 }
@@ -112,6 +118,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
         dafka_proto_destroy (&self->consumer_msg);
         dafka_proto_destroy (&self->fetch_msg);
         zhashx_destroy (&self->sequence_index);
+        zactor_destroy (&self->beacon);
 
         //  Free actor properties
         self->terminated = true;
@@ -255,11 +262,13 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
         zsys_info ("Subscriber: running...");
 
     while (!self->terminated) {
-        zsock_t *which = (zsock_t *) zpoller_wait (self->poller, 0);
+        void *which = (zsock_t *) zpoller_wait (self->poller, 0);
         if (which == self->pipe)
             dafka_subscriber_recv_api (self);
         if (which == self->socket)
             dafka_subscriber_recv_subscriptions (self);
+        if (which == self->beacon)
+            dafka_beacon_recv (self->beacon, self->consumer_pub);
     }
     bool verbose = self->verbose;
     dafka_subscriber_destroy (&self);
@@ -288,17 +297,24 @@ void
 dafka_subscriber_test (bool verbose)
 {
     printf (" * dafka_subscriber: ");
+
+    zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://tower-sub");
+
     //  @selftest
     char *publisher_args[] = { "hello", "inproc://hellopub" };
     zactor_t *pub =  zactor_new (dafka_publisher_actor, publisher_args);
     assert (pub);
 
-    char *store_args[] = {"inproc://hellostore", "inproc://hellopub,inproc://hellofetcher"};
-    zactor_t *store = zactor_new (dafka_store_actor, store_args);
+    zactor_t *store = zactor_new (dafka_store_actor, config);
     assert (store);
 
-    char *consumer_args[] = {"inproc://hellopub,inproc://hellostore", "inproc://hellofetcher"};
-    zactor_t *sub = zactor_new (dafka_subscriber_actor, consumer_args);
+    zactor_t *sub = zactor_new (dafka_subscriber_actor, config);
     assert (sub);
 
     if (verbose) {

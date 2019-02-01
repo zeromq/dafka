@@ -13,6 +13,8 @@
 # Ignore the source doc texts generated from program sources
 dafka_proto.txt
 dafka_proto.doc
+dafka_tower.txt
+dafka_tower.doc
 dafka_store.txt
 dafka_store.doc
 dafka_publisher.txt
@@ -25,6 +27,8 @@ dafka_console_consumer.txt
 dafka_console_consumer.doc
 dafka_stored.txt
 dafka_stored.doc
+dafka_towerd.txt
+dafka_towerd.doc
 
 # Make sure to track the manually maintained project description
 !*.adoc

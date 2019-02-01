@@ -35,9 +35,16 @@ all_tests [] = {
     { "dafka_proto", dafka_proto_test, true, true, NULL },
 #ifdef DAFKA_BUILD_DRAFT_API
 // Tests for draft public classes:
+    { "dafka_tower", dafka_tower_test, false, true, NULL },
     { "dafka_store", dafka_store_test, false, true, NULL },
     { "dafka_publisher", dafka_publisher_test, false, true, NULL },
     { "dafka_subscriber", dafka_subscriber_test, false, true, NULL },
+#endif // DAFKA_BUILD_DRAFT_API
+#ifdef DAFKA_BUILD_DRAFT_API
+// Tests for stable/draft private classes:
+// Now built only with --enable-drafts, so even stable builds are hidden behind the flag
+    { "dafka_beacon", NULL, true, false, "dafka_beacon_test" },
+    { "private_classes", NULL, false, false, "$ALL" }, // compat option for older projects
 #endif // DAFKA_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel
 };

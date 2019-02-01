@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_stored - description
+    dafka_towerd - description
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -13,19 +13,18 @@
 
 /*
 @header
-    dafka_stored -
+    dafka_towerd -
 @discuss
 @end
 */
 
 #include "dafka_classes.h"
 
-
 int main (int argc, char** argv) {
     zargs_t *args = zargs_new (argc, argv);
 
     if (zargs_hasx (args, "--help", "-h", NULL)) {
-        puts ("Usage: dafka_stored [-c config] [--pub tower-pub-address] [--sub tower-sub-address]");
+        puts ("Usage: dafka_towerd [-c config] [--pub tower-pub-address] [--sub tower-sub-address]");
         return 0;
     }
 
@@ -36,18 +35,14 @@ int main (int argc, char** argv) {
     else
         config = zconfig_new ("root", NULL);
 
-//    if (zargs_get (args, "--pub")) {
-//        zconfig_put (config, )
-//    }
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    zactor_t *store = zactor_new (dafka_store_actor, config);
-
-    char* command = zstr_recv (store);
+    char* command = zstr_recv (tower);
     zstr_free (&command); // Interrupted
 
     zconfig_destroy (&config);
     zargs_destroy (&args);
-    zactor_destroy (&store);
+    zactor_destroy (&tower);
 
     return 0;
 }

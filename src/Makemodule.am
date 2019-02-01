@@ -14,10 +14,12 @@ pkgconfig_DATA = src/libdafka.pc
 
 src_libdafka_la_SOURCES = \
     src/dafka_proto.c \
+    src/dafka_beacon.c \
     src/platform.h
 
 if ENABLE_DRAFTS
 src_libdafka_la_SOURCES += \
+    src/dafka_tower.c \
     src/dafka_store.c \
     src/dafka_publisher.c \
     src/dafka_subscriber.c
@@ -70,6 +72,13 @@ src_dafka_stored_LDADD = ${program_libs}
 src_dafka_stored_SOURCES = src/dafka_stored.c
 endif #ENABLE_DAFKA_STORED
 
+if ENABLE_DAFKA_TOWERD
+bin_PROGRAMS += src/dafka_towerd
+src_dafka_towerd_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_towerd_LDADD = ${program_libs}
+src_dafka_towerd_SOURCES = src/dafka_towerd.c
+endif #ENABLE_DAFKA_TOWERD
+
 if ENABLE_DAFKA_SELFTEST
 check_PROGRAMS += src/dafka_selftest
 noinst_PROGRAMS += src/dafka_selftest
@@ -88,6 +97,7 @@ src: \
 		src/dafka_console_producer \
 		src/dafka_console_consumer \
 		src/dafka_stored \
+		src/dafka_towerd \
 		src/dafka_selftest \
 		src/libdafka.la
 

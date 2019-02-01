@@ -51,10 +51,11 @@ int main (int argc, char *argv [])
             msg_size--;
 
         zframe_t *frame = zframe_new (msg, (size_t) msg_size);
+
         dafka_publisher_publish (publisher, &frame);
-        zstr_free (&msg);
     }
 
+    zstr_free (&msg);
     zactor_destroy (&publisher);
 
     return 0;

@@ -11,6 +11,8 @@
     <abi current = "0" revision = "1" age = "0" />
     <use project = "czmq" />
 
+    <actor name = "dafka_beacon" private = "1" />
+    <actor name = "dafka_tower" />
     <actor name = "dafka_store" />
     <actor name = "dafka_publisher" />
     <actor name = "dafka_subscriber" />
@@ -21,4 +23,5 @@
     <main name = "dafka_console_producer" />
     <main name = "dafka_console_consumer" />
     <main name = "dafka_stored" />
+    <main name = "dafka_towerd" />
 </project>
