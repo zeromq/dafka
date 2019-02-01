@@ -148,6 +148,12 @@ dafka_tower_actor (zsock_t *pipe, void *args)
         } else if (which == self->xpub) {
             zframe_t * subscription = zframe_recv (self->xpub);
 
+            if (self->verbose && (zframe_data (subscription)[0]) == 0)
+                zsys_debug ("Tower: Received unsubscription %c", zframe_data (subscription)[1]);
+
+            if (self->verbose && (zframe_data (subscription)[0]) == 1)
+                zsys_debug ("Tower: Received subscription %c", zframe_data (subscription)[1]);
+
             // We drop welcome subscription, no need to forward them
             if (zframe_size (subscription) >= 2 && zframe_data (subscription)[1] == 'W') {
                 zframe_destroy (&subscription);
