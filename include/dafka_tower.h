@@ -29,10 +29,6 @@ extern "C" {
 //
 //      zactor_destroy (&dafka_tower);
 //
-//  Enable verbose logging of commands and activity:
-//
-//      zstr_send (dafka_tower, "VERBOSE");
-//
 //  Start dafka_tower actor.
 //
 //      zstr_sendx (dafka_tower, "START", NULL);

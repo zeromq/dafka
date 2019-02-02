@@ -69,7 +69,7 @@ dafka_beacon_new (zsock_t *pipe, zconfig_t *config) {
     self->timer_id = -1;
     self->port = -1;
 
-    if (atoi(zconfig_get (config, "beacon/verbose", "0")))
+    if (atoi (zconfig_get (config, "beacon/verbose", "0")))
         self->verbose = true;
 
     self->beacon_timeout = zconfig_get_int(config, "beacon/timeout", 4000);
@@ -191,11 +191,11 @@ dafka_beacon_recv_api (dafka_beacon_t *self) {
 
     if (streq (command, "START"))
         dafka_beacon_start (self);
-    else if (streq (command, "STOP"))
+    else
+    if (streq (command, "STOP"))
         dafka_beacon_stop (self);
-    else if (streq (command, "VERBOSE"))
-        self->verbose = true;
-    else if (streq (command, "$TERM"))
+    else
+    if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
     else {
@@ -361,7 +361,7 @@ dafka_beacon_recv (zactor_t *self, zsock_t *sub, bool verbose, const char *log_p
 
 void
 dafka_beacon_test (bool verbose) {
-    printf (" * beacon: ");
+    printf (" * dafka_beacon: ");
     //  @selftest
     //  Simple create/destroy test
 //    zactor_t *beacon = zactor_new (dafka_beacon_actor, NULL);
