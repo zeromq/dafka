@@ -29,10 +29,6 @@ extern "C" {
 //
 //      zactor_destroy (&dafka_subscriber);
 //
-//  Enable verbose logging of commands and activity:
-//
-//      zstr_send (dafka_subscriber, "VERBOSE");
-//
 //  This is the dafka_subscriber constructor as a zactor_fn;
 DAFKA_EXPORT void
     dafka_subscriber_actor (zsock_t *pipe, void *args);

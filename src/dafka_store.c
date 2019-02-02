@@ -124,7 +124,7 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
     dafka_store_t *self = (dafka_store_t *) zmalloc (sizeof (dafka_store_t));
     assert (self);
 
-    if (atoi(zconfig_get (config, "store/verbose", "0")))
+    if (atoi (zconfig_get (config, "store/verbose", "0")))
         self->verbose = true;
 
     self->pipe = pipe;
@@ -198,9 +198,6 @@ dafka_store_recv_api (dafka_store_t *self)
 
     char *command = zmsg_popstr (request);
 
-    if (streq (command, "VERBOSE"))
-        self->verbose = true;
-    else
     if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
@@ -349,6 +346,7 @@ dafka_store_test (bool verbose)
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
 
 //    char *consumer_address = "SUB";
 
