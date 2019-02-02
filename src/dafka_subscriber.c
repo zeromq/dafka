@@ -237,7 +237,7 @@ dafka_subscriber_recv_api (dafka_subscriber_t *self)
 void
 dafka_subscriber_actor (zsock_t *pipe, void *args)
 {
-    dafka_subscriber_t * self = dafka_subscriber_new (pipe, args);
+    dafka_subscriber_t * self = dafka_subscriber_new (pipe, (zconfig_t *) args);
     if (!self)
         return;          //  Interrupted
 

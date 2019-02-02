@@ -185,6 +185,7 @@ set (dafka_headers
     include/dafka_library.h
     include/dafka.h
     include/dafka_proto.h
+    src/dafka_util.h
     src/dafka_beacon.h
 )
 
@@ -207,6 +208,7 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_util.c
     src/dafka_proto.c
     src/dafka_beacon.c
 )
