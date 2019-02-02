@@ -155,7 +155,7 @@ s_repeat_message (zloop_t *loop, int timer_id, void *arg)
         current_sequence = 0;
 
     for (uint64_t index = self->last_acked_sequence + 1; index <= current_sequence; index++) {
-        dafka_proto_t *repeat_msg = zhashx_lookup (self->message_cache, &index);
+        dafka_proto_t *repeat_msg = (dafka_proto_t *) zhashx_lookup (self->message_cache, &index);
         if (repeat_msg) {
             if (self->verbose)
                 zsys_debug ("Producer: Repeating message %u", index);
@@ -220,6 +220,8 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
     zmsg_destroy (&msg);
 
     // dafka_beacon_recv (self->beacon, self->producer_sub, self->verbose, "Producer");
+
+    return 0;
 }
 
 static int

@@ -350,7 +350,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
 void
 dafka_store_actor (zsock_t *pipe, void *arg)
 {
-    dafka_store_t * self = dafka_store_new (pipe, arg);
+    dafka_store_t * self = dafka_store_new (pipe, (zconfig_t *) arg);
     if (!self)
         return;          //  Interrupted
 

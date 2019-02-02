@@ -119,7 +119,7 @@ dafka_tower_recv_api (dafka_tower_t *self) {
 
 void
 dafka_tower_actor (zsock_t *pipe, void *args) {
-    dafka_tower_t *self = dafka_tower_new (pipe, args);
+    dafka_tower_t *self = dafka_tower_new (pipe, (zconfig_t *) args);
     if (!self)
         return;          //  Interrupted
 
