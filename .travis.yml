@@ -60,7 +60,7 @@ pkg_deps_prereqs_distro: &pkg_deps_prereqs_distro
 # prebuilt packages of that source (usually not from an OS distro)
 pkg_deps_prereqs_source: &pkg_deps_prereqs_source
     - libzmq3-dev
-    - libczmq-dev
+#    - libczmq-dev
 
 pkg_deps_prereqs: &pkg_deps_prereqs
     - *pkg_deps_prereqs_source
