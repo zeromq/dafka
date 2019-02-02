@@ -78,7 +78,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->head_interval = atoi (zconfig_get (args->config, "producer/head_interval", "1000"));
     self->repeat_interval = atoi (zconfig_get (args->config, "producer/repeat_interval", "1000"));
 
-    self->socket = zsock_new_xpub (NULL);
+    self->socket = zsock_new_pub (NULL);
     int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
 
@@ -226,23 +226,31 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
 
 static int
 s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg) {
-    assert (loop);
-    assert (pipe);
-    assert (arg);
-    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
-    int rc = dafka_proto_recv (self->ack_msg, self->socket);
-    if (rc != 0)
-        return 0;   // Unexpected message - ignore!
+    // Nothing todo, PUB socket doesn't recv any messages
+    // We only add it to zloop in order to process subscriptions
 
-    if (dafka_proto_id (self->ack_msg) == DAFKA_PROTO_ACK) {
-        uint64_t ack_sequence = dafka_proto_sequence (self->ack_msg);
-        for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
-            zhashx_delete (self->message_cache, &index);
-        }
-        self->last_acked_sequence = ack_sequence;
-    }
     return 0;
 }
+
+//static int
+//s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg) {
+//    assert (loop);
+//    assert (pipe);
+//    assert (arg);
+//    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+//    int rc = dafka_proto_recv (self->ack_msg, self->producer_sub);
+//    if (rc != 0)
+//        return 0;   // Unexpected message - ignore!
+//
+//    if (dafka_proto_id (self->ack_msg) == DAFKA_PROTO_ACK) {
+//        uint64_t ack_sequence = dafka_proto_sequence (self->ack_msg);
+//        for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
+//            zhashx_delete (self->message_cache, &index);
+//        }
+//        self->last_acked_sequence = ack_sequence;
+//    }
+//    return 0;
+//}
 
 //  Here we handle incoming message from the node
 
