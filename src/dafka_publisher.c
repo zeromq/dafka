@@ -155,7 +155,7 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
 {
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
-    uint64_t *sequence = dafka_proto_sequence (self->msg);
+    uint64_t sequence = dafka_proto_sequence (self->msg);
     dafka_proto_set_sequence (self->head_msg, sequence);
     if (self->verbose)
         zsys_debug ("Producer: Send HEAD message with sequence %u", sequence);
