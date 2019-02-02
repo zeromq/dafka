@@ -314,7 +314,7 @@ dafka_publisher_publish (zactor_t *self, zframe_t **content) {
     int rc = zstr_sendm (self, "PUBLISH");
 
     if (rc == -1) {
-        zframe_destroy (&content);
+        zframe_destroy (content);
         *content = NULL;
         return rc;
     }
