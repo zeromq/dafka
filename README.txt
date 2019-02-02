@@ -3,7 +3,7 @@
 
 [![GitHub release](https://img.shields.io/github/release/zeromq/dafka.svg)](https://github.com/zeromq/dafka/releases)
 <a target="_blank" href="http://webchat.freenode.net?channels=%23zeromq&uio=d4"><img src="https://cloud.githubusercontent.com/assets/493242/14886493/5c660ea2-0d51-11e6-8249-502e6c71e9f2.png" height = "20" /></a>
-[![license](https://img.shields.io/github/license/zeromq/dafka.svg)](https://github.com/zeromq/dafka/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-MPLV2.0-blue.svg)](https://github.com/zeromq/dafka/blob/master/LICENSE)
 
 # Dafka - Distributed dezentralized Kafka replacement
 
