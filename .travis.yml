@@ -127,6 +127,7 @@ matrix:
         sources:
         - llvm-toolchain-xenial-5.0
         packages:
+        - *pkg_deps_prereqs_distro
         - clang-5.0
         - clang-format-5.0
 #autotools#  - *pkg_deps_prereqs
