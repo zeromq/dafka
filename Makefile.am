@@ -9,9 +9,10 @@ ACLOCAL_AMFLAGS = -I config
 AM_CPPFLAGS = \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
+    ${leveldb_CFLAGS} \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS}
+project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${leveldb_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -34,6 +35,7 @@ if ENABLE_DIST_CMAKEFILES
 EXTRA_DIST += \
     Findlibzmq.cmake \
     Findczmq.cmake \
+    Findleveldb.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \
@@ -42,6 +44,9 @@ endif
 
 EXTRA_DIST += \
     src/dafka_beacon.h \
+    LICENSE \
+    README.txt \
+    README.md \
     src/dafka_classes.h
 
 # NOTE: this "include" syntax is not a "make" but an "autotools" keyword,
