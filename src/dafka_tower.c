@@ -139,6 +139,11 @@ dafka_tower_actor (zsock_t *pipe, void *args) {
 
             const char *peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
 
+            // If the nodes connect over inproc we don't have there address, so we will use
+            // own address
+            if (peer_address == NULL)
+                peer_address = self->own_address;
+            else
             if (streq (peer_address, "127.0.0.1"))
                 peer_address = self->own_address;
 
