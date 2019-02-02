@@ -65,6 +65,9 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->loop = zloop_new ();
 
     //  Initialize class properties
+    if (atoi (zconfig_get (args->config, "producer/verbose", "0")))
+        self->verbose = true;
+
     self->head_interval = atoi (zconfig_get (args->config, "head/interval", "1000"));
 
     self->socket = zsock_new_xpub (NULL);
@@ -211,9 +214,6 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
     if (streq (command, "GET ADDRESS"))
         zsock_bsend (self->pipe, "p", dafka_proto_address (self->msg));
     else
-    if (streq (command, "VERBOSE"))
-        self->verbose = true;
-    else
     if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         rc = -1;
@@ -304,6 +304,7 @@ dafka_publisher_test (bool verbose)
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 

@@ -54,8 +54,6 @@ int main (int argc, char *argv [])
     zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
     assert (consumer);
 
-    zstr_send (consumer, "VERBOSE");
-
     int rc = zsock_send (consumer, "ss", "SUBSCRIBE", topic);
     assert (rc == 0);
 

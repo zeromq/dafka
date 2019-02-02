@@ -54,8 +54,10 @@ dafka_tower_new (zsock_t *pipe, zconfig_t *config) {
     zsock_bind (self->xpub, "%s", pub_address);
     zsock_bind (self->xsub, "%s", sub_address);
 
-    zsys_info ("Tower: xsub listening on %s", sub_address);
-    zsys_info ("Tower: xpub listening on %s", pub_address);
+    if (self->verbose) {
+        zsys_info ("Tower: xsub listening on %s", sub_address);
+        zsys_info ("Tower: xpub listening on %s", pub_address);
+    }
 
     self->poller = zpoller_new (self->pipe, self->xsub, self->xpub, NULL);
     zpoller_set_nonstop (self->poller, true);
@@ -99,12 +101,11 @@ dafka_tower_recv_api (dafka_tower_t *self) {
         return;        //  Interrupted
 
     char *command = zmsg_popstr (request);
-    if (streq (command, "VERBOSE"))
-        self->verbose = true;
-    else if (streq (command, "$TERM")) {
+    if (streq (command, "$TERM")) {
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
-    } else {
+    }
+    else {
         zsys_error ("invalid command '%s'", command);
         assert (false);
     }
@@ -125,7 +126,8 @@ dafka_tower_actor (zsock_t *pipe, void *args) {
     //  Signal actor successfully initiated
     zsock_signal (self->pipe, 0);
 
-    zsys_info ("Tower: tower is running...");
+    if (self->verbose)
+        zsys_info ("Tower: tower is running...");
 
     while (!self->terminated) {
         zsock_t *which = (zsock_t *) zpoller_wait (self->poller, -1);
@@ -173,9 +175,11 @@ dafka_tower_actor (zsock_t *pipe, void *args) {
         }
     }
 
+    bool verbose = self->verbose;
     dafka_tower_destroy (&self);
 
-    zsys_info ("Tower: tower stopped");
+    if (verbose)
+        zsys_info ("Tower: tower stopped");
 }
 
 //  --------------------------------------------------------------------------

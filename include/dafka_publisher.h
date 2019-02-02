@@ -35,10 +35,6 @@ typedef struct {
 //
 //      zactor_destroy (&dafka_publisher);
 //
-//  Enable verbose logging of commands and activity:
-//
-//      zstr_send (dafka_publisher, "VERBOSE");
-//
 //  Start dafka_publisher actor.
 //
 //      zstr_sendx (dafka_publisher, "START", NULL);
