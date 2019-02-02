@@ -32,7 +32,7 @@ struct _dafka_subscriber_t {
     bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
     //  Class properties
-    zsock_t *consumer_sub;            // Subscriber to get messages from topics
+    zsock_t *consumer_sub;      // Subscriber to get messages from topics
     dafka_proto_t *consumer_msg;// Reusable consumer message
 
     zsock_t *consumer_pub;      // Publisher to ask for missed messages
@@ -313,6 +313,8 @@ dafka_subscriber_test (bool verbose)
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db/", SELFTEST_DIR_RW "/stordb");
+
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 

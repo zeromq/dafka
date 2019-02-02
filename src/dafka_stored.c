@@ -15,6 +15,10 @@
 @header
     dafka_stored -
 @discuss
+    TODO: handle heads
+    TODO: ask for missing
+    TODO: be persisted
+    TODO: implement the window
 @end
 */
 

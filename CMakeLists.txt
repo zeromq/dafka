@@ -152,6 +152,23 @@ ELSE (CZMQ_FOUND)
 ENDIF (CZMQ_FOUND)
 
 ########################################################################
+# LEVELDB dependency
+########################################################################
+find_package(leveldb REQUIRED)
+IF (LEVELDB_FOUND)
+    include_directories(${LEVELDB_INCLUDE_DIRS})
+    list(APPEND MORE_LIBRARIES ${LEVELDB_LIBRARIES})
+  IF (PC_LEVELDB_FOUND)
+      set(pkg_config_names_private "${pkg_config_names_private} leveldb")
+      list(APPEND OPTIONAL_LIBRARIES_STATIC ${PC_LEVELDB_STATIC_LDFLAGS})
+  ELSE (PC_LEVELDB_FOUND)
+      set(pkg_config_libs_private "${pkg_config_libs_private} -lleveldb")
+  ENDIF (PC_LEVELDB_FOUND)
+ELSE (LEVELDB_FOUND)
+    message( FATAL_ERROR "leveldb not found." )
+ENDIF (LEVELDB_FOUND)
+
+########################################################################
 # version
 ########################################################################
 set(DAFKA_VERSION_MAJOR 0)
@@ -365,6 +382,7 @@ target_link_libraries(
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -374,6 +392,7 @@ target_link_libraries(
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -391,6 +410,7 @@ target_link_libraries(
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -400,6 +420,7 @@ target_link_libraries(
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -417,6 +438,7 @@ target_link_libraries(
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -426,6 +448,7 @@ target_link_libraries(
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -443,6 +466,7 @@ target_link_libraries(
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -452,6 +476,7 @@ target_link_libraries(
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -469,6 +494,7 @@ target_link_libraries(
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -478,6 +504,7 @@ target_link_libraries(
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
