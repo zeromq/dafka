@@ -313,8 +313,7 @@ dafka_subscriber_test (bool verbose)
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "store/db/", SELFTEST_DIR_RW "/stordb");
-
+    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
