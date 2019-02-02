@@ -259,9 +259,18 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
 int
 dafka_publisher_publish (zactor_t *self, zframe_t **content) {
     assert (*content);
-    zstr_sendm (self, "PUBLISH");
+    int rc = zstr_sendm (self, "PUBLISH");
+
+    if (rc == -1) {
+        zframe_destroy (&content);
+        *content = NULL;
+        return rc;
+    }
+
     zsock_bsend (self, "p", *content);
     *content = NULL;
+
+    return rc;
 }
 
 //  --------------------------------------------------------------------------
