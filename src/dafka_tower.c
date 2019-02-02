@@ -25,6 +25,7 @@ struct _dafka_tower_t {
     bool verbose;               //  Verbose logging enabled?
     zsock_t *xsub;
     zsock_t *xpub;
+    char *own_address;
 };
 
 
@@ -32,19 +33,18 @@ struct _dafka_tower_t {
 //  Create a new dafka_tower instance
 
 static dafka_tower_t *
-dafka_tower_new (zsock_t *pipe, zconfig_t *config)
-{
+dafka_tower_new (zsock_t *pipe, zconfig_t *config) {
     dafka_tower_t *self = (dafka_tower_t *) zmalloc (sizeof (dafka_tower_t));
     assert (self);
 
     self->pipe = pipe;
     self->terminated = false;
 
-    if (atoi(zconfig_get (config, "tower/verbose", "0")))
+    if (atoi (zconfig_get (config, "tower/verbose", "0")))
         self->verbose = true;
 
-    const char* sub_address = zconfig_get (config, "tower/sub_address", "tcp://*:5556");
-    const char* pub_address = zconfig_get (config, "tower/pub_address", "tcp://*:5557");
+    const char *sub_address = zconfig_get (config, "tower/sub_address", "tcp://*:5556");
+    const char *pub_address = zconfig_get (config, "tower/pub_address", "tcp://*:5557");
 
     self->xpub = zsock_new_xpub (NULL);
     self->xsub = zsock_new_xsub (NULL);
@@ -60,6 +60,11 @@ dafka_tower_new (zsock_t *pipe, zconfig_t *config)
     self->poller = zpoller_new (self->pipe, self->xsub, self->xpub, NULL);
     zpoller_set_nonstop (self->poller, true);
 
+    ziflist_t *iflist = ziflist_new ();
+    ziflist_first (iflist);
+    self->own_address = strdup (ziflist_address (iflist));
+    ziflist_destroy (&iflist);
+
     return self;
 }
 
@@ -68,14 +73,14 @@ dafka_tower_new (zsock_t *pipe, zconfig_t *config)
 //  Destroy the dafka_tower instance
 
 static void
-dafka_tower_destroy (dafka_tower_t **self_p)
-{
+dafka_tower_destroy (dafka_tower_t **self_p) {
     assert (self_p);
     if (*self_p) {
         dafka_tower_t *self = *self_p;
 
         zsock_destroy (&self->xpub);
         zsock_destroy (&self->xsub);
+        zstr_free (&self->own_address);
 
         //  Free object itself
         zpoller_destroy (&self->poller);
@@ -87,22 +92,19 @@ dafka_tower_destroy (dafka_tower_t **self_p)
 //  Here we handle incoming message from the node
 
 static void
-dafka_tower_recv_api (dafka_tower_t *self)
-{
+dafka_tower_recv_api (dafka_tower_t *self) {
     //  Get the whole message of the pipe in one go
     zmsg_t *request = zmsg_recv (self->pipe);
     if (!request)
-       return;        //  Interrupted
+        return;        //  Interrupted
 
     char *command = zmsg_popstr (request);
     if (streq (command, "VERBOSE"))
         self->verbose = true;
-    else
-    if (streq (command, "$TERM")) {
+    else if (streq (command, "$TERM")) {
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
-    }
-    else {
+    } else {
         zsys_error ("invalid command '%s'", command);
         assert (false);
     }
@@ -115,9 +117,8 @@ dafka_tower_recv_api (dafka_tower_t *self)
 //  This is the actor which runs in its own thread.
 
 void
-dafka_tower_actor (zsock_t *pipe, void *args)
-{
-    dafka_tower_t * self = dafka_tower_new (pipe, args);
+dafka_tower_actor (zsock_t *pipe, void *args) {
+    dafka_tower_t *self = dafka_tower_new (pipe, args);
     if (!self)
         return;          //  Interrupted
 
@@ -133,10 +134,14 @@ dafka_tower_actor (zsock_t *pipe, void *args)
         else if (which == self->xsub) {
             char *sender;
             int port;
-            zframe_t* topic = zframe_recv (self->xsub);
+            zframe_t *topic = zframe_recv (self->xsub);
             zsock_recv (self->xsub, "si", &sender, &port);
 
-            const char* peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
+            const char *peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
+
+            if (streq (peer_address, "127.0.0.1"))
+                peer_address = self->own_address;
+
             char *address = zsys_sprintf ("tcp://%s:%d", peer_address, port);
 
             // Forwarding the msg
@@ -146,7 +151,7 @@ dafka_tower_actor (zsock_t *pipe, void *args)
             zstr_free (&address);
             zstr_free (&sender);
         } else if (which == self->xpub) {
-            zframe_t * subscription = zframe_recv (self->xpub);
+            zframe_t *subscription = zframe_recv (self->xpub);
 
             if (self->verbose && (zframe_data (subscription)[0]) == 0)
                 zsys_debug ("Tower: Received unsubscription %c", zframe_data (subscription)[1]);
@@ -185,8 +190,7 @@ dafka_tower_actor (zsock_t *pipe, void *args)
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
-dafka_tower_test (bool verbose)
-{
+dafka_tower_test (bool verbose) {
     printf (" * dafka_tower: ");
     //  @selftest
     //  Simple create/destroy test
