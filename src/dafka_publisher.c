@@ -74,6 +74,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->msg = dafka_proto_new ();
     dafka_proto_set_id (self->msg, DAFKA_PROTO_MSG);
     dafka_proto_set_topic (self->msg, args->topic);
+    dafka_proto_set_subject (self->msg, args->topic);
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
     dafka_proto_set_sequence (self->msg, -1);
@@ -81,6 +82,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->head_msg = dafka_proto_new ();
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
     dafka_proto_set_topic (self->head_msg, args->topic);
+    dafka_proto_set_subject (self->head_msg, args->topic);
     dafka_proto_set_address (self->head_msg, zuuid_str (address));
 
     self->beacon = zactor_new (dafka_beacon_actor, args->config);

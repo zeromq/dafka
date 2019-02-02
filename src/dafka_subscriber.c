@@ -89,7 +89,7 @@ dafka_subscriber_new (zsock_t *pipe, zconfig_t *config)
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     zuuid_t *consumer_address = zuuid_new ();
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
-    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, zuuid_str (consumer_address));
     zuuid_destroy(&consumer_address);
 
     self->beacon = zactor_new (dafka_beacon_actor, config);
@@ -161,17 +161,12 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
     const char *subject;
     if (id == DAFKA_PROTO_MSG) {
         address = dafka_proto_address (self->consumer_msg);
-        subject = dafka_proto_topic (self->consumer_msg);
-    }
-    else
-    if (id == DAFKA_PROTO_DIRECT) {
-        address = dafka_proto_address (self->consumer_msg);
         subject = dafka_proto_subject (self->consumer_msg);
     }
     else
     if (id == DAFKA_PROTO_HEAD) {
         address = dafka_proto_address (self->consumer_msg);
-        subject = dafka_proto_topic (self->consumer_msg);
+        subject = dafka_proto_subject (self->consumer_msg);
     }
     else
         return;     // Unexpected message id
@@ -209,7 +204,7 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
         dafka_proto_send (self->fetch_msg, self->consumer_pub);
     }
 
-    if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT) {
+    if (id == DAFKA_PROTO_MSG) {
         if (msg_sequence == last_known_sequence + 1) {
             if (self->verbose)
                 zsys_debug ("Send message %u to client", msg_sequence);

@@ -224,7 +224,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
 
     switch (dafka_proto_id (self->income_msg)) {
         case DAFKA_PROTO_MSG: {
-            const char *subject = dafka_proto_topic (self->income_msg);
+            const char *subject = dafka_proto_subject (self->income_msg);
             const char *address = dafka_proto_address (self->income_msg);
             uint64_t sequence = dafka_proto_sequence (self->income_msg);
 
@@ -252,7 +252,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
             dafka_proto_set_topic (self->outgoing_msg, dafka_proto_address (self->income_msg));
             dafka_proto_set_subject (self->outgoing_msg, subject);
             dafka_proto_set_address (self->outgoing_msg, address);
-            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT);
+            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_MSG);
 
             for (uint32_t i = 0; i < count; i++) {
                 store_key_init (&key, subject, address, sequence + i);

@@ -1,11 +1,13 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | FETCH | DIRECT | ACK | HEAD )
+    dafka_proto     = *( MSG | FETCH | ACK | HEAD )
 
-    ;  Message from producer to consumers. The topic is the message subject.
+    ;  Message from producer to consumers. The topic is either the subject or
+    ;  recipient address.
 
-    MSG             = signature %d'm' address sequence content
+    MSG             = signature %d'm' subject address sequence content
     signature       = %xAA %xA0             ; two octets
+    subject         = string                ;
     address         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
@@ -20,15 +22,6 @@ The following ABNF grammar defines the dafka_proto:
     count           = number-4              ;
     address         = string                ;
 
-    ;  Direct message to an address. Currently it is a response for the fetch
-    ;  message. Topic is the address of the recipient.
-
-    DIRECT          = signature %d'd' subject address sequence content
-    subject         = string                ;
-    address         = string                ;
-    sequence        = number-8              ;
-    content         = frame                 ;
-
     ;  Ack from a store daemon to a producer. Topic is the address of the
     ;  producer.
 
@@ -38,7 +31,8 @@ The following ABNF grammar defines the dafka_proto:
 
     ;  No description
 
-    HEAD            = signature %d'h' address sequence
+    HEAD            = signature %d'h' subject address sequence
+    subject         = string                ;
     address         = string                ;
     sequence        = number-8              ;
 
