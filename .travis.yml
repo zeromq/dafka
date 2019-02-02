@@ -80,7 +80,7 @@ pkg_src_zeromq_ubuntu16: &pkg_src_zeromq_ubuntu16
 # is needed for C++11 support; docker envs are usually faster to start up
 addons:
   apt:
-    sources: *pkg_src_zeromq_ubuntu16
+    sources: *pkg_src_zeromq_ubuntu14
     packages: &pkg_deps_common
     - *pkg_deps_devtools
     - *pkg_deps_prereqs
@@ -91,7 +91,7 @@ matrix:
     os: linux
     addons:
       apt:
-        sources: *pkg_src_zeromq_ubuntu16
+        sources: *pkg_src_zeromq_ubuntu14
         packages:
         - *pkg_deps_common
         - *pkg_deps_doctools
@@ -100,7 +100,7 @@ matrix:
     dist: xenial
     addons:
       apt:
-        sources: *pkg_src_zeromq_ubuntu16
+        sources: *pkg_src_zeromq_ubuntu14
         packages:
         - valgrind
         - *pkg_deps_common
@@ -109,7 +109,7 @@ matrix:
     dist: xenial
     addons:
       apt:
-        sources: *pkg_src_zeromq_ubuntu16
+        sources: *pkg_src_zeromq_ubuntu14
         packages:
         - *pkg_deps_common
   - env: BUILD_TYPE=cmake DO_CLANG_FORMAT_CHECK=1 CLANG_FORMAT=clang-format-5.0
