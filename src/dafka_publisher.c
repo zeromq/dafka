@@ -134,7 +134,9 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         zsock_destroy (&self->socket);
         dafka_proto_destroy (&self->msg);
         dafka_proto_destroy (&self->head_msg);
+        dafka_proto_destroy (&self->ack_msg);
         zactor_destroy (&self->beacon);
+        zhashx_destroy (&self->message_cache);
 
         //  Free actor properties
         zloop_destroy (&self->loop);
@@ -387,6 +389,7 @@ dafka_publisher_test (bool verbose)
 
     zactor_destroy (&dafka_publisher);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
     //  @end
 
     printf ("OK\n");

@@ -360,6 +360,7 @@ dafka_subscriber_test (bool verbose)
     zactor_destroy (&store);
     zactor_destroy (&sub);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
     //  @end
 
     printf ("OK\n");
