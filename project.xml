@@ -6,6 +6,8 @@
     url = "https://github.com/zeromq/dafka"
     license = "MPL-2.0" >
 
+    <target name ="travis" />
+
     <include filename = "license.xml" />
     <version major = "0" minor = "1" />
     <abi current = "0" revision = "1" age = "0" />

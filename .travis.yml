@@ -1,0 +1,150 @@
+# Travis CI script
+# This is a skeleton created by zproject.
+# You can add hand-written code here.
+
+language:
+- c
+
+cache:
+- ccache
+
+os:
+- linux
+
+#dist:
+#- xenial
+
+#services:
+#- docker
+
+# Set CI_TIME=true to enable build-step profiling in Travis
+# Set CI_TRACE=true to enable shell script tracing in Travis
+# Set CI_CONFIG_QUIET=true to enable "configure --quiet" (only report stderr)
+# Set CI_REQUIRE_GOOD_GITIGNORE=false to NOT fail if "git status -s" is not clean
+# Set CI_REQUIRE_GOOD_CLANG_FORMAT=true to fail if "clang-format" check is not clean
+env:
+  global:
+    - CI_TIME=false
+    - CI_TRACE=false
+    - CI_CONFIG_QUIET=true
+    - CI_REQUIRE_GOOD_GITIGNORE=false
+    - CI_REQUIRE_GOOD_CLANG_FORMAT=false
+    - CI_TEST_DISTCHECK=true
+    # tokens to deploy releases on OBS and create/delete temporary branch on Github.
+    # 1) Create a token on https://github.com/settings/tokens/new with "public_repo"
+    #    capability and encrypt it with travis encrypt --org -r <org>/<repo> GH_TOKEN="<token>"
+    # 2) Create 2 OBS tokens with osc token --create network:messaging:zeromq:release-<stable|draft> <project>
+    #    encrypt them with travis encrypt --org -r <org>/<repo> OBS_<STABLE|DRAFT>_TOKEN="<token>"
+    # 3) Uncomment the three "secure" lines and paste the three generated hashed
+    #    strings, which include each token's name, as parameters
+    #- secure:
+    #- secure:
+    #- secure:
+  matrix:
+    - BUILD_TYPE=default
+    - BUILD_TYPE=default-Werror
+    - BUILD_TYPE=cmake
+#   - BUILD_TYPE=android
+#   - BUILD_TYPE=check-py
+
+# Prerequisite packages provided by OS distro and used "as is"
+pkg_deps_prereqs_distro: &pkg_deps_prereqs_distro
+
+# Prerequisite packages that may be built from source or used from
+# prebuilt packages of that source (usually not from an OS distro)
+pkg_deps_prereqs_source: &pkg_deps_prereqs_source
+    - libzmq3-dev
+    - libczmq-dev
+
+pkg_deps_prereqs: &pkg_deps_prereqs
+    - *pkg_deps_prereqs_source
+    - *pkg_deps_prereqs_distro
+
+pkg_deps_doctools: &pkg_deps_doctools
+    - asciidoc
+    - xmlto
+
+pkg_deps_devtools: &pkg_deps_devtools
+    - git
+
+pkg_src_zeromq_ubuntu14: &pkg_src_zeromq_ubuntu14
+- sourceline: 'deb http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_14.04/ ./'
+  key_url: 'http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_14.04/Release.key'
+
+pkg_src_zeromq_ubuntu16: &pkg_src_zeromq_ubuntu16
+- sourceline: 'deb http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_16.04/ ./'
+  key_url: 'http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_16.04/Release.key'
+
+# Note: refer to ubuntu16 if you use dist==xenial
+# Also note that as of early 2017, either dist==trusty or services==docker
+# is needed for C++11 support; docker envs are usually faster to start up
+addons:
+  apt:
+    sources: *pkg_src_zeromq_ubuntu16
+    packages: &pkg_deps_common
+    - *pkg_deps_devtools
+    - *pkg_deps_prereqs
+
+matrix:
+  include:
+  - env: BUILD_TYPE=default-with-docs
+    os: linux
+    addons:
+      apt:
+        sources: *pkg_src_zeromq_ubuntu16
+        packages:
+        - *pkg_deps_common
+        - *pkg_deps_doctools
+  - env: BUILD_TYPE=valgrind
+    os: linux
+    dist: xenial
+    addons:
+      apt:
+        sources: *pkg_src_zeromq_ubuntu16
+        packages:
+        - valgrind
+        - *pkg_deps_common
+  - env: BUILD_TYPE=default ADDRESS_SANITIZER=enabled
+    os: linux
+    dist: xenial
+    addons:
+      apt:
+        sources: *pkg_src_zeromq_ubuntu16
+        packages:
+        - *pkg_deps_common
+  - env: BUILD_TYPE=cmake DO_CLANG_FORMAT_CHECK=1 CLANG_FORMAT=clang-format-5.0
+# For non-cmake users, there is an autotools solution with a bit more overhead
+# to have dependencies ready and pass configure script before making this check).
+# Note that the autotools variant will also require dependencies preinstalled to
+# pass its configure script:
+#  - env: BUILD_TYPE=clang-format-check CLANG_FORMAT=clang-format-5.0
+    os: linux
+    dist: xenial
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-xenial-5.0
+        packages:
+        - clang-5.0
+        - clang-format-5.0
+#autotools#  - *pkg_deps_prereqs
+
+before_install:
+- if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "android" ] ; then brew install binutils ; fi
+- if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "valgrind" ] ; then brew install valgrind ; fi
+
+# Hand off to generated script for each BUILD_TYPE
+script: ./ci_build.sh
+before_deploy: . ./ci_deploy.sh && ./ci_deploy_obs.sh
+deploy:
+  provider: releases
+  api_key:
+    # To encrypt your access token run: `travis encrypt -r user/repo`
+    secure: <encrypted github access token>
+  file_glob: true
+  file: ${DAFKA_DEPLOYMENT}
+  skip_cleanup: true
+  on:
+    branch: master
+    tags: true
+    condition: $TRAVIS_OS_NAME =~ (linux) && $BUILD_TYPE =~ (default)
