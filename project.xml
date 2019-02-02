@@ -13,6 +13,13 @@
     <abi current = "0" revision = "1" age = "0" />
     <use project = "czmq" />
 
+    <use project = "leveldb"
+         debian_name = "libleveldb-dev"
+         header = "leveldb/c.h"
+         test = "leveldb_open"
+         implied = "1"
+    />
+
     <actor name = "dafka_beacon" private = "1" />
     <actor name = "dafka_tower" />
     <actor name = "dafka_store" />
