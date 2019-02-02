@@ -67,12 +67,13 @@ dafka_beacon_new (zsock_t *pipe, zconfig_t *config) {
     self->timerset = ztimerset_new ();
     self->peers = zhashx_new ();
     self->timer_id = -1;
+    self->port = -1;
 
     if (atoi(zconfig_get (config, "beacon/verbose", "0")))
         self->verbose = true;
 
     self->beacon_timeout = zconfig_get_int(config, "beacon/timeout", 4000);
-    self->interval = zconfig_get_int(config, "beacon/interval", 100);
+    self->interval = zconfig_get_int(config, "beacon/interval", 1000);
     self->tower_sub_address = strdup (zconfig_get (config, "beacon/sub_address","tcp://127.0.0.1:5556"));
     self->tower_pub_address = strdup (zconfig_get (config, "beacon/pub_address","tcp://127.0.0.1:5557"));
 
@@ -172,6 +173,7 @@ dafka_beacon_stop (dafka_beacon_t *self) {
         ztimerset_cancel (self->timerset, self->timer_id);
 
     self->timer_id = -1;
+    self->port = -1;
 
     return 0;
 }
@@ -237,6 +239,10 @@ dafka_beacon_recv_sub (dafka_beacon_t *self) {
                 zhashx_freefn (self->peers, address, free);
 
                 zsock_send (self->pipe, "ss", "CONNECT", address);
+
+                // New node on the network, sending a beacon immediately
+                if (self->port != -1)
+                    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
             } else {
                 *expire = zclock_time () + self->beacon_timeout;
             }
