@@ -25,7 +25,6 @@ extern "C" {
 //  is provided in stable builds.
 #define DAFKA_PROTO_MSG 'M'                  //
 #define DAFKA_PROTO_FETCH 'F'                //
-#define DAFKA_PROTO_DIRECT 'D'               //
 #define DAFKA_PROTO_ACK 'K'                  //
 #define DAFKA_PROTO_HEAD 'H'                 //
 
@@ -100,6 +99,14 @@ DAFKA_EXPORT void
 DAFKA_EXPORT const char *
     dafka_proto_command (dafka_proto_t *self);
 
+//  Get the subject field
+DAFKA_EXPORT const char *
+    dafka_proto_subject (dafka_proto_t *self);
+
+//  Set the subject field
+DAFKA_EXPORT void
+    dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
+
 //  Get the address field
 DAFKA_EXPORT const char *
     dafka_proto_address (dafka_proto_t *self);
@@ -127,14 +134,6 @@ DAFKA_EXPORT zframe_t *
 //
 DAFKA_EXPORT void
     dafka_proto_set_content (dafka_proto_t *self, zframe_t **content_p);
-
-//  Get the subject field
-DAFKA_EXPORT const char *
-    dafka_proto_subject (dafka_proto_t *self);
-
-//  Set the subject field
-DAFKA_EXPORT void
-    dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
 
 //  Get the count field
 DAFKA_EXPORT uint32_t
