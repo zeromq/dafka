@@ -30,10 +30,6 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 //
 //      zactor_destroy (&dafka_beacon);
 //
-//  Enable verbose logging of commands and activity:
-//
-//      zstr_send (dafka_beacon, "VERBOSE");
-//
 //  Start dafka_beacon actor.
 //
 //      zstr_sendx (dafka_beacon, "START", NULL);

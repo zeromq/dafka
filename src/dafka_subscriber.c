@@ -75,6 +75,9 @@ dafka_subscriber_new (zsock_t *pipe, zconfig_t *config)
     self->terminated = false;
 
     //  Initialize class properties
+    if (atoi (zconfig_get (config, "consumer/verbose", "0")))
+        self->verbose = true;
+
     self->consumer_sub = zsock_new_sub (NULL, NULL);
     self->consumer_msg = dafka_proto_new ();
 
@@ -235,9 +238,6 @@ dafka_subscriber_recv_api (dafka_subscriber_t *self)
         zstr_free (&topic);
     }
     else
-    if (streq (command, "VERBOSE"))
-        self->verbose = true;
-    else
     if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
@@ -305,11 +305,14 @@ dafka_subscriber_test (bool verbose)
     //  @selftest
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address", "inproc://tower-sub");
+    zconfig_put (config, "beacon/pub_address", "inproc://tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address", "inproc://tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://tower-pub");
+    zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
@@ -322,13 +325,6 @@ dafka_subscriber_test (bool verbose)
 
     zactor_t *sub = zactor_new (dafka_subscriber_actor, config);
     assert (sub);
-
-    if (verbose) {
-        zstr_send (store, "VERBOSE");
-        zstr_send (sub, "VERBOSE");
-        zstr_send (pub, "VERBOSE");
-    }
-
     zclock_sleep (1000);
 
     zframe_t *content = zframe_new ("HELLO MATE", 10);
