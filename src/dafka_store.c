@@ -21,7 +21,7 @@
 #include "dafka_classes.h"
 #include <leveldb/c.h>
 
-#define MAX_KEY_SIZE  (255 + 255 + 8 + 3)
+#define MAX_KEY_SIZE  (255 + 255 + 8 + 5)
 
 //  Structure of our actor
 
@@ -79,7 +79,9 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
     assert (port != -1);
     self->sub = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, "");
+    dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, self->address);
     dafka_proto_subscribe (self->sub, DAFKA_PROTO_FETCH, "");
+    dafka_proto_subscribe (self->sub, DAFKA_PROTO_HEAD, "");
 
     self->beacon = zactor_new (dafka_beacon_actor, config);
     zsock_send (self->beacon, "ssi", "START", self->address, port);
@@ -157,8 +159,12 @@ dafka_store_recv_api (dafka_store_t *self)
     zmsg_destroy (&request);
 }
 
-size_t s_serialize_key (char* output, const char* subject, const char* address, uint64_t sequence) {
-    return (size_t) snprintf (output, MAX_KEY_SIZE, "%s\\%s\\%" PRIu64, subject, address, sequence);
+size_t s_serialize_content_key (char* output, const char* subject, const char* address, uint64_t sequence) {
+    return (size_t) snprintf (output, MAX_KEY_SIZE, "C\\%s\\%s\\%" PRIu64, subject, address, sequence);
+}
+
+size_t s_serialize_head_key (char* output, const char* subject, const char* address) {
+    return (size_t) snprintf (output, MAX_KEY_SIZE, "H\\%s\\%s", subject, address);
 }
 
 void s_free_value (void **hint) {
@@ -166,6 +172,50 @@ void s_free_value (void **hint) {
     leveldb_free (value);
 
     *hint = NULL;
+}
+
+static uint64_t
+dafka_store_get_head (dafka_store_t *self, char* key, size_t key_size) {
+    size_t head_size;
+    char *err = NULL;
+    uint64_t *head_sequence = (uint64_t*) leveldb_get (self->db, self->roptions, key, key_size, &head_size, &err);
+    if (err) {
+        zsys_error ("Store: failed to get head %s", err);
+        assert (false);
+    }
+
+    if (head_sequence == NULL)
+        return (uint64_t)-1;
+
+    uint64_t value = *head_sequence;
+    leveldb_free (head_sequence);
+
+    return value;
+}
+
+static void dafka_store_send_fetch (dafka_store_t *self,
+        uint64_t head_sequence, const char* subject, const char* address, uint64_t sequence) {
+    uint32_t count;
+
+    if (head_sequence == - 1)
+        count = (uint32_t)(sequence + 1);
+    else
+        count = (uint32_t)(sequence - head_sequence);
+
+    if (self->verbose)
+        zsys_info ("Store: store is missing %d messages. Subject: %s, Partition: %s, Seq: %u", count, subject, address, sequence);
+
+    // Will only request 1000 messages at a time
+    if (count > 1000)
+        count = 1000;
+
+    dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_FETCH);
+    dafka_proto_set_topic (self->outgoing_msg, address);
+    dafka_proto_set_subject (self->outgoing_msg, subject);
+    dafka_proto_set_sequence (self->outgoing_msg, sequence);
+    dafka_proto_set_count (self->outgoing_msg, count);
+    dafka_proto_set_address (self->outgoing_msg, self->address);
+    dafka_proto_send (self->outgoing_msg, self->pub);
 }
 
 // Handle messages from network
@@ -179,14 +229,50 @@ dafka_store_recv_sub (dafka_store_t *self) {
     char key[MAX_KEY_SIZE];
 
     switch (dafka_proto_id (self->income_msg)) {
+        case DAFKA_PROTO_HEAD: {
+            const char *subject = dafka_proto_subject (self->income_msg);
+            const char *address = dafka_proto_address (self->income_msg);
+            uint64_t sequence = dafka_proto_sequence (self->income_msg);
+
+            size_t head_key_size = s_serialize_head_key (key, subject, address);
+            uint64_t head_sequence = dafka_store_get_head (self, key, head_key_size);
+
+            if (head_sequence == -1 || head_sequence < sequence)
+                dafka_store_send_fetch (self, head_sequence, subject, address, sequence);
+
+            break;
+        }
         case DAFKA_PROTO_MSG: {
             const char *subject = dafka_proto_subject (self->income_msg);
             const char *address = dafka_proto_address (self->income_msg);
             uint64_t sequence = dafka_proto_sequence (self->income_msg);
 
-            // Saving msg to database
+            size_t head_key_size = s_serialize_head_key (key, subject, address);
+            uint64_t head_sequence = dafka_store_get_head (self, key, head_key_size);
+
+            if (head_sequence != -1 && sequence <= head_sequence) {
+                // We already have the message
+                if (self->verbose)
+                    zsys_debug ("Store: message already received. Subject: %s, Partition: %s, Seq: %u",
+                            subject, address, sequence);
+                return;
+            }
+
+            if (head_sequence + 1 != sequence) {
+                dafka_store_send_fetch (self, head_sequence, subject, address, sequence);
+                return;
+            }
+
+            // Saving head to database
             char *err = NULL;
-            size_t key_size = s_serialize_key (key, subject, address, sequence);
+            leveldb_put (self->db, self->woptions, key, head_key_size, (char*) &sequence, sizeof (uint64_t), &err);
+            if (err) {
+                zsys_error ("Store: failed to update head to db %s", err);
+                assert (false);
+            }
+
+            // Saving msg to database
+            size_t key_size = s_serialize_content_key (key, subject, address, sequence);
             zframe_t *value = dafka_proto_content (self->income_msg);
             leveldb_put (self->db, self->woptions, key,  key_size,
                          (char *) zframe_data (value), zframe_size (value), &err);
@@ -219,7 +305,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
             dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_MSG);
 
             for (uint32_t i = 0; i < count; i++) {
-                size_t key_size = s_serialize_key (key, subject, address, sequence + i);
+                size_t key_size = s_serialize_content_key (key, subject, address, sequence + i);
 
                 // Read data from db
                 char *err = NULL;
