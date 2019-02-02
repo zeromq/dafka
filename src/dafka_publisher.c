@@ -15,8 +15,6 @@
 @header
     dafka_publisher -
 @discuss
-    TODO:
-        - Store send messages until an ACK has been received
 @end
 */
 
@@ -29,11 +27,17 @@ struct _dafka_publisher_t {
     zsock_t *pipe;              //  Actor command pipe
     zloop_t *loop;              //  Event loop
     bool verbose;               //  Verbose logging enabled?
+
     //  Class properties
     zsock_t *socket;            // Socket to publish messages to
     dafka_proto_t *msg;         // Reusable MSG message to publish
     dafka_proto_t *head_msg;    // Reusable HEAD message to publish
+    dafka_proto_t *ack_msg;     // Reusable ACK message to receive
+    zhashx_t *message_cache;    // Messages are keept in the cache until the ACK is received
+    uint64_t last_acked_sequence; // Last sequence no that has been acked by a store
+
     size_t head_interval;
+    size_t repeat_interval;
 
     zactor_t *beacon;
 };
@@ -49,6 +53,9 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
 
 static int
 s_send_head (zloop_t *loop, int timer_id, void *arg);
+
+static int
+s_repeat_message (zloop_t *loop, int timer_id, void *arg);
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_publisher instance
@@ -68,7 +75,8 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     if (atoi (zconfig_get (args->config, "producer/verbose", "0")))
         self->verbose = true;
 
-    self->head_interval = atoi (zconfig_get (args->config, "head/interval", "1000"));
+    self->head_interval = atoi (zconfig_get (args->config, "producer/head_interval", "1000"));
+    self->repeat_interval = atoi (zconfig_get (args->config, "producer/repeat_interval", "1000"));
 
     self->socket = zsock_new_xpub (NULL);
     int port = zsock_bind (self->socket, "tcp://*:*");
@@ -81,6 +89,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
     dafka_proto_set_sequence (self->msg, -1);
+    self->last_acked_sequence = -1;
 
     self->head_msg = dafka_proto_new ();
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
@@ -88,15 +97,25 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     dafka_proto_set_subject (self->head_msg, args->topic);
     dafka_proto_set_address (self->head_msg, zuuid_str (address));
 
+    self->ack_msg = dafka_proto_new ();
+
     self->beacon = zactor_new (dafka_beacon_actor, args->config);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (address), port);
     assert (zsock_wait (self->beacon) == 0);
-
     zuuid_destroy (&address);
+
+    self->message_cache = zhashx_new ();
+    zhashx_set_key_destructor(self->message_cache, uint64_destroy);
+    zhashx_set_key_duplicator (self->message_cache, uint64_dup);
+    zhashx_set_destructor (self->message_cache, (zhashx_destructor_fn *) dafka_proto_destroy);
+    zhashx_set_duplicator (self->message_cache, (zhashx_duplicator_fn *) dafka_proto_dup);
+    zhashx_set_key_comparator (self->message_cache, uint64_cmp);
+    zhashx_set_key_hasher (self->message_cache, uint64_hash);
 
     zloop_reader (self->loop, self->socket, s_recv_socket, self);
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
     zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
+    zloop_timer (self->loop, self->repeat_interval, 0, s_repeat_message, self);
     return self;
 }
 
@@ -124,6 +143,28 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
     }
 }
 
+//  Repeat a message after repeat_interval interval if no ACK has been received
+
+static int
+s_repeat_message (zloop_t *loop, int timer_id, void *arg)
+{
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t *) arg;
+    uint64_t current_sequence = dafka_proto_sequence (self->msg);
+    if (current_sequence == (uint64_t) -1)
+        current_sequence = 0;
+
+    for (uint64_t index = self->last_acked_sequence + 1; index <= current_sequence; index++) {
+        dafka_proto_t *repeat_msg = zhashx_lookup (self->message_cache, &index);
+        if (repeat_msg) {
+            if (self->verbose)
+                zsys_debug ("Producer: Repeating message %u", index);
+
+            dafka_proto_send (repeat_msg, self->socket);
+        }
+    }
+    return 0;
+}
 
 //  Publish content
 
@@ -133,13 +174,15 @@ s_publish (dafka_publisher_t *self, zframe_t *content)
     assert (self);
     assert (content);
 
+    uint64_t sequence = dafka_proto_sequence (self->msg) + 1;
+    dafka_proto_set_content (self->msg, &content);
+    dafka_proto_set_sequence (self->msg, sequence);
+    int rc = dafka_proto_send (self->msg, self->socket);
+
     if (self->verbose)
         zsys_debug ("Producer: Send MSG message with sequence %u", dafka_proto_sequence (self->msg));
 
-    dafka_proto_set_content (self->msg, &content);
-    uint64_t sequence = dafka_proto_sequence (self->msg);
-    dafka_proto_set_sequence (self->msg, sequence + 1);
-    int rc = dafka_proto_send (self->msg, self->socket);
+    zhashx_insert (self->message_cache, &sequence, self->msg);
 
     // Starts the HEAD timer once the first message has been send
     if (sequence == 0)
@@ -185,9 +228,18 @@ s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg) {
     assert (pipe);
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    int rc = dafka_proto_recv (self->ack_msg, self->socket);
+    if (rc != 0)
+        return 0;   // Unexpected message - ignore!
 
-    zmsg_t *msg = zmsg_recv (self->socket);
-    zmsg_destroy (&msg);
+    if (dafka_proto_id (self->ack_msg) == DAFKA_PROTO_ACK) {
+        uint64_t ack_sequence = dafka_proto_sequence (self->ack_msg);
+        for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
+            zhashx_delete (self->message_cache, &index);
+        }
+        self->last_acked_sequence = ack_sequence;
+    }
+    return 0;
 }
 
 //  Here we handle incoming message from the node
