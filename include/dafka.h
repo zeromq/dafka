@@ -19,4 +19,48 @@
 
 //  Add your own public definitions here, if you need them
 
+//  Static helper methods
+
+static void
+uint64_destroy (void **item_p)
+{
+    assert (item_p);
+    if (*item_p) {
+        uint64_t *item = (uint64_t *) *item_p;
+        free (item);
+        *item_p = NULL;
+    }
+}
+
+static void *
+uint64_dup (const void *item)
+{
+    uint64_t *value = (uint64_t *) malloc (sizeof (uint64_t));
+    memcpy (value, item, sizeof (uint64_t));
+    return value;
+}
+
+static int
+uint64_cmp (const void *item1, const void *item2)
+{
+    uint64_t value1 = *((uint64_t *) item1);
+    uint64_t value2 = *((uint64_t *) item2);
+    if (value1 < value2)
+        return -1;
+    else
+    if (value1 == value2)
+        return 0;
+    else
+    if (value1 > value2)
+        return 1;
+}
+
+static size_t
+uint64_hash (const void *item)
+{
+    uint64_t value = *((uint64_t *) item);
+    return (size_t) value;
+}
+
+
 #endif
