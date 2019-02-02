@@ -42,25 +42,6 @@ struct _dafka_subscriber_t {
     zactor_t* beacon;           // Beacon actor
 };
 
-//  Static helper methods
-
-static void
-uint64_destroy (void **self_p) {
-    assert (self_p);
-    if (*self_p) {
-        uint64_t *self = *self_p;
-        free (self);
-        *self_p = NULL;
-    }
-}
-
-static void *
-uint64_dup (const void *self) {
-    uint64_t *value = malloc(sizeof (uint64_t));
-    memcpy (value, self, sizeof (uint64_t));
-    return value;
-}
-
 //  --------------------------------------------------------------------------
 //  Create a new dafka_subscriber instance
 
