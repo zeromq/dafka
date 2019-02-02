@@ -11,8 +11,9 @@
 
     <message name = "MSG" id="'M'">
         Message from producer to consumers.
-        The topic is the message subject.
+        The topic is either the subject or recipient address.
 
+        <field name = "subject" type = "string" />
         <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
@@ -29,17 +30,6 @@
         <field name = "address" type = "string" />
     </message>
 
-    <message name = "DIRECT" id = "'D'">
-        Direct message to an address.
-        Currently it is a response for the fetch message.
-        Topic is the address of the recipient.
-
-        <field name = "subject" type = "string" />
-        <field name = "address" type = "string" />
-        <field name = "sequence" type = "number" size = "8" />
-        <field name = "content" type = "frame" />
-    </message>
-
     <message name = "ACK" id = "'K'">
         Ack from a store daemon to a producer.
         Topic is the address of the producer.
@@ -49,6 +39,7 @@
     </message>
 
     <message name = "HEAD" id = "'H'">
+        <field name = "subject" type = "string" />
         <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
