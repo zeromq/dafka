@@ -19,6 +19,9 @@
 */
 
 #include "dafka_classes.h"
+#include <leveldb/c.h>
+
+#define MAX_KEY_SIZE  (255 + 255 + 8 + 3)
 
 //  Structure of our actor
 
@@ -42,78 +45,13 @@ struct _dafka_store_t {
     zsock_t *sub;
     zactor_t *beacon;
 
-    zhashx_t *store;
+    leveldb_t *db;
+    leveldb_writeoptions_t* woptions;
+    leveldb_readoptions_t* roptions;
+
     char *address;
 };
 
-static void
-store_key_init (store_key_t *self, const char *subject, const char *address, uint64_t sequence) {
-
-    strcpy (self->subject, subject);
-    strcpy (self->address, address);
-    self->sequence = sequence;
-
-    self->hash = 0;
-
-    const char *pointer = (const char *) &self->subject;
-    for (size_t i = 0; i < strlen (self->subject) ; i++) {
-        self->hash = 33 * self->hash ^ *pointer++;
-    }
-
-    pointer = (const char *) &self->address;
-    for (size_t i = 0; i < strlen (self->address) ; i++) {
-        self->hash = 33 * self->hash ^ *pointer++;
-    }
-
-    pointer = (const char *) &self->sequence;
-    for (size_t i = 0; i < sizeof (uint64_t) ; i++) {
-        self->hash = 33 * self->hash ^ *pointer++;
-    }
-}
-
-static store_key_t *
-store_key_dup (store_key_t *self) {
-    store_key_t *copy = zmalloc (sizeof (store_key_t));
-
-    *copy = *self;
-
-    return copy;
-}
-
-static size_t
-store_hash (const store_key_t *self) {
-    return self->hash;
-}
-
-static void
-store_key_destroy (store_key_t **self_p) {
-    assert (self_p);
-    store_key_t *self = *self_p;
-
-    if (self) {
-        free (self);
-    }
-
-    *self_p = NULL;
-}
-
-static int
-store_key_cmp (const store_key_t *item1, const store_key_t *item2) {
-    int rc = strcmp (item1->subject, item2->subject);
-    if (rc != 0)
-        return rc;
-
-    rc = strcmp (item1->address, item2->address);
-    if (rc != 0)
-        return rc;
-
-    return (int)(item1->sequence - item2->sequence);
-}
-
-static void*
-take_ownership_dup (const void* self) {
-    return (void*) self;
-}
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_store instance
@@ -147,13 +85,18 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
     zsock_send (self->beacon, "ssi", "START", self->address, port);
     assert (zsock_wait (self->beacon) == 0);
 
-    self->store = zhashx_new ();
-    zhashx_set_destructor (self->store, (zhashx_destructor_fn *) zframe_destroy);
-    zhashx_set_duplicator (self->store, take_ownership_dup);
-    zhashx_set_key_destructor (self->store, (zhashx_destructor_fn *) store_key_destroy);
-    zhashx_set_key_duplicator (self->store, (zhashx_duplicator_fn *) store_key_dup);
-    zhashx_set_key_hasher (self->store, (zhashx_hash_fn *) store_hash);
-    zhashx_set_key_comparator (self->store, (zhashx_comparator_fn *) store_key_cmp);
+    // Configure and open the leveldb database for the store
+    const char *db_path = zconfig_get (config, "store/db", "storedb");
+    char *err = NULL;
+    leveldb_options_t *options = leveldb_options_create ();
+    leveldb_options_set_create_if_missing (options, 1);
+    self->db = leveldb_open (options, db_path, &err);
+    if (err) {
+        zsys_error ("Store: failed to open db %s", err);
+        assert (false);
+    }
+    self->woptions = leveldb_writeoptions_create();
+    self->roptions = leveldb_readoptions_create ();
 
     self->poller = zpoller_new (self->pipe, self->sub, self->beacon, NULL);
 
@@ -176,7 +119,12 @@ dafka_store_destroy (dafka_store_t **self_p)
         zsock_destroy (&self->pub);
         dafka_proto_destroy (&self->income_msg);
         dafka_proto_destroy (&self->outgoing_msg);
-        zhashx_destroy (&self->store);
+        leveldb_readoptions_destroy (self->roptions);
+        leveldb_writeoptions_destroy (self->woptions);
+        leveldb_close (self->db);
+        self->roptions = NULL;
+        self->woptions = NULL;
+        self->db = NULL;
         zactor_destroy (&self->beacon);
 
         //  Free object itself
@@ -209,6 +157,17 @@ dafka_store_recv_api (dafka_store_t *self)
     zmsg_destroy (&request);
 }
 
+size_t s_serialize_key (char* output, const char* subject, const char* address, uint64_t sequence) {
+    return (size_t) snprintf (output, MAX_KEY_SIZE, "%s\\%s\\%" PRIu64, subject, address, sequence);
+}
+
+void s_free_value (void **hint) {
+    char *value = (char *) *hint;
+    leveldb_free (value);
+
+    *hint = NULL;
+}
+
 // Handle messages from network
 
 static void
@@ -217,7 +176,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
     if (rc == -1) //  Interrupted
         return;
 
-    store_key_t key = {0};
+    char key[MAX_KEY_SIZE];
 
     switch (dafka_proto_id (self->income_msg)) {
         case DAFKA_PROTO_MSG: {
@@ -225,8 +184,16 @@ dafka_store_recv_sub (dafka_store_t *self) {
             const char *address = dafka_proto_address (self->income_msg);
             uint64_t sequence = dafka_proto_sequence (self->income_msg);
 
-            store_key_init (&key, subject, address, sequence);
-            zhashx_insert (self->store, &key, dafka_proto_get_content (self->income_msg));
+            // Saving msg to database
+            char *err = NULL;
+            size_t key_size = s_serialize_key (key, subject, address, sequence);
+            zframe_t *value = dafka_proto_content (self->income_msg);
+            leveldb_put (self->db, self->woptions, key,  key_size,
+                         (char *) zframe_data (value), zframe_size (value), &err);
+            if (err) {
+                zsys_error ("Store: failed to save message to db %s", err);
+                assert (false);
+            }
 
             if (self->verbose)
                 zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u", subject, address, sequence);
@@ -252,18 +219,24 @@ dafka_store_recv_sub (dafka_store_t *self) {
             dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_MSG);
 
             for (uint32_t i = 0; i < count; i++) {
-                store_key_init (&key, subject, address, sequence + i);
+                size_t key_size = s_serialize_key (key, subject, address, sequence + i);
 
-                zframe_t *frame = zhashx_lookup (self->store, &key);
+                // Read data from db
+                char *err = NULL;
+                size_t value_size;
+                char* value = leveldb_get (self->db, self->roptions, key, key_size, &value_size, &err);
+                if (err) {
+                    zsys_error ("Store: failed to load record from db %s", err);
+                    assert (false);
+                }
 
-                if (frame) {
+                if (value) {
                     if (self->verbose)
-                        zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                               subject, address, sequence + i);
+                        zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u, size %u",
+                               subject, address, sequence + i, value_size);
 
-                    // TODO: add zframe_copy that will make a zmq_msg_copy instead of full frame copy
-                    // We can also use the zframe_frommem
-                    frame = zframe_dup (frame);
+                    // Creating the frame without duplicate the data, frame will free the value when destroyed
+                    zframe_t *frame = zframe_frommem (value, value_size, s_free_value, value);
 
                     // The answer topic is the asker address
                     dafka_proto_set_sequence (self->outgoing_msg, sequence + i);
@@ -347,6 +320,7 @@ dafka_store_test (bool verbose)
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db/", SELFTEST_DIR_RW "/stordb");
 
 //    char *consumer_address = "SUB";
 

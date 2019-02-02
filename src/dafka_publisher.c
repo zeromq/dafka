@@ -305,6 +305,9 @@ dafka_publisher_test (bool verbose)
     zconfig_put (config, "tower/sub_address","inproc://tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://tower-pub");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db/", SELFTEST_DIR_RW "/stordb");
+
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
