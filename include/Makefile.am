@@ -6,10 +6,10 @@ include_HEADERS = \
     dafka.h \
     dafka_consumer_msg.h \
     dafka_producer_msg.h \
+    dafka_producer.h \
     dafka_proto.h \
     dafka_tower.h \
     dafka_store.h \
-    dafka_publisher.h \
     dafka_subscriber.h \
     dafka_library.h
 

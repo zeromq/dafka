@@ -6,8 +6,8 @@
     </destructor>
 
     <method name = "content">
-        Return the content of the record.
-        Content buffer is belong to the record and user should not try to free it.
+        Return the content of the message.
+        Content buffer is belong to the message and user should not try to free it.
         <return type = "buffer" />
     </method>
 
@@ -49,7 +49,7 @@
         </method>
 
     <method name = "send">
-        Send a record to producer.
+        Send a message to producer.
         Content will ownership will be moved to a background thread and will be set to NULL.
         Return 0 on success and -1 on error.
         <argument type = "zactor" name = "producer" />

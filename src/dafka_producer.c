@@ -22,7 +22,7 @@
 
 //  Structure of our actor
 
-struct _dafka_publisher_t {
+struct _dafka_producer_t {
     //  Actor properties
     zsock_t *pipe;              //  Actor command pipe
     zloop_t *loop;              //  Event loop
@@ -58,12 +58,12 @@ static int
 s_send_head (zloop_t *loop, int timer_id, void *arg);
 
 //  --------------------------------------------------------------------------
-//  Create a new dafka_publisher instance
+//  Create a new dafka_producer instance
 
-static dafka_publisher_t *
-dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
+static dafka_producer_t *
+dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
 {
-    dafka_publisher_t *self = (dafka_publisher_t *) zmalloc (sizeof (dafka_publisher_t));
+    dafka_producer_t *self = (dafka_producer_t *) zmalloc (sizeof (dafka_producer_t));
     assert (self);
     assert (args);
 
@@ -124,14 +124,14 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
 
 
 //  --------------------------------------------------------------------------
-//  Destroy the dafka_publisher instance
+//  Destroy the dafka_producer instance
 
 static void
-dafka_publisher_destroy (dafka_publisher_t **self_p)
+dafka_producer_destroy (dafka_producer_t **self_p)
 {
     assert (self_p);
     if (*self_p) {
-        dafka_publisher_t *self = *self_p;
+        dafka_producer_t *self = *self_p;
 
         //  Free class properties
         zloop_destroy (&self->loop);
@@ -152,7 +152,7 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
 //  Publish content
 
 static int
-s_publish (dafka_publisher_t *self, zframe_t *content)
+s_publish (dafka_producer_t *self, zframe_t *content)
 {
     assert (self);
     assert (content);
@@ -180,7 +180,7 @@ static int
 s_send_head (zloop_t *loop, int timer_id, void *arg)
 {
     assert (arg);
-    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    dafka_producer_t *self = (dafka_producer_t  *) arg;
     uint64_t sequence = dafka_proto_sequence (self->msg);
     dafka_proto_set_sequence (self->head_msg, sequence);
     if (self->verbose)
@@ -197,7 +197,7 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (loop);
     assert (pipe);
     assert (arg);
-    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    dafka_producer_t *self = (dafka_producer_t  *) arg;
 
     dafka_beacon_recv (self->beacon, self->producer_sub, self->verbose, "Producer");
     return 0;
@@ -220,7 +220,7 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (loop);
     assert (pipe);
     assert (arg);
-    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    dafka_producer_t *self = (dafka_producer_t  *) arg;
     int rc = dafka_proto_recv (self->sub_msg, self->producer_sub);
     if (rc != 0)
         return 0;   // Unexpected message - ignore!
@@ -269,7 +269,7 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (loop);
     assert (pipe);
     assert (arg);
-    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    dafka_producer_t *self = (dafka_producer_t  *) arg;
 
     char *command = zstr_recv (pipe);
     if (!command)
@@ -301,10 +301,10 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 //  This is the actor which runs in its own thread.
 
 void
-dafka_publisher_actor (zsock_t *pipe, void *args)
+dafka_producer (zsock_t *pipe, void *args)
 {
-    dafka_publisher_args_t *pub_args = (dafka_publisher_args_t *) args;
-    dafka_publisher_t * self = dafka_publisher_new (pipe, pub_args);
+    dafka_producer_args_t *pub_args = (dafka_producer_args_t *) args;
+    dafka_producer_t * self = dafka_producer_new (pipe, pub_args);
     if (!self)
         return;          //  Interrupted
 
@@ -312,23 +312,23 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
     zsock_signal (self->pipe, 0);
 
     if (self->verbose)
-        zsys_info ("Producer: Publisher started");
+        zsys_info ("Producer: producer started");
 
     zloop_start (self->loop);
 
     bool verbose = self->verbose;
-    dafka_publisher_destroy (&self);
+    dafka_producer_destroy (&self);
 
     if (verbose)
-        zsys_info ("Producer: Publisher stopped");
+        zsys_info ("Producer: producer stopped");
 }
 
 
 //  --------------------------------------------------------------------------
-//  Get the address the publisher
+//  Get the address the producer
 
 const char *
-dafka_publisher_address (zactor_t *self) {
+dafka_producer_address (zactor_t *self) {
     zstr_send (self, "GET ADDRESS");
     const char *address;
     zsock_brecv (self, "p", &address);
@@ -352,9 +352,9 @@ dafka_publisher_address (zactor_t *self) {
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
-dafka_publisher_test (bool verbose)
+dafka_producer_test (bool verbose)
 {
-    printf (" * dafka_publisher: ");
+    printf (" * dafka_producer: ");
     //  @selftest
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
@@ -370,11 +370,11 @@ dafka_publisher_test (bool verbose)
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    dafka_publisher_args_t args = {"dummy", config};
-    zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, &args);
-    assert (dafka_publisher);
+    dafka_producer_args_t args = {"dummy", config};
+    zactor_t *producer = zactor_new (dafka_producer, &args);
+    assert (producer);
 
-    zactor_destroy (&dafka_publisher);
+    zactor_destroy (&producer);
     zactor_destroy (&tower);
     zconfig_destroy (&config);
     //  @end

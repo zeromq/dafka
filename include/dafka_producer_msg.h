@@ -31,8 +31,8 @@ DAFKA_EXPORT dafka_producer_msg_t *
 DAFKA_EXPORT void
     dafka_producer_msg_destroy (dafka_producer_msg_t **self_p);
 
-//  Return the content of the record.
-//  Content buffer is belong to the record and user should not try to free it.
+//  Return the content of the message.
+//  Content buffer is belong to the message and user should not try to free it.
 DAFKA_EXPORT const byte *
     dafka_producer_msg_content (dafka_producer_msg_t *self);
 
@@ -64,7 +64,7 @@ DAFKA_EXPORT int
 DAFKA_EXPORT int
     dafka_producer_msg_set_content_buffer (dafka_producer_msg_t *self, const byte *content, size_t content_size);
 
-//  Send a record to producer.
+//  Send a message to producer.
 //  Content will ownership will be moved to a background thread and will be set to NULL.
 //  Return 0 on success and -1 on error.
 DAFKA_EXPORT int

@@ -51,8 +51,8 @@ int main (int argc, char *argv [])
 
     const char *topic = zargs_first (args);
 
-    dafka_publisher_args_t publisher_args =  { topic, config};
-    zactor_t *publisher = zactor_new (dafka_publisher_actor, &publisher_args);
+    dafka_producer_args_t producer_args =  { topic, config};
+    zactor_t *producer = zactor_new (dafka_producer, &producer_args);
 
     char *content = NULL;
     size_t size = 0;
@@ -68,12 +68,12 @@ int main (int argc, char *argv [])
             content_size--;
 
         dafka_producer_msg_set_content_buffer (msg, (const byte *) content, (size_t) content_size);
-        dafka_producer_msg_send (msg, publisher);
+        dafka_producer_msg_send (msg, producer);
     }
 
     zstr_free (&content);
     dafka_producer_msg_destroy (&msg);
-    zactor_destroy (&publisher);
+    zactor_destroy (&producer);
     zargs_destroy (&args);
     zconfig_destroy (&config);
 

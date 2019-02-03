@@ -19,4 +19,9 @@
 
 //  Add your own public definitions here, if you need them
 
+typedef struct {
+    const char *topic;
+    zconfig_t *config;
+} dafka_producer_args_t;
+
 #endif
