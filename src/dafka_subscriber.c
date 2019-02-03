@@ -118,7 +118,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 //  was successful. Otherwise -1.
 
 static void
-dafka_subscriber_subscribe (dafka_subscriber_t *self, const char *topic)
+s_subscribe (dafka_subscriber_t *self, const char *topic)
 {
     assert (self);
     if (self->verbose)
@@ -215,7 +215,7 @@ dafka_subscriber_recv_api (dafka_subscriber_t *self)
     char *command = zmsg_popstr (request);
     if (streq (command, "SUBSCRIBE")) {
         char *topic = zmsg_popstr (request);
-        dafka_subscriber_subscribe (self, topic);
+        s_subscribe (self, topic);
         zstr_free (&topic);
     }
     else
@@ -261,6 +261,30 @@ dafka_subscriber_actor (zsock_t *pipe, void *args)
 
     if (verbose)
         zsys_info ("Subscriber: stopped");
+}
+
+//  --------------------------------------------------------------------------
+//  Subscribe to a topic
+
+int
+dafka_subscriber_subscribe (zactor_t* actor, const char* subject) {
+    return zsock_send (actor, "ss", "SUBSCRIBE", subject);
+}
+
+zframe_t*
+dafka_subscriber_recv (zactor_t *actor, char** address, char **topic) {
+    zframe_t *content = NULL;
+    *address = NULL;
+    *topic = NULL;
+    int rc = zsock_brecv (actor, "ssf", &topic, &address, &content);
+    if (rc == -1) {
+        zstr_free (address);
+        zstr_free (topic);
+        zframe_destroy (&content);
+        return NULL;
+    }
+
+    return content;
 }
 
 //  --------------------------------------------------------------------------

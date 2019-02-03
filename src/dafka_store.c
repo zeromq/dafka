@@ -215,7 +215,7 @@ static void dafka_store_send_fetch (dafka_store_t *self,
     dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_FETCH);
     dafka_proto_set_topic (self->outgoing_msg, address);
     dafka_proto_set_subject (self->outgoing_msg, subject);
-    dafka_proto_set_sequence (self->outgoing_msg, sequence);
+    dafka_proto_set_sequence (self->outgoing_msg, head_sequence + 1);
     dafka_proto_set_count (self->outgoing_msg, count);
     dafka_proto_set_address (self->outgoing_msg, self->address);
     dafka_proto_send (self->outgoing_msg, self->pub);
@@ -411,67 +411,51 @@ dafka_store_test (bool verbose)
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
 
-//    char *consumer_address = "SUB";
-
-//    // Creating the publisher
-//    dafka_publisher_t *pub = dafka_publisher_new ("TEST", config);
-
-//    // Creating the consumer pub socket
-//    zsock_t *consumer_pub = zsock_new_pub (consumer_endpoint);
-
     // Creating the store
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
+
+    // Creating the publisher
+    dafka_publisher_args_t args = {"TEST", config};
+    zactor_t *producer = zactor_new (dafka_publisher_actor, &args);
+
+    // Producing before the store is alive, in order to test fetching between producer and store
+    zframe_t *frame = zframe_new ("1", 1);
+    dafka_publisher_publish (producer, &frame);
+
+    frame = zframe_new ("2", 1);
+    dafka_publisher_publish (producer, &frame);
+
+    // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
+    zclock_sleep (100);
 
-//    // Creating the consumer sub socker and subscribe
-//    zsock_t *consumer_sub = zsock_new_sub (store_endpoint, NULL);
-//    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_DIRECT, consumer_address);
-//
-//    // Publish message, store should receive and store
-//    zframe_t *content = zframe_new ("HELLO", 5);
-//    dafka_publisher_publish (pub, &content);
-//
-//    content = zframe_new ("WORLD", 5);
-//    dafka_publisher_publish (pub, &content);
-//
-//    usleep (100);
-//
-//    // Consumer ask for a message
-//    dafka_proto_t *msg = dafka_proto_new ();
-//    dafka_proto_set_topic (msg, dafka_publisher_address(pub));
-//    dafka_proto_set_subject (msg, "TEST");
-//    dafka_proto_set_sequence (msg, 0);
-//    dafka_proto_set_count (msg, 2);
-//    dafka_proto_set_address (msg, consumer_address);
-//    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
-//    dafka_proto_send (msg, consumer_pub);
-//
-//    // Consumer wait for a response from store
-//    int rc = dafka_proto_recv (msg, consumer_sub);
-//    assert (rc == 0);
-//    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-//    assert (streq (dafka_proto_topic (msg), consumer_address));
-//    assert (streq (dafka_proto_subject (msg), "TEST"));
-//    assert (dafka_proto_sequence (msg) == 0);
-//    assert (zframe_streq (dafka_proto_content (msg), "HELLO"));
-//
-//    // Receiving the second message
-//    dafka_proto_recv (msg, consumer_sub);
-//    assert (rc == 0);
-//    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-//    assert (streq (dafka_proto_topic (msg), consumer_address));
-//    assert (streq (dafka_proto_subject (msg), "TEST"));
-//    assert (dafka_proto_sequence (msg) == 1);
-//    assert (zframe_streq (dafka_proto_content (msg), "WORLD"));
-//
+    // Producing another message
+    frame = zframe_new ("3", 1);
+    dafka_publisher_publish (producer, &frame);
 
-//    dafka_proto_destroy (&msg);
-//    zsock_destroy (&consumer_sub);
+    // Starting a consumer and check that consumer recv all 3 messages
+    zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
+    dafka_subscriber_subscribe (consumer, "TEST");
+
+    char *topic;
+    char *address;
+    frame = dafka_subscriber_recv (consumer, &address, &topic);
+    assert (zframe_streq (frame, "1"));
+    zframe_destroy (&frame);
+
+    frame = dafka_subscriber_recv (consumer, &address, &topic);
+    assert (zframe_streq (frame, "2"));
+    zframe_destroy (&frame);
+
+    frame = dafka_subscriber_recv (consumer, &address, &topic);
+    assert (zframe_streq (frame, "3"));
+    zframe_destroy (&frame);
+
+    zactor_destroy (&consumer);
     zactor_destroy (&store);
     zactor_destroy (&tower);
+    zactor_destroy (&producer);
     zconfig_destroy (&config);
-//    zsock_destroy (&consumer_pub);
-//    dafka_publisher_destroy (&pub);
     //  @end
 
     printf ("OK\n");
