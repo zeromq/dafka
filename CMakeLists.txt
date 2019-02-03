@@ -186,10 +186,10 @@ set (dafka_headers
     include/dafka.h
     include/dafka_consumer_msg.h
     include/dafka_producer_msg.h
+    include/dafka_producer.h
     include/dafka_proto.h
     include/dafka_tower.h
     include/dafka_store.h
-    include/dafka_publisher.h
     include/dafka_subscriber.h
     src/dafka_util.h
     src/dafka_beacon.h
@@ -207,12 +207,12 @@ include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_
 set (dafka_sources
     src/dafka_consumer_msg.c
     src/dafka_producer_msg.c
+    src/dafka_producer.c
     src/dafka_util.c
     src/dafka_proto.c
     src/dafka_beacon.c
     src/dafka_tower.c
     src/dafka_store.c
-    src/dafka_publisher.c
     src/dafka_subscriber.c
 )
 IF (ENABLE_DRAFTS)
@@ -521,10 +521,10 @@ endif()
 set(TEST_CLASSES
     dafka_consumer_msg
     dafka_producer_msg
+    dafka_producer
     dafka_proto
     dafka_tower
     dafka_store
-    dafka_publisher
     dafka_subscriber
 )
 

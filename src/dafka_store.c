@@ -415,8 +415,8 @@ dafka_store_test (bool verbose)
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
     // Creating the publisher
-    dafka_publisher_args_t args = {"TEST", config};
-    zactor_t *producer = zactor_new (dafka_publisher_actor, &args);
+    dafka_producer_args_t args = {"TEST", config};
+    zactor_t *producer = zactor_new (dafka_producer, &args);
 
     // Producing before the store is alive, in order to test fetching between producer and store
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
