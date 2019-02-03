@@ -117,6 +117,7 @@ dafka_store_destroy (dafka_store_t **self_p)
     if (*self_p) {
         dafka_store_t *self = *self_p;
 
+        zpoller_destroy (&self->poller);
         zstr_free (&self->address);
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
@@ -133,7 +134,6 @@ dafka_store_destroy (dafka_store_t **self_p)
         zactor_destroy (&self->beacon);
 
         //  Free object itself
-        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
@@ -403,11 +403,11 @@ dafka_store_test (bool verbose)
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
 

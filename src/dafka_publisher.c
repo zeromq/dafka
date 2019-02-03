@@ -131,6 +131,7 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         dafka_publisher_t *self = *self_p;
 
         //  Free class properties
+        zloop_destroy (&self->loop);
         zsock_destroy (&self->socket);
         dafka_proto_destroy (&self->msg);
         dafka_proto_destroy (&self->head_msg);
@@ -139,7 +140,6 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         zhashx_destroy (&self->message_cache);
 
         //  Free actor properties
-        zloop_destroy (&self->loop);
         free (self);
         *self_p = NULL;
     }
@@ -372,11 +372,11 @@ dafka_publisher_test (bool verbose)
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address","inproc://producer-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://producer-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address","inproc://producer-tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://producer-tower-pub");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");

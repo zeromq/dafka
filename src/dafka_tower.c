@@ -80,12 +80,12 @@ dafka_tower_destroy (dafka_tower_t **self_p) {
     if (*self_p) {
         dafka_tower_t *self = *self_p;
 
+        zpoller_destroy (&self->poller);
         zsock_destroy (&self->xpub);
         zsock_destroy (&self->xsub);
         zstr_free (&self->own_address);
 
         //  Free object itself
-        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
