@@ -1,0 +1,70 @@
+<class name = "dafka_producer_msg">
+    <constructor>
+    </constructor>
+
+    <destructor>
+    </destructor>
+
+    <method name = "content">
+        Return the content of the record.
+        Content buffer is belong to the record and user should not try to free it.
+        <return type = "buffer" />
+    </method>
+
+    <method name = "content size">
+        Return the size of the content
+        <return type = "size" />
+    </method>
+
+    <method name = "get content">
+        Return the content, user takes ownership of the buffer returned.
+        <return type = "zframe" fresh = "1" />
+    </method>
+
+    <method name = "init content">
+        Create a new content buffer at the specific size.
+        Return 0 on success and -1 if not enough memory.
+        <argument name = "size" type = "size" />
+        <return type = "integer" />
+    </method>
+
+    <method name = "set content">
+        Set the content with a frame. Takes ownership on the content.
+        <argument name = "content" type = "zframe" by_reference = "1" />
+    </method>
+
+    <method name = "set content str">
+        Set the content from string.
+        Return 0 on success and -1 if not enough memory.
+        <argument name = "content" type = "string" />
+        <return type = "integer" />
+    </method>
+
+    <method name = "set content buffer">
+            Set the content from string.
+            Return 0 on success and -1 if not enough memory.
+            <argument name = "content" type = "buffer" />
+            <argument name = "content_size" type = "size" />
+            <return type = "integer" />
+        </method>
+
+    <method name = "send">
+        Send a record to producer.
+        Content will ownership will be moved to a background thread and will be set to NULL.
+        Return 0 on success and -1 on error.
+        <argument type = "zactor" name = "producer" />
+        <return type = "integer" />
+    </method>
+
+    <method name = "strdup">
+        Return frame data copied into freshly allocated string
+        Caller must free string when finished with it.
+        <return type = "string" fresh = "1" />
+    </method>
+
+    <method name = "streq">
+        Return TRUE if content is equal to string, excluding terminator
+        <argument name = "string" type = "string"/>
+        <return type = "boolean" />
+    </method>
+</class>

@@ -66,6 +66,8 @@
 //  These classes are stable or legacy and built in all releases
 typedef struct _dafka_consumer_msg_t dafka_consumer_msg_t;
 #define DAFKA_CONSUMER_MSG_T_DEFINED
+typedef struct _dafka_producer_msg_t dafka_producer_msg_t;
+#define DAFKA_PRODUCER_MSG_T_DEFINED
 typedef struct _dafka_proto_t dafka_proto_t;
 #define DAFKA_PROTO_T_DEFINED
 typedef struct _dafka_tower_t dafka_tower_t;
@@ -80,6 +82,7 @@ typedef struct _dafka_subscriber_t dafka_subscriber_t;
 
 //  Public classes, each with its own header file
 #include "dafka_consumer_msg.h"
+#include "dafka_producer_msg.h"
 #include "dafka_proto.h"
 #include "dafka_tower.h"
 #include "dafka_store.h"

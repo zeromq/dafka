@@ -47,10 +47,6 @@ typedef struct {
 DAFKA_EXPORT void
     dafka_publisher_actor (zsock_t *pipe, void *args);
 
-//  Publish content
-DAFKA_EXPORT int
-    dafka_publisher_publish (zactor_t *self, zframe_t **content);
-
 //  Get the address the publisher
 DAFKA_EXPORT const char *
     dafka_publisher_address (zactor_t *self);

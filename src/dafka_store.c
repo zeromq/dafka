@@ -419,19 +419,20 @@ dafka_store_test (bool verbose)
     zactor_t *producer = zactor_new (dafka_publisher_actor, &args);
 
     // Producing before the store is alive, in order to test fetching between producer and store
-    zframe_t *frame = zframe_new ("1", 1);
-    dafka_publisher_publish (producer, &frame);
+    dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg, "1");
+    dafka_producer_msg_send (p_msg, producer);
 
-    frame = zframe_new ("2", 1);
-    dafka_publisher_publish (producer, &frame);
+    dafka_producer_msg_set_content_str (p_msg, "2");
+    dafka_producer_msg_send (p_msg, producer);
 
     // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
     zclock_sleep (100);
 
     // Producing another message
-    frame = zframe_new ("3", 1);
-    dafka_publisher_publish (producer, &frame);
+    dafka_producer_msg_set_content_str (p_msg, "3");
+    dafka_producer_msg_send (p_msg, producer);
 
     // Starting a consumer and check that consumer recv all 3 messages
     zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);

@@ -48,7 +48,7 @@ DAFKA_EXPORT const byte *
 DAFKA_EXPORT size_t
     dafka_consumer_msg_content_size (dafka_consumer_msg_t *self);
 
-//  Return the content, user takes ownership on the frame returned.
+//  Return the content, user takes ownership of the frame returned.
 //  Caller owns return value and must destroy it when done.
 DAFKA_EXPORT zframe_t *
     dafka_consumer_msg_get_content (dafka_consumer_msg_t *self);
@@ -56,7 +56,7 @@ DAFKA_EXPORT zframe_t *
 //  Receive a record from a consumer actor.
 //  Return 0 on success and -1 on error.
 DAFKA_EXPORT int
-    dafka_consumer_msg_recv (dafka_consumer_msg_t *self, zactor_t *actor);
+    dafka_consumer_msg_recv (dafka_consumer_msg_t *self, zactor_t *consumer);
 
 //  Return frame data copied into freshly allocated string
 //  Caller must free string when finished with it.

@@ -27,14 +27,14 @@
     </method>
 
     <method name = "get content">
-        Return the content, user takes ownership on the frame returned.
+        Return the content, user takes ownership of the frame returned.
         <return type = "zframe" fresh = "1" />
     </method>
 
     <method name = "recv">
         Receive a record from a consumer actor.
         Return 0 on success and -1 on error.
-        <argument type = "zactor" name = "actor" />
+        <argument type = "zactor" name = "consumer" />
         <return type = "integer" />
     </method>
 
