@@ -6,18 +6,18 @@
     </destructor>
 
     <method name = "subject">
-        Return the subject of the record.
+        Return the subject of the message.
         <return type = "string" />
     </method>
 
     <method name = "address">
-        Return the sender address of the record.
+        Return the sender address of the message.
         <return type = "string" />
     </method>
 
     <method name = "content">
-        Return the content of the record.
-        Content buffer is belong to the record.
+        Return the content of the message.
+        Content buffer is belong to the message.
         <return type = "buffer" />
     </method>
 
@@ -32,7 +32,7 @@
     </method>
 
     <method name = "recv">
-        Receive a record from a consumer actor.
+        Receive a message from a consumer actor.
         Return 0 on success and -1 on error.
         <argument type = "zactor" name = "consumer" />
         <return type = "integer" />
