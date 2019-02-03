@@ -315,7 +315,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
                 size_t value_size;
                 char* value = leveldb_get (self->db, self->roptions, key, key_size, &value_size, &err);
                 if (err) {
-                    zsys_error ("Store: failed to load record from db %s", err);
+                    zsys_error ("Store: failed to load msg from db %s", err);
                     assert (false);
                 }
 
@@ -437,20 +437,17 @@ dafka_store_test (bool verbose)
     zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
     dafka_subscriber_subscribe (consumer, "TEST");
 
-    char *topic;
-    char *address;
-    frame = dafka_subscriber_recv (consumer, &address, &topic);
-    assert (zframe_streq (frame, "1"));
-    zframe_destroy (&frame);
+    dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (msg, consumer);
+    assert (dafka_consumer_msg_streq (msg, "1"));
 
-    frame = dafka_subscriber_recv (consumer, &address, &topic);
-    assert (zframe_streq (frame, "2"));
-    zframe_destroy (&frame);
+    dafka_consumer_msg_recv (msg, consumer);
+    assert (dafka_consumer_msg_streq (msg, "2"));
 
-    frame = dafka_subscriber_recv (consumer, &address, &topic);
-    assert (zframe_streq (frame, "3"));
-    zframe_destroy (&frame);
+    dafka_consumer_msg_recv (msg, consumer);
+    assert (dafka_consumer_msg_streq (msg, "3"));
 
+    dafka_consumer_msg_destroy (&msg);
     zactor_destroy (&consumer);
     zactor_destroy (&store);
     zactor_destroy (&tower);

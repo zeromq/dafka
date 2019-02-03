@@ -26,6 +26,8 @@
     <actor name = "dafka_publisher" state = "stable" />
     <actor name = "dafka_subscriber" state = "stable" />
 
+    <class name = "dafka_consumer_msg" state = "stable" />
+
     <class name = "dafka_util" private = "1" singleton = "1" selftest = "0" />
     <class name = "dafka_proto" state = "stable"  />
     <model name = "dafka_proto" />

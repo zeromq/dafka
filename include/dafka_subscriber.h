@@ -37,11 +37,6 @@ DAFKA_EXPORT void
 DAFKA_EXPORT int
     dafka_subscriber_subscribe (zactor_t *actor, const char* subject);
 
-//  Receive a message, user takes ownership of the frame and must destroy it.
-//  Address and topic must not be destroyed.
-DAFKA_EXPORT zframe_t*
-    dafka_subscriber_recv (zactor_t *actor, char** address, char **topic);
-
 //  Self test of this actor
 DAFKA_EXPORT void
     dafka_subscriber_test (bool verbose);

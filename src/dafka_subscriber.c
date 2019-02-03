@@ -271,22 +271,6 @@ dafka_subscriber_subscribe (zactor_t* actor, const char* subject) {
     return zsock_send (actor, "ss", "SUBSCRIBE", subject);
 }
 
-zframe_t*
-dafka_subscriber_recv (zactor_t *actor, char** address, char **topic) {
-    zframe_t *content = NULL;
-    *address = NULL;
-    *topic = NULL;
-    int rc = zsock_brecv (actor, "ssf", &topic, &address, &content);
-    if (rc == -1) {
-        zstr_free (address);
-        zstr_free (topic);
-        zframe_destroy (&content);
-        return NULL;
-    }
-
-    return content;
-}
-
 //  --------------------------------------------------------------------------
 //  Self test of this actor.
 
@@ -338,7 +322,7 @@ dafka_subscriber_test (bool verbose)
     assert (rc == 0);
     sleep (1);  // Make sure message is published before subscriber subscribes
 
-    rc = zsock_send (sub, "ss", "SUBSCRIBE", "hello");
+    rc = dafka_subscriber_subscribe (sub, "hello");
     assert (rc == 0);
     zclock_sleep (1000);  // Make sure subscription is active before sending the next message
 
@@ -352,34 +336,23 @@ dafka_subscriber_test (bool verbose)
     rc = dafka_publisher_publish (pub, &content);
     assert (rc == 0);
 
-    char *topic;
-    char *address;
-    char *content_str;
-
     // Receive the first message from the STORE
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO MATE"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
+    dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (msg, sub);
+    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
+    assert (dafka_consumer_msg_streq (msg, "HELLO MATE"));
 
     // Receive the second message from the STORE as the original has been discarded
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO ATEM"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
+    dafka_consumer_msg_recv (msg, sub);
+    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
+    assert (dafka_consumer_msg_streq (msg, "HELLO ATEM"));
 
     // Receive the third message from the PUBLISHER
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO TEMA"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
+    dafka_consumer_msg_recv (msg, sub);
+    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
+    assert (dafka_consumer_msg_streq (msg, "HELLO TEMA"));
 
+    dafka_consumer_msg_destroy (&msg);
     zactor_destroy (&pub);
     zactor_destroy (&store);
     zactor_destroy (&sub);
