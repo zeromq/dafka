@@ -22,24 +22,40 @@ mean?
 
 A streaming platform has three key capabilities:
 
-    Publish and subscribe to streams of records, similar to a message queue or enterprise messaging system.
-    Store streams of records in a fault-tolerant durable way.
-    Process streams of records as they occur.
+* Publish and subscribe to streams of records, similar to a message queue or
+  enterprise messaging system.
+* Store streams of records in a fault-tolerant durable way.
+* Process streams of records as they occur.
 
 Dafka is generally used for two broad classes of applications:
 
-    Building real-time streaming data pipelines that reliably get data between systems or applications
-    Building real-time streaming applications that transform or react to the streams of data
+* Building real-time streaming data pipelines that reliably get data between
+  systems or applications
+* Building real-time streaming applications that transform or react to the
+  streams of data
 
-To understand how Dafka does these things, let's dive in and explore Dafka's capabilities from the bottom up.
+To understand how Dafka does these things, let's dive in and explore Dafka's
+capabilities from the bottom up.
 
 First a few concepts:
 
-    Dafka is run as a cluster on one or more servers. The Dafka cluster stores
-    streams of records in categories called topics. Each record consists of
-    a arbitrary value. Producer and Consumer will communicate directly with each
-    other. Missed events can be obtained either from the Producer or the
-    Cluster.
+* Dafka is run as a cluster on one or more servers.
+* The Dafka cluster stores streams of records in categories called topics.
+* Each record consists of a arbitrary value.
+* Producers send record to the Cluster and directly to the Consumers.
+* Missed records are obtained either from the Producer or the Cluster.
+
+In Dafka the communication between the clients is done with a simple,
+high-performance, language agnostic TCP protocol. This protocol is versioned and
+maintains backwards compatibility with older version. We provide a C client for
+Dafka.
+
+### Concepts
+
+To understand how Dafka does these things, let's dive in and explore Dafka's
+capabilities from the bottom up.
+
+TODO
 
 ### Ownership and License
 
