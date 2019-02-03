@@ -46,8 +46,9 @@ struct _dafka_store_t {
     zactor_t *beacon;
 
     leveldb_t *db;
-    leveldb_writeoptions_t* woptions;
-    leveldb_readoptions_t* roptions;
+    leveldb_options_t *dboptions;
+    leveldb_writeoptions_t *woptions;
+    leveldb_readoptions_t *roptions;
 
     char *address;
 };
@@ -90,9 +91,9 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
     // Configure and open the leveldb database for the store
     const char *db_path = zconfig_get (config, "store/db", "storedb");
     char *err = NULL;
-    leveldb_options_t *options = leveldb_options_create ();
-    leveldb_options_set_create_if_missing (options, 1);
-    self->db = leveldb_open (options, db_path, &err);
+    self->dboptions = leveldb_options_create ();
+    leveldb_options_set_create_if_missing (self->dboptions, 1);
+    self->db = leveldb_open (self->dboptions, db_path, &err);
     if (err) {
         zsys_error ("Store: failed to open db %s", err);
         assert (false);
@@ -116,6 +117,7 @@ dafka_store_destroy (dafka_store_t **self_p)
     if (*self_p) {
         dafka_store_t *self = *self_p;
 
+        zpoller_destroy (&self->poller);
         zstr_free (&self->address);
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
@@ -124,13 +126,14 @@ dafka_store_destroy (dafka_store_t **self_p)
         leveldb_readoptions_destroy (self->roptions);
         leveldb_writeoptions_destroy (self->woptions);
         leveldb_close (self->db);
+        leveldb_options_destroy (self->dboptions);
         self->roptions = NULL;
         self->woptions = NULL;
         self->db = NULL;
+        self->dboptions = NULL;
         zactor_destroy (&self->beacon);
 
         //  Free object itself
-        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
@@ -350,7 +353,7 @@ dafka_store_recv_sub (dafka_store_t *self) {
 void
 dafka_store_actor (zsock_t *pipe, void *arg)
 {
-    dafka_store_t * self = dafka_store_new (pipe, arg);
+    dafka_store_t * self = dafka_store_new (pipe, (zconfig_t *) arg);
     if (!self)
         return;          //  Interrupted
 
@@ -400,11 +403,11 @@ dafka_store_test (bool verbose)
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
 
@@ -466,6 +469,7 @@ dafka_store_test (bool verbose)
 //    zsock_destroy (&consumer_sub);
     zactor_destroy (&store);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
 //    zsock_destroy (&consumer_pub);
 //    dafka_publisher_destroy (&pub);
     //  @end

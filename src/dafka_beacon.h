@@ -39,14 +39,14 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 //      zstr_sendx (dafka_beacon, "STOP", NULL);
 //
 //  This is the dafka_beacon constructor as a zactor_fn;
-DAFKA_EXPORT void
+DAFKA_PRIVATE void
     dafka_beacon_actor (zsock_t *pipe, void *args);
 
 DAFKA_PRIVATE void
     dafka_beacon_recv (zactor_t *self, zsock_t *sub, bool verbose, const char *log_prefix);
 
 //  Self test of this actor
-DAFKA_EXPORT void
+DAFKA_PRIVATE void
     dafka_beacon_test (bool verbose);
 //  @end
 

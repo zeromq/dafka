@@ -320,7 +320,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 256);
+            strncpy (self->subject, s, 255);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -328,7 +328,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 256);
+            strncpy (self->address, s, 255);
             }
             {
             char *es = NULL;
@@ -376,7 +376,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 256);
+            strncpy (self->subject, s, 255);
             }
             {
             char *es = NULL;
@@ -416,7 +416,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 256);
+            strncpy (self->address, s, 255);
             }
             break;
         case DAFKA_PROTO_ACK:
@@ -432,7 +432,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 256);
+            strncpy (self->subject, s, 255);
             }
             {
             char *es = NULL;
@@ -464,7 +464,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 256);
+            strncpy (self->subject, s, 255);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -472,7 +472,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 256);
+            strncpy (self->address, s, 255);
             }
             {
             char *es = NULL;
@@ -582,7 +582,7 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
 
     GET_NUMBER1 (self->id);
     zstr_free (&self->topic);
-    size_t topic_size = strnlen (self->needle, self->ceiling - self->needle - 1);
+    size_t topic_size = strnlen ((char *) self->needle, self->ceiling - self->needle - 1);
     self->topic = (char *) malloc (topic_size + 1);
     memcpy (self->topic, self->needle, topic_size + 1);
     self->needle += topic_size + 1;
@@ -1131,7 +1131,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1169,7 +1168,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1203,7 +1201,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
@@ -1236,7 +1233,6 @@ dafka_proto_test (bool verbose)
         if (instance < 2)
             dafka_proto_recv (self, input);
         else {
-
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);

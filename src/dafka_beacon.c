@@ -230,7 +230,7 @@ dafka_beacon_recv_sub (dafka_beacon_t *self) {
 
         // Drop our own beaconing
         if (strneq (self->sender, sender)) {
-            int64_t* expire = zhashx_lookup (self->peers, address);
+            int64_t* expire = (int64_t *)  zhashx_lookup (self->peers, address);
 
             if (expire == NULL) {
                 expire = (int64_t *) zmalloc (sizeof (int64_t));
@@ -263,7 +263,7 @@ dafka_beacon_clear_dead_peers (int timer_id, dafka_beacon_t *self) {
     (void)timer_id;
     int64_t now = zclock_time ();
 
-    for (int64_t * expire = zhashx_first (self->peers); expire != NULL; expire = zhashx_next (self->peers)) {
+    for (int64_t *expire = (int64_t *) zhashx_first (self->peers); expire != NULL; expire = (int64_t *) zhashx_next (self->peers)) {
         if (now > *expire) {
             char *address = (char*) zhashx_cursor(self->peers);
 
@@ -281,7 +281,7 @@ dafka_beacon_clear_dead_peers (int timer_id, dafka_beacon_t *self) {
 
 void
 dafka_beacon_actor (zsock_t *pipe, void *args) {
-    dafka_beacon_t *self = dafka_beacon_new (pipe, args);
+    dafka_beacon_t *self = dafka_beacon_new (pipe, (zconfig_t *) args);
     if (!self)
         return;          //  Interrupted
 

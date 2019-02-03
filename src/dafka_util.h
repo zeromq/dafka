@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka - ZeroMQ messaging middleware
+    dafka_util - class description
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -11,12 +11,30 @@
     =========================================================================
 */
 
-#ifndef DAFKA_H_H_INCLUDED
-#define DAFKA_H_H_INCLUDED
+#ifndef DAFKA_UTIL_H_INCLUDED
+#define DAFKA_UTIL_H_INCLUDED
 
-//  Include the project library file
-#include "dafka_library.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-//  Add your own public definitions here, if you need them
+
+DAFKA_PRIVATE void
+uint64_destroy (void **item_p);
+
+DAFKA_PRIVATE void *
+uint64_dup (const void *item);
+
+DAFKA_PRIVATE int
+uint64_cmp (const void *item1, const void *item2);
+
+DAFKA_PRIVATE size_t
+uint64_hash (const void *item);
+
+//  @end
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

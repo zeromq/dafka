@@ -27,6 +27,10 @@
 //  Extra headers
 
 //  Opaque class structures to allow forward references
+#ifndef DAFKA_UTIL_T_DEFINED
+typedef struct _dafka_util_t dafka_util_t;
+#define DAFKA_UTIL_T_DEFINED
+#endif
 #ifndef DAFKA_BEACON_T_DEFINED
 typedef struct _dafka_beacon_t dafka_beacon_t;
 #define DAFKA_BEACON_T_DEFINED
@@ -34,6 +38,7 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 
 //  Internal API
 
+#include "dafka_util.h"
 #include "dafka_beacon.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***

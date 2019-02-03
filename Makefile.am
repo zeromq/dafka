@@ -43,6 +43,7 @@ EXTRA_DIST += \
 endif
 
 EXTRA_DIST += \
+    src/dafka_util.h \
     src/dafka_beacon.h \
     LICENSE \
     README.txt \
