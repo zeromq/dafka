@@ -192,7 +192,7 @@ dafka_subscriber_recv_subscriptions (dafka_subscriber_t *self)
     if (id == DAFKA_PROTO_MSG) {
         if (msg_sequence == last_known_sequence + 1) {
             if (self->verbose)
-                zsys_debug ("Send message %u to client", msg_sequence);
+                zsys_debug ("Consumer: Send message %u to client", msg_sequence);
 
             zhashx_update (self->sequence_index, sequence_key, &msg_sequence);
             zsock_bsend (self->pipe, "ssf", subject, address, content);
