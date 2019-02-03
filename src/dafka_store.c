@@ -435,8 +435,8 @@ dafka_store_test (bool verbose)
     dafka_producer_msg_send (p_msg, producer);
 
     // Starting a consumer and check that consumer recv all 3 messages
-    zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
-    dafka_subscriber_subscribe (consumer, "TEST");
+    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_subscribe (consumer, "TEST");
 
     dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
     dafka_consumer_msg_recv (msg, consumer);

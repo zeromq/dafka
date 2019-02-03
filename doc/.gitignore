@@ -17,14 +17,14 @@ dafka_producer_msg.txt
 dafka_producer_msg.doc
 dafka_producer.txt
 dafka_producer.doc
+dafka_consumer.txt
+dafka_consumer.doc
 dafka_proto.txt
 dafka_proto.doc
 dafka_tower.txt
 dafka_tower.doc
 dafka_store.txt
 dafka_store.doc
-dafka_subscriber.txt
-dafka_subscriber.doc
 dafka_console_producer.txt
 dafka_console_producer.doc
 dafka_console_consumer.txt
