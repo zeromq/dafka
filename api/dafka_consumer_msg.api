@@ -1,0 +1,52 @@
+<class name = "dafka_consumer_msg">
+    <constructor>
+    </constructor>
+
+    <destructor>
+    </destructor>
+
+    <method name = "subject">
+        Return the subject of the record.
+        <return type = "string" />
+    </method>
+
+    <method name = "address">
+        Return the sender address of the record.
+        <return type = "string" />
+    </method>
+
+    <method name = "content">
+        Return the content of the record.
+        Content buffer is belong to the record.
+        <return type = "buffer" />
+    </method>
+
+    <method name = "content size">
+        Return the size of the content
+        <return type = "size" />
+    </method>
+
+    <method name = "get content">
+        Return the content, user takes ownership on the frame returned.
+        <return type = "zframe" fresh = "1" />
+    </method>
+
+    <method name = "recv">
+        Receive a record from a consumer actor.
+        Return 0 on success and -1 on error.
+        <argument type = "zactor" name = "actor" />
+        <return type = "integer" />
+    </method>
+
+    <method name = "strdup">
+        Return frame data copied into freshly allocated string
+        Caller must free string when finished with it.
+        <return type = "string" fresh = "1" />
+    </method>
+
+    <method name = "streq">
+        Return TRUE if content is equal to string, excluding terminator
+        <argument name = "string" type = "string"/>
+        <return type = "boolean" />
+    </method>
+</class>

@@ -184,6 +184,7 @@ message(STATUS "Detected DAFKA Version - ${DAFKA_VERSION}")
 set (dafka_headers
     include/dafka_library.h
     include/dafka.h
+    include/dafka_consumer_msg.h
     include/dafka_proto.h
     include/dafka_tower.h
     include/dafka_store.h
@@ -203,6 +204,7 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_consumer_msg.c
     src/dafka_util.c
     src/dafka_proto.c
     src/dafka_beacon.c
@@ -515,6 +517,7 @@ if(UNIX)
 endif()
 
 set(TEST_CLASSES
+    dafka_consumer_msg
     dafka_proto
     dafka_tower
     dafka_store
