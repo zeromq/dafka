@@ -3,7 +3,7 @@
 <a target="_blank" href="http://webchat.freenode.net?channels=%23zeromq&uio=d4"><img src="https://cloud.githubusercontent.com/assets/493242/14886493/5c660ea2-0d51-11e6-8249-502e6c71e9f2.png" height = "20" /></a>
 [![license](https://img.shields.io/badge/license-MPLV2.0-blue.svg)](https://github.com/zeromq/dafka/blob/master/LICENSE)
 
-# Dafka - Distributed dezentralized Kafka replacement
+# Dafka - Decentralized Distributed Streaming Platform
 
 [![Build Status](https://travis-ci.org/zeromq/dafka.png?branch=master)](https://travis-ci.org/zeromq/dafka)
 
@@ -103,8 +103,7 @@ This is the API provided by Dafka v1.x, in alphabetical order.
 
 dafka_publisher -
 
-TODO:
-    - Store send messages until an ACK has been received
+Please add '@discuss' section in './../src/dafka_publisher.c'.
 
 This is the class interface:
 
@@ -150,12 +149,14 @@ This is the class self test code:
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address","inproc://producer-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://producer-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address","inproc://producer-tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://producer-tower-pub");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
     
@@ -165,6 +166,7 @@ This is the class self test code:
     
     zactor_destroy (&dafka_publisher);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
 ```
 
 #### dafka_store - no title found
@@ -209,12 +211,13 @@ This is the class self test code:
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
+    zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
     //    char *consumer_address = "SUB";
     
@@ -274,6 +277,7 @@ This is the class self test code:
     //    zsock_destroy (&consumer_sub);
     zactor_destroy (&store);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
     //    zsock_destroy (&consumer_pub);
     //    dafka_publisher_destroy (&pub);
 ```
@@ -313,14 +317,15 @@ This is the class self test code:
 ```c
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address", "inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address", "inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address", "inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address", "inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
     
@@ -386,6 +391,7 @@ This is the class self test code:
     zactor_destroy (&store);
     zactor_destroy (&sub);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
 ```
 
 #### dafka_tower - no title found
