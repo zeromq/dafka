@@ -246,7 +246,7 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
 
             for (uint32_t index = 0; index < count; index++) {
                 uint64_t lookup_key = sequence + index;
-                dafka_proto_t *cached_msg = zhashx_lookup (self->message_cache, &lookup_key);
+                dafka_proto_t *cached_msg = (dafka_proto_t *) zhashx_lookup (self->message_cache, &lookup_key);
                 if (cached_msg) {
                     if (self->verbose)
                         zsys_info ("Producer: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
