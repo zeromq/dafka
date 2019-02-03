@@ -30,6 +30,7 @@ struct _dafka_publisher_t {
 
     //  Class properties
     zsock_t *socket;            // Socket to publish messages to
+    zsock_t *producer_sub;          // Socket to subscribe to messages
     dafka_proto_t *msg;         // Reusable MSG message to publish
     dafka_proto_t *head_msg;    // Reusable HEAD message to publish
     dafka_proto_t *ack_msg;     // Reusable ACK message to receive
@@ -46,6 +47,9 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg);
 
 static int
 s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg);
+
+static int
+s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg);
 
 static int
 s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg);
@@ -74,6 +78,7 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     self->head_interval = atoi (zconfig_get (args->config, "producer/head_interval", "1000"));
 
     self->socket = zsock_new_pub (NULL);
+    self->producer_sub = zsock_new_sub (NULL, NULL);
     int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
 
@@ -108,8 +113,11 @@ dafka_publisher_new (zsock_t *pipe, dafka_publisher_args_t *args)
     zhashx_set_key_hasher (self->message_cache, uint64_hash);
 
     zloop_reader (self->loop, self->socket, s_recv_socket, self);
+    zloop_reader (self->loop, self->producer_sub, s_recv_sub, self);
     zloop_reader (self->loop, self->pipe, s_recv_api, self);
     zloop_reader (self->loop, zactor_sock (self->beacon), s_recv_beacon, self);
+
+    dafka_proto_subscribe (self->producer_sub, DAFKA_PROTO_ACK, dafka_proto_address (self->msg));
     return self;
 }
 
@@ -127,6 +135,7 @@ dafka_publisher_destroy (dafka_publisher_t **self_p)
         //  Free class properties
         zloop_destroy (&self->loop);
         zsock_destroy (&self->socket);
+        zsock_destroy (&self->producer_sub);
         dafka_proto_destroy (&self->msg);
         dafka_proto_destroy (&self->head_msg);
         dafka_proto_destroy (&self->ack_msg);
@@ -189,41 +198,44 @@ s_recv_beacon (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (arg);
     dafka_publisher_t *self = (dafka_publisher_t  *) arg;
 
-    zmsg_t *msg = zmsg_recv (self->beacon);
-    zmsg_destroy (&msg);
-
-    // dafka_beacon_recv (self->beacon, self->producer_sub, self->verbose, "Producer");
-
+    dafka_beacon_recv (self->beacon, self->producer_sub, self->verbose, "Producer");
     return 0;
 }
 
+
 static int
-s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg) {
+s_recv_socket (zloop_t *loop, zsock_t *pipe, void *arg)
+{
     // Nothing todo, PUB socket doesn't recv any messages
     // We only add it to zloop in order to process subscriptions
 
     return 0;
 }
 
-//static int
-//s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg) {
-//    assert (loop);
-//    assert (pipe);
-//    assert (arg);
-//    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
-//    int rc = dafka_proto_recv (self->ack_msg, self->producer_sub);
-//    if (rc != 0)
-//        return 0;   // Unexpected message - ignore!
-//
-//    if (dafka_proto_id (self->ack_msg) == DAFKA_PROTO_ACK) {
-//        uint64_t ack_sequence = dafka_proto_sequence (self->ack_msg);
-//        for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
-//            zhashx_delete (self->message_cache, &index);
-//        }
-//        self->last_acked_sequence = ack_sequence;
-//    }
-//    return 0;
-//}
+
+static int
+s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
+{
+    assert (loop);
+    assert (pipe);
+    assert (arg);
+    dafka_publisher_t *self = (dafka_publisher_t  *) arg;
+    int rc = dafka_proto_recv (self->ack_msg, self->producer_sub);
+    if (rc != 0)
+        return 0;   // Unexpected message - ignore!
+
+    if (dafka_proto_id (self->ack_msg) == DAFKA_PROTO_ACK) {
+        uint64_t ack_sequence = dafka_proto_sequence (self->ack_msg);
+        if (self->verbose)
+            zsys_debug ("Producer: Received ACK with sequence %u", ack_sequence);
+
+        for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
+            zhashx_delete (self->message_cache, &index);
+        }
+        self->last_acked_sequence = ack_sequence;
+    }
+    return 0;
+}
 
 //  Here we handle incoming message from the node
 
