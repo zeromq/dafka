@@ -33,6 +33,7 @@ static test_item_t
 all_tests [] = {
 // Tests for stable public classes:
     { "dafka_consumer_msg", dafka_consumer_msg_test, true, true, NULL },
+    { "dafka_producer_msg", dafka_producer_msg_test, true, true, NULL },
     { "dafka_proto", dafka_proto_test, true, true, NULL },
     { "dafka_tower", dafka_tower_test, true, true, NULL },
     { "dafka_store", dafka_store_test, true, true, NULL },

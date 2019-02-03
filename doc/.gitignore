@@ -13,6 +13,8 @@
 # Ignore the source doc texts generated from program sources
 dafka_consumer_msg.txt
 dafka_consumer_msg.doc
+dafka_producer_msg.txt
+dafka_producer_msg.doc
 dafka_proto.txt
 dafka_proto.doc
 dafka_tower.txt

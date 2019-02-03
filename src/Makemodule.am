@@ -14,6 +14,7 @@ pkgconfig_DATA = src/libdafka.pc
 
 src_libdafka_la_SOURCES = \
     src/dafka_consumer_msg.c \
+    src/dafka_producer_msg.c \
     src/dafka_util.c \
     src/dafka_proto.c \
     src/dafka_beacon.c \
@@ -88,6 +89,7 @@ endif #ENABLE_DAFKA_SELFTEST
 apidir = @datadir@/zproject/dafka
 dist_api_DATA = \
     api/dafka_consumer_msg.api \
+    api/dafka_producer_msg.api \
     api/dafka_proto.api
 
 # define custom target for all products of /src

@@ -317,8 +317,9 @@ dafka_subscriber_test (bool verbose)
     assert (sub);
     zclock_sleep (1000);
 
-    zframe_t *content = zframe_new ("HELLO MATE", 10);
-    int rc = dafka_publisher_publish (pub, &content);
+    dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    int rc = dafka_producer_msg_send (p_msg,pub);
     assert (rc == 0);
     sleep (1);  // Make sure message is published before subscriber subscribes
 
@@ -327,32 +328,33 @@ dafka_subscriber_test (bool verbose)
     zclock_sleep (1000);  // Make sure subscription is active before sending the next message
 
     // This message is discarded but triggers a FETCH from the store
-    content = zframe_new ("HELLO ATEM", 10);
-    rc = dafka_publisher_publish (pub, &content);
+    dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
+    rc = dafka_producer_msg_send (p_msg, pub);
     assert (rc == 0);
     sleep (1);  // Make sure the first two messages have been received from the store and the subscriber is now up to date
 
-    content = zframe_new ("HELLO TEMA", 10);
-    rc = dafka_publisher_publish (pub, &content);
+    dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
+    rc = dafka_producer_msg_send (p_msg, pub);
     assert (rc == 0);
 
     // Receive the first message from the STORE
-    dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
-    dafka_consumer_msg_recv (msg, sub);
-    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
-    assert (dafka_consumer_msg_streq (msg, "HELLO MATE"));
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, sub);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO MATE"));
 
     // Receive the second message from the STORE as the original has been discarded
-    dafka_consumer_msg_recv (msg, sub);
-    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
-    assert (dafka_consumer_msg_streq (msg, "HELLO ATEM"));
+    dafka_consumer_msg_recv (c_msg, sub);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
 
     // Receive the third message from the PUBLISHER
-    dafka_consumer_msg_recv (msg, sub);
-    assert (streq (dafka_consumer_msg_subject (msg), "hello"));
-    assert (dafka_consumer_msg_streq (msg, "HELLO TEMA"));
+    dafka_consumer_msg_recv (c_msg, sub);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO TEMA"));
 
-    dafka_consumer_msg_destroy (&msg);
+    dafka_producer_msg_destroy (&p_msg);
+    dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&pub);
     zactor_destroy (&store);
     zactor_destroy (&sub);

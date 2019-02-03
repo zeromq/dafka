@@ -325,26 +325,6 @@ dafka_publisher_actor (zsock_t *pipe, void *args)
 
 
 //  --------------------------------------------------------------------------
-//  Publish content
-
-int
-dafka_publisher_publish (zactor_t *self, zframe_t **content) {
-    assert (*content);
-    int rc = zstr_sendm (self, "PUBLISH");
-
-    if (rc == -1) {
-        zframe_destroy (content);
-        *content = NULL;
-        return rc;
-    }
-
-    zsock_bsend (self, "p", *content);
-    *content = NULL;
-
-    return rc;
-}
-
-//  --------------------------------------------------------------------------
 //  Get the address the publisher
 
 const char *

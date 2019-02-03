@@ -54,23 +54,25 @@ int main (int argc, char *argv [])
     dafka_publisher_args_t publisher_args =  { topic, config};
     zactor_t *publisher = zactor_new (dafka_publisher_actor, &publisher_args);
 
-    char *msg = NULL;
+    char *content = NULL;
     size_t size = 0;
 
+    dafka_producer_msg_t *msg = dafka_producer_msg_new ();
+
     while (true) {
-        int64_t msg_size = getline (&msg, &size, stdin);
-        if (msg_size == -1)
+        int64_t content_size = getline (&content, &size, stdin);
+        if (content_size == -1)
             break;
 
-        while (msg[msg_size - 1] == '\n' || msg[msg_size - 1] == '\r' || msg[msg_size - 1] == EOF)
-            msg_size--;
+        while (content[content_size - 1] == '\n' || content[content_size - 1] == '\r' || content[content_size - 1] == EOF)
+            content_size--;
 
-        zframe_t *frame = zframe_new (msg, (size_t) msg_size);
-
-        dafka_publisher_publish (publisher, &frame);
+        dafka_producer_msg_set_content_buffer (msg, (const byte *) content, (size_t) content_size);
+        dafka_producer_msg_send (msg, publisher);
     }
 
-    zstr_free (&msg);
+    zstr_free (&content);
+    dafka_producer_msg_destroy (&msg);
     zactor_destroy (&publisher);
     zargs_destroy (&args);
     zconfig_destroy (&config);
