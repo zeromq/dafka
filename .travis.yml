@@ -127,6 +127,7 @@ matrix:
         sources:
         - llvm-toolchain-xenial-5.0
         packages:
+        - *pkg_deps_prereqs_distro
         - clang-5.0
         - clang-format-5.0
 #autotools#  - *pkg_deps_prereqs
@@ -134,6 +135,7 @@ matrix:
 before_install:
 - if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "android" ] ; then brew install binutils ; fi
 - if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "valgrind" ] ; then brew install valgrind ; fi
+- if [ "$TRAVIS_OS_NAME" == "osx" ] ; then brew install leveldb ; fi
 
 # Hand off to generated script for each BUILD_TYPE
 script: ./ci_build.sh

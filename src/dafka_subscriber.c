@@ -98,6 +98,7 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
         dafka_subscriber_t *self = *self_p;
 
         //  Free class properties
+        zpoller_destroy (&self->poller);
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
         dafka_proto_destroy (&self->consumer_msg);
@@ -107,7 +108,6 @@ dafka_subscriber_destroy (dafka_subscriber_t **self_p)
 
         //  Free actor properties
         self->terminated = true;
-        zpoller_destroy (&self->poller);
         free (self);
         *self_p = NULL;
     }
@@ -237,7 +237,7 @@ dafka_subscriber_recv_api (dafka_subscriber_t *self)
 void
 dafka_subscriber_actor (zsock_t *pipe, void *args)
 {
-    dafka_subscriber_t * self = dafka_subscriber_new (pipe, args);
+    dafka_subscriber_t * self = dafka_subscriber_new (pipe, (zconfig_t *) args);
     if (!self)
         return;          //  Interrupted
 
@@ -286,11 +286,11 @@ dafka_subscriber_test (bool verbose)
     //  @selftest
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address", "inproc://tower-sub");
-    zconfig_put (config, "beacon/pub_address", "inproc://tower-pub");
+    zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address", "inproc://tower-sub");
-    zconfig_put (config, "tower/pub_address", "inproc://tower-pub");
+    zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
@@ -360,6 +360,7 @@ dafka_subscriber_test (bool verbose)
     zactor_destroy (&store);
     zactor_destroy (&sub);
     zactor_destroy (&tower);
+    zconfig_destroy (&config);
     //  @end
 
     printf ("OK\n");

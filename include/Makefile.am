@@ -5,16 +5,12 @@
 include_HEADERS = \
     dafka.h \
     dafka_proto.h \
-    dafka_library.h
-
-if ENABLE_DRAFTS
-include_HEADERS += \
     dafka_tower.h \
     dafka_store.h \
     dafka_publisher.h \
-    dafka_subscriber.h
+    dafka_subscriber.h \
+    dafka_library.h
 
-endif
 
 
 ################################################################################
