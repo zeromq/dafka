@@ -410,6 +410,7 @@ dafka_store_test (bool verbose)
     zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
+    zconfig_put (config, "consumer/offset/reset", "earliest");
 
     // Creating the store
     zactor_t *tower = zactor_new (dafka_tower_actor, config);

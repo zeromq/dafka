@@ -27,7 +27,7 @@ int main (int argc, char *argv [])
     zargs_t *args = zargs_new (argc, argv);
 
     if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 1) {
-        puts ("Usage: dafka_console_consumer [--verbose] [-c config] [--pub tower-pub-address] [--sub tower-sub-address] topic");
+        puts ("Usage: dafka_console_consumer [--verbose] [--from-beginning] [-c config] [--pub tower-pub-address] [--sub tower-sub-address] topic");
         return 0;
     }
 
@@ -42,6 +42,9 @@ int main (int argc, char *argv [])
         zconfig_put (config, "beacon/verbose", "1");
         zconfig_put (config, "consumer/verbose", "1");
     }
+
+    if (zargs_has (args, "--from-beginning"))
+        zconfig_put (config, "consumer/offset/reset", "earliest");
 
     if (zargs_has (args, "--pub"))
         zconfig_put (config, "beacon/pub_address", zargs_get (args, "--pub"));

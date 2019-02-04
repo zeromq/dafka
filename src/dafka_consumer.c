@@ -40,6 +40,7 @@ struct _dafka_consumer_t {
                                 // known publisher
     dafka_proto_t *fetch_msg;   // Reusable publisher message
     zactor_t* beacon;           // Beacon actor
+    bool reset_latest;          // Wheather to process records from earliest or latest
 };
 
 //  --------------------------------------------------------------------------
@@ -54,6 +55,7 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     //  Initialize actor properties
     self->pipe = pipe;
     self->terminated = false;
+    self->reset_latest = streq (zconfig_get (config, "consumer/offset/reset", "latest"), "latest");
 
     //  Initialize class properties
     if (atoi (zconfig_get (config, "consumer/verbose", "0")))
@@ -166,10 +168,27 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
         zsys_debug ("Consumer: Received message %c from %s on subject %s with sequence %u",
                     id, address, subject, msg_sequence);
 
-    // Check if we missed some messages
+    //  Check if we missed some messages
     uint64_t last_known_sequence = -1;
-    if (zhashx_lookup (self->sequence_index, sequence_key)) {
+    if (zhashx_lookup (self->sequence_index, sequence_key))
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
+    else
+    if (self->reset_latest) {
+        if (self->verbose)
+            zsys_debug ("Consumer: Setting offset for topic %s on partition %s to latest %u",
+                        subject,
+                        address,
+                        msg_sequence - 1);
+
+        if (id == DAFKA_PROTO_MSG)
+            // Set to latest - 1 in order to process the current message
+            last_known_sequence = msg_sequence - 1;
+        else
+        if (id == DAFKA_PROTO_HEAD)
+            // Set to latest in order to skip fetching older messages
+            last_known_sequence = msg_sequence;
+
+        zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
 
     if ((id == DAFKA_PROTO_MSG && !(msg_sequence == last_known_sequence + 1)) ||
@@ -292,6 +311,9 @@ dafka_consumer_test (bool verbose)
 {
     printf (" * dafka_consumer: ");
     //  @selftest
+    // ----------------------------------------------------
+    // Test with consumer.offset.reset = earliest
+    // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
@@ -300,13 +322,14 @@ dafka_consumer_test (bool verbose)
     zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "consumer/offset/reset", "earliest");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    dafka_producer_args_t pub_args = {"hello", config};
+    dafka_producer_args_t pub_args = { "hello", config };
     zactor_t *producer =  zactor_new (dafka_producer, &pub_args);
     assert (producer);
 
@@ -358,7 +381,47 @@ dafka_consumer_test (bool verbose)
     zactor_destroy (&producer);
     zactor_destroy (&store);
     zactor_destroy (&consumer);
+
+    // ----------------------------------------------------
+    // Test with consumer.offset.reset = latest
+    // ----------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "latest");
+
+    producer =  zactor_new (dafka_producer, &pub_args);
+    assert (producer);
+
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (1000);
+
+    //  This message is missed by the consumer and later ignored because the
+    //  offset reset is set to latest.
+    p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);  // Make sure message is published before consumer subscribes
+
+    rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+
+    dafka_producer_msg_set_content_str (p_msg , "HELLO ATEM");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);
+
+    // Receive the second message from the PRODUCER
+    c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
+
+    dafka_producer_msg_destroy (&p_msg);
+    dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&tower);
+    zactor_destroy (&producer);
+    zactor_destroy (&consumer);
     zconfig_destroy (&config);
     //  @end
 
