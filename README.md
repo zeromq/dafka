@@ -14,7 +14,9 @@
 
 **[Scope and Goals](#scope-and-goals)**
 
-**[Concepts](#concepts)**
+**[Topics and Partitions](#topics-and-partitions)**
+
+**[Producing and Storing](#producing-and-storing)**
 
 **[Ownership and License](#ownership-and-license)**
 
@@ -73,16 +75,51 @@ First a few concepts:
 * Missed records are obtained either from the Producer or the Cluster.
 
 In Dafka the communication between the clients is done with a simple,
-high-performance, language agnostic TCP protocol. This protocol is versioned and
-maintains backwards compatibility with older version. We provide a C client for
-Dafka.
+high-performance, language and transport agnostic protocol. This protocol is
+versioned and maintains backwards compatibility with older version. We provide
+a C client for Dafka.
 
-### Concepts
+### Topics and Partitions
 
-To understand how Dafka does these things, let's dive in and explore Dafka's
-capabilities from the bottom up.
+Dafka provides an abstraction for records called topic.
 
-TODO
+A topic is a name to which records are published. Topics in Dafka are always
+multi-subscriber; that is, a topic can have zero, one, or many consumers that
+subscribe to the records written to it.
+
+Each Dafka topic consists of at least one partitions that looks like this:
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_1.png" alt="1">
+</center>
+
+Each partition is an ordered, immutable sequence of records that is continually
+appended to. The records in the partitions are each assigned a sequential id
+number called the offset that uniquely identifies each record within the
+partition.
+
+The Dafka cluster durably persists all published records — whether or not they
+have been consumed.
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_2.png" alt="2">
+</center>
+
+Consumers maintain their own offset while reading records of a partition. In fact
+neither the Dafka Cluster nor the Producers keep track of the consumers offset.
+This design allows Consumer to either reset their offset to an older offset and
+re-read records or set their offset to a newer offset and skip ahead.
+
+In that way consumer have no influence on the cluster, the producer and other
+consumers. They simply can come and go as they please.
+
+### Producing and Storing
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_3.png" alt="3">
+</center>
+
+To be continued ...
 
 ### Ownership and License
 
@@ -90,7 +127,7 @@ The contributors are listed in AUTHORS. This project uses the MPL v2 license, se
 
 Dafka uses the [C4.1 (Collective Code Construction Contract)](http://rfc.zeromq.org/spec:22) process for contributions.
 
-Dafka uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org/spec:21) guide for code style.
+Dafka uses the [CLASS (C Language Style for Scalability)](http://rfc.zeromq.org/spec:21) guide for code style.
 
 To report an issue, use the [Dafka issue tracker](https://github.com/zeromq/dafka/issues) at github.com.
 
