@@ -438,17 +438,18 @@ dafka_store_test (bool verbose)
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     dafka_consumer_subscribe (consumer, "TEST");
 
-    dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
-    dafka_consumer_msg_recv (msg, consumer);
-    assert (dafka_consumer_msg_streq (msg, "1"));
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "1"));
 
-    dafka_consumer_msg_recv (msg, consumer);
-    assert (dafka_consumer_msg_streq (msg, "2"));
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "2"));
 
-    dafka_consumer_msg_recv (msg, consumer);
-    assert (dafka_consumer_msg_streq (msg, "3"));
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "3"));
 
-    dafka_consumer_msg_destroy (&msg);
+    dafka_consumer_msg_destroy (&c_msg);
+    dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&consumer);
     zactor_destroy (&store);
     zactor_destroy (&tower);
