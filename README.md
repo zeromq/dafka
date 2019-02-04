@@ -14,7 +14,9 @@
 
 **[Scope and Goals](#scope-and-goals)**
 
-**[Concepts](#concepts)**
+**[Topics and Partitions](#topics-and-partitions)**
+
+**[Producing and Storing](#producing-and-storing)**
 
 **[Ownership and License](#ownership-and-license)**
 
@@ -25,9 +27,9 @@
 **[Linking with an Application](#linking-with-an-application)**
 
 **[API v1 Summary](#api-v1-summary)**
-*  [dafka_publisher - no title found](#dafka_publisher---no-title-found)
+*  [dafka_consumer - no title found](#dafka_consumer---no-title-found)
+*  [dafka_producer - no title found](#dafka_producer---no-title-found)
 *  [dafka_store - no title found](#dafka_store---no-title-found)
-*  [dafka_subscriber - no title found](#dafka_subscriber---no-title-found)
 *  [dafka_tower - no title found](#dafka_tower---no-title-found)
 
 **[Documentation](#documentation)**
@@ -73,16 +75,51 @@ First a few concepts:
 * Missed records are obtained either from the Producer or the Cluster.
 
 In Dafka the communication between the clients is done with a simple,
-high-performance, language agnostic TCP protocol. This protocol is versioned and
-maintains backwards compatibility with older version. We provide a C client for
-Dafka.
+high-performance, language and transport agnostic protocol. This protocol is
+versioned and maintains backwards compatibility with older version. We provide
+a C client for Dafka.
 
-### Concepts
+### Topics and Partitions
 
-To understand how Dafka does these things, let's dive in and explore Dafka's
-capabilities from the bottom up.
+Dafka provides an abstraction for records called topic.
 
-TODO
+A topic is a name to which records are published. Topics in Dafka are always
+multi-subscriber; that is, a topic can have zero, one, or many consumers that
+subscribe to the records written to it.
+
+Each Dafka topic consists of at least one partitions that looks like this:
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_1.png" alt="1">
+</center>
+
+Each partition is an ordered, immutable sequence of records that is continually
+appended to. The records in the partitions are each assigned a sequential id
+number called the offset that uniquely identifies each record within the
+partition.
+
+The Dafka cluster durably persists all published records — whether or not they
+have been consumed.
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_2.png" alt="2">
+</center>
+
+Consumers maintain their own offset while reading records of a partition. In fact
+neither the Dafka Cluster nor the Producers keep track of the consumers offset.
+This design allows Consumer to either reset their offset to an older offset and
+re-read records or set their offset to a newer offset and skip ahead.
+
+In that way consumer have no influence on the cluster, the producer and other
+consumers. They simply can come and go as they please.
+
+### Producing and Storing
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_3.png" alt="3">
+</center>
+
+To be continued ...
 
 ### Ownership and License
 
@@ -90,7 +127,7 @@ The contributors are listed in AUTHORS. This project uses the MPL v2 license, se
 
 Dafka uses the [C4.1 (Collective Code Construction Contract)](http://rfc.zeromq.org/spec:22) process for contributions.
 
-Dafka uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org/spec:21) guide for code style.
+Dafka uses the [CLASS (C Language Style for Scalability)](http://rfc.zeromq.org/spec:21) guide for code style.
 
 To report an issue, use the [Dafka issue tracker](https://github.com/zeromq/dafka/issues) at github.com.
 
@@ -139,49 +176,128 @@ Include `dafka.h` in your application and link with libdafka. Here is a typical 
 
 This is the API provided by Dafka v1.x, in alphabetical order.
 
-#### dafka_publisher - no title found
+#### dafka_consumer - no title found
 
-dafka_publisher -
+dafka_consumer -
 
-Please add '@discuss' section in './../src/dafka_publisher.c'.
+TODO:
+    - Option start consuming from beginning or latest (config)
+    - Add parameter in console-consumer
 
 This is the class interface:
 
 ```h
-    //  Create new dafka_publisher actor instance.
-    //  @TODO: Describe the purpose of this actor!
+    //  This is a stable class, and may not change except for emergencies. It
+    //  is provided in stable builds.
     //
-    //      zactor_t *dafka_publisher = zactor_new (dafka_publisher, NULL);
-    //
-    //  Destroy dafka_publisher instance.
-    //
-    //      zactor_destroy (&dafka_publisher);
-    //
-    //  Start dafka_publisher actor.
-    //
-    //      zstr_sendx (dafka_publisher, "START", NULL);
-    //
-    //  Stop dafka_publisher actor.
-    //
-    //      zstr_sendx (dafka_publisher, "STOP", NULL);
-    //
-    //  This is the dafka_publisher constructor as a zactor_fn;
     DAFKA_EXPORT void
-        dafka_publisher_actor (zsock_t *pipe, void *args);
+        dafka_consumer (zsock_t *pipe, void *args);
     
-    //  Publish content
+    //
     DAFKA_EXPORT int
-        dafka_publisher_publish (zactor_t *self, zframe_t **content);
+        dafka_consumer_subscribe (zactor_t *self, const char *subject);
     
-    //  Get the address the publisher
-    DAFKA_EXPORT const char *
-        dafka_publisher_address (zactor_t *self);
-    
-    //  Self test of this actor
+    //  Self test of this class.
     DAFKA_EXPORT void
-        dafka_publisher_test (bool verbose);
+        dafka_consumer_test (bool verbose);
+    
 ```
-Please add '@interface' section in './../src/dafka_publisher.c'.
+Please add '@interface' section in './../src/dafka_consumer.c'.
+
+This is the class self test code:
+
+```c
+    zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
+    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
+    zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
+    
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
+    
+    dafka_producer_args_t pub_args = {"hello", config};
+    zactor_t *producer =  zactor_new (dafka_producer, &pub_args);
+    assert (producer);
+    
+    zactor_t *store = zactor_new (dafka_store_actor, config);
+    assert (store);
+    
+    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (1000);
+    
+    dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    int rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);  // Make sure message is published before consumer subscribes
+    
+    rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    
+    // This message is discarded but triggers a FETCH from the store
+    dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);  // Make sure the first two messages have been received from the store and the consumer is now up to date
+    
+    dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    
+    // Receive the first message from the STORE
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO MATE"));
+    
+    // Receive the second message from the STORE as the original has been discarded
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
+    
+    // Receive the third message from the PUBLISHER
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO TEMA"));
+    
+    dafka_producer_msg_destroy (&p_msg);
+    dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&producer);
+    zactor_destroy (&store);
+    zactor_destroy (&consumer);
+    zactor_destroy (&tower);
+    zconfig_destroy (&config);
+```
+
+#### dafka_producer - no title found
+
+dafka_publisher -
+
+Please add '@discuss' section in './../src/dafka_producer.c'.
+
+This is the class interface:
+
+```h
+    //  This is a stable class, and may not change except for emergencies. It
+    //  is provided in stable builds.
+    //
+    DAFKA_EXPORT void
+        dafka_producer (zsock_t *pipe, void *args);
+    
+    //  Self test of this class.
+    DAFKA_EXPORT void
+        dafka_producer_test (bool verbose);
+    
+```
+Please add '@interface' section in './../src/dafka_producer.c'.
 
 This is the class self test code:
 
@@ -200,11 +316,11 @@ This is the class self test code:
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
     
-    dafka_publisher_args_t args = {"dummy", config};
-    zactor_t *dafka_publisher = zactor_new (dafka_publisher_actor, &args);
-    assert (dafka_publisher);
+    dafka_producer_args_t args = {"dummy", config};
+    zactor_t *producer = zactor_new (dafka_producer, &args);
+    assert (producer);
     
-    zactor_destroy (&dafka_publisher);
+    zactor_destroy (&producer);
     zactor_destroy (&tower);
     zconfig_destroy (&config);
 ```
@@ -259,178 +375,49 @@ This is the class self test code:
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
-    //    char *consumer_address = "SUB";
-    
-    //    // Creating the publisher
-    //    dafka_publisher_t *pub = dafka_publisher_new ("TEST", config);
-    
-    //    // Creating the consumer pub socket
-    //    zsock_t *consumer_pub = zsock_new_pub (consumer_endpoint);
-    
     // Creating the store
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
+    
+    // Creating the publisher
+    dafka_producer_args_t args = {"TEST", config};
+    zactor_t *producer = zactor_new (dafka_producer, &args);
+    
+    // Producing before the store is alive, in order to test fetching between producer and store
+    dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg, "1");
+    dafka_producer_msg_send (p_msg, producer);
+    
+    dafka_producer_msg_set_content_str (p_msg, "2");
+    dafka_producer_msg_send (p_msg, producer);
+    
+    // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
+    zclock_sleep (100);
     
-    //    // Creating the consumer sub socker and subscribe
-    //    zsock_t *consumer_sub = zsock_new_sub (store_endpoint, NULL);
-    //    dafka_proto_subscribe (consumer_sub, DAFKA_PROTO_DIRECT, consumer_address);
-    //
-    //    // Publish message, store should receive and store
-    //    zframe_t *content = zframe_new ("HELLO", 5);
-    //    dafka_publisher_publish (pub, &content);
-    //
-    //    content = zframe_new ("WORLD", 5);
-    //    dafka_publisher_publish (pub, &content);
-    //
-    //    usleep (100);
-    //
-    //    // Consumer ask for a message
-    //    dafka_proto_t *msg = dafka_proto_new ();
-    //    dafka_proto_set_topic (msg, dafka_publisher_address(pub));
-    //    dafka_proto_set_subject (msg, "TEST");
-    //    dafka_proto_set_sequence (msg, 0);
-    //    dafka_proto_set_count (msg, 2);
-    //    dafka_proto_set_address (msg, consumer_address);
-    //    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
-    //    dafka_proto_send (msg, consumer_pub);
-    //
-    //    // Consumer wait for a response from store
-    //    int rc = dafka_proto_recv (msg, consumer_sub);
-    //    assert (rc == 0);
-    //    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-    //    assert (streq (dafka_proto_topic (msg), consumer_address));
-    //    assert (streq (dafka_proto_subject (msg), "TEST"));
-    //    assert (dafka_proto_sequence (msg) == 0);
-    //    assert (zframe_streq (dafka_proto_content (msg), "HELLO"));
-    //
-    //    // Receiving the second message
-    //    dafka_proto_recv (msg, consumer_sub);
-    //    assert (rc == 0);
-    //    assert (dafka_proto_id (msg) == DAFKA_PROTO_DIRECT);
-    //    assert (streq (dafka_proto_topic (msg), consumer_address));
-    //    assert (streq (dafka_proto_subject (msg), "TEST"));
-    //    assert (dafka_proto_sequence (msg) == 1);
-    //    assert (zframe_streq (dafka_proto_content (msg), "WORLD"));
-    //
+    // Producing another message
+    dafka_producer_msg_set_content_str (p_msg, "3");
+    dafka_producer_msg_send (p_msg, producer);
     
-    //    dafka_proto_destroy (&msg);
-    //    zsock_destroy (&consumer_sub);
+    // Starting a consumer and check that consumer recv all 3 messages
+    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_subscribe (consumer, "TEST");
+    
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "1"));
+    
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "2"));
+    
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (dafka_consumer_msg_streq (c_msg, "3"));
+    
+    dafka_consumer_msg_destroy (&c_msg);
+    dafka_producer_msg_destroy (&p_msg);
+    zactor_destroy (&consumer);
     zactor_destroy (&store);
     zactor_destroy (&tower);
-    zconfig_destroy (&config);
-    //    zsock_destroy (&consumer_pub);
-    //    dafka_publisher_destroy (&pub);
-```
-
-#### dafka_subscriber - no title found
-
-dafka_subscriber -
-
-TODO:
-    - Option start consuming from beginning or latest (config)
-    - Add parameter in console-consumer
-
-This is the class interface:
-
-```h
-    //  Create new dafka_subscriber actor instance.
-    //  @TODO: Describe the purpose of this actor!
-    //
-    //      zactor_t *dafka_subscriber = zactor_new (dafka_subscriber, "publisher-address");
-    //
-    //  Destroy dafka_subscriber instance.
-    //
-    //      zactor_destroy (&dafka_subscriber);
-    //
-    //  This is the dafka_subscriber constructor as a zactor_fn;
-    DAFKA_EXPORT void
-        dafka_subscriber_actor (zsock_t *pipe, void *args);
-    
-    //  Self test of this actor
-    DAFKA_EXPORT void
-        dafka_subscriber_test (bool verbose);
-```
-Please add '@interface' section in './../src/dafka_subscriber.c'.
-
-This is the class self test code:
-
-```c
-    zconfig_t *config = zconfig_new ("root", NULL);
-    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
-    zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
-    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
-    zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
-    zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "store/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
-    
-    zactor_t *tower = zactor_new (dafka_tower_actor, config);
-    
-    dafka_publisher_args_t pub_args = {"hello", config};
-    zactor_t *pub =  zactor_new (dafka_publisher_actor, &pub_args);
-    assert (pub);
-    
-    zactor_t *store = zactor_new (dafka_store_actor, config);
-    assert (store);
-    
-    zactor_t *sub = zactor_new (dafka_subscriber_actor, config);
-    assert (sub);
-    zclock_sleep (1000);
-    
-    zframe_t *content = zframe_new ("HELLO MATE", 10);
-    int rc = dafka_publisher_publish (pub, &content);
-    assert (rc == 0);
-    sleep (1);  // Make sure message is published before subscriber subscribes
-    
-    rc = zsock_send (sub, "ss", "SUBSCRIBE", "hello");
-    assert (rc == 0);
-    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
-    
-    // This message is discarded but triggers a FETCH from the store
-    content = zframe_new ("HELLO ATEM", 10);
-    rc = dafka_publisher_publish (pub, &content);
-    assert (rc == 0);
-    sleep (1);  // Make sure the first two messages have been received from the store and the subscriber is now up to date
-    
-    content = zframe_new ("HELLO TEMA", 10);
-    rc = dafka_publisher_publish (pub, &content);
-    assert (rc == 0);
-    
-    char *topic;
-    char *address;
-    char *content_str;
-    
-    // Receive the first message from the STORE
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO MATE"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
-    
-    // Receive the second message from the STORE as the original has been discarded
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO ATEM"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
-    
-    // Receive the third message from the PUBLISHER
-    zsock_brecv (sub, "ssf", &topic, &address, &content);
-    content_str = zframe_strdup (content);
-    assert (streq (topic, "hello"));
-    assert (streq (content_str, "HELLO TEMA"));
-    zstr_free (&content_str);
-    zframe_destroy (&content);
-    
-    zactor_destroy (&pub);
-    zactor_destroy (&store);
-    zactor_destroy (&sub);
-    zactor_destroy (&tower);
+    zactor_destroy (&producer);
     zconfig_destroy (&config);
 ```
 
