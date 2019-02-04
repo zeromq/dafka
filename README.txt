@@ -46,16 +46,91 @@ First a few concepts:
 * Missed records are obtained either from the Producer or the Cluster.
 
 In Dafka the communication between the clients is done with a simple,
-high-performance, language agnostic TCP protocol. This protocol is versioned and
-maintains backwards compatibility with older version. We provide a C client for
-Dafka.
+high-performance, language and transport agnostic protocol. This protocol is
+versioned and maintains backwards compatibility with older version. We provide
+a C client for Dafka.
 
-### Concepts
+### Topics and Partitions
 
-To understand how Dafka does these things, let's dive in and explore Dafka's
-capabilities from the bottom up.
+Dafka provides an abstraction for records called topic.
 
-TODO
+A topic is a name to which records are published. Topics in Dafka are always
+multi-subscriber; that is, a topic can have zero, one, or many consumers that
+subscribe to the records written to it.
+
+Each Dafka topic consists of at least one partitions that looks like this:
+
+[diagram]
+                Structure of a Topic
+
+              +---+---+---+---+---+---+---+
+  Partition 1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 : <------------=-- Writes
+              +---+---+---+---+---+---+---+
+
+              +---+---+---+---+---+---+---+---+---+
+  Partition 2 | 0 | 1 | 2 | 4 | 5 | 6 | 6 | 7 | 8 : <----=-- Writes
+              +---+---+---+---+---+---+---+---+---+
+
+              +---+---+---+---+---+---+
+  Partition 3 | 0 | 1 | 2 | 4 | 5 | 6 : <----------------=-- Writes
+              +---+---+---+---+---+---+
+
+         time ------------------------------------>
+[/diagram]
+
+Each partition is an ordered, immutable sequence of records that is continually
+appended to. The records in the partitions are each assigned a sequential id
+number called the offset that uniquely identifies each record within the
+partition.
+
+The Dafka cluster durably persists all published records — whether or not they
+have been consumed.
+
+[diagram]
+                       Producer
+                          |
+                          | writes
+                          v
++---+---+---+---+---+---+-+-+
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 :
++---+---+-+-+---+---+-+-+---+
+          |           |
+          |   reads   |
+          v           v
+      Consumer 1  Consumer 2
+      (offset=2)  (offset=5)
+[/diagram]
+
+Consumers maintain their own offset while reading records of a partition. In fact
+neither the Dafka Cluster nor the Producers keep track of the consumers offset.
+This design allows Consumer to either reset their offset to an older offset and
+re-read records or set their offset to a newer offset and skip ahead.
+
+In that way consumer have no influence on the cluster, the producer and other
+consumers. They simply can come and go as they please.
+
+### Producing and Storing
+
+[diagram]
+                            +------------+
+                            |  Producer  |
+                            +------------+
+                            |    PUB     |
+                            \-----+------/
+                                  |
+                                  |
+        +-----------------+-------+-------+------------------+
+        |                 |               |                  |
+        |                 |               |                  |
+        v                 v               v                  v
+  /-----+-----\     /-----+-----\   /-----+------\     /-----+------\
+  |    SUB    |     |    SUB    |   |    SUB     |     |    SUB     |
+  +-----------+ ... +-----------+   +------------+ ... +------------+
+  |  Store 1  |     |  Store n  |   | Consumer 1 |     | Consumer m |
+  +-----------+     +-----------+   +------------+     +------------+
+[/diagram]
+
+To be continued ...
 
 ### Ownership and License
 
@@ -63,7 +138,7 @@ The contributors are listed in AUTHORS. This project uses the MPL v2 license, se
 
 Dafka uses the [C4.1 (Collective Code Construction Contract)](http://rfc.zeromq.org/spec:22) process for contributions.
 
-Dafka uses the [CLASS (C Language Style for Scalabilty)](http://rfc.zeromq.org/spec:21) guide for code style.
+Dafka uses the [CLASS (C Language Style for Scalability)](http://rfc.zeromq.org/spec:21) guide for code style.
 
 To report an issue, use the [Dafka issue tracker](https://github.com/zeromq/dafka/issues) at github.com.
 
