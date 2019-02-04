@@ -13,13 +13,15 @@ lib_LTLIBRARIES += src/libdafka.la
 pkgconfig_DATA = src/libdafka.pc
 
 src_libdafka_la_SOURCES = \
+    src/dafka_consumer_msg.c \
+    src/dafka_producer_msg.c \
+    src/dafka_producer.c \
+    src/dafka_consumer.c \
     src/dafka_util.c \
     src/dafka_proto.c \
     src/dafka_beacon.c \
     src/dafka_tower.c \
     src/dafka_store.c \
-    src/dafka_publisher.c \
-    src/dafka_subscriber.c \
     src/platform.h
 
 if ENABLE_DRAFTS
@@ -86,6 +88,10 @@ endif #ENABLE_DAFKA_SELFTEST
 # Install api files into /usr/local/share/zproject
 apidir = @datadir@/zproject/dafka
 dist_api_DATA = \
+    api/dafka_consumer_msg.api \
+    api/dafka_producer_msg.api \
+    api/dafka_producer.api \
+    api/dafka_consumer.api \
     api/dafka_proto.api
 
 # define custom target for all products of /src
