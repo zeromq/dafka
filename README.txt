@@ -112,9 +112,9 @@ Include `dafka.h` in your application and link with libdafka. Here is a typical 
 
 This is the API provided by Dafka v1.x, in alphabetical order.
 
-.pull doc/dafka_publisher.doc
+.pull doc/dafka_consumer.doc
+.pull doc/dafka_producer.doc
 .pull doc/dafka_store.doc
-.pull doc/dafka_subscriber.doc
 .pull doc/dafka_tower.doc
 
 ### Documentation
