@@ -51,25 +51,26 @@ int main (int argc, char *argv [])
 
     const char *topic = zargs_first (args);
 
-    zactor_t *consumer = zactor_new (dafka_subscriber_actor, config);
+    zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
 
-    int rc = zsock_send (consumer, "ss", "SUBSCRIBE", topic);
+    int rc = dafka_consumer_subscribe (consumer, topic);
     assert (rc == 0);
 
-    char *address;
-    zframe_t *content;
+    dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
     while (true) {
-        rc = zsock_brecv (consumer, "ssf", &topic, &address, &content);
+        rc = dafka_consumer_msg_recv (msg, consumer);
         if (rc == -1)
             break;      // Interrupted
 
-        char *content_str = zframe_strdup (content);
-        printf ("%s %s %s\n", topic, address, content_str);
+        char *content_str = dafka_consumer_msg_strdup (msg);
+        printf ("%s %s %s\n", dafka_consumer_msg_subject (msg),
+                dafka_consumer_msg_address (msg),
+                content_str);
         zstr_free (&content_str);
-        zframe_destroy (&content);
     }
 
+    dafka_consumer_msg_destroy (&msg);
     zactor_destroy (&consumer);
     zconfig_destroy (&config);
     zargs_destroy (&args);

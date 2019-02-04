@@ -1,0 +1,12 @@
+<class name = "dafka_consumer">
+
+<actor>
+</actor>
+
+<method name = "subscribe" singleton = "1">
+    <argument name = "self" type = "zactor" />
+    <argument name = "subject" type = "string" />
+    <return type = "integer" />
+</method>
+
+</class>
