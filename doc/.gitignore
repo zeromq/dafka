@@ -21,6 +21,8 @@ dafka_consumer.txt
 dafka_consumer.doc
 dafka_proto.txt
 dafka_proto.doc
+dafka_beacon.txt
+dafka_beacon.doc
 dafka_tower.txt
 dafka_tower.doc
 dafka_store.txt

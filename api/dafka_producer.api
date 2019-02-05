@@ -3,4 +3,9 @@
 <actor>
 </actor>
 
+<method name = "address" singleton = "1">
+    <argument name = "self" type = "zactor" />
+    <return type = "string" />
+</method>
+
 </class>

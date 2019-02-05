@@ -29,9 +29,6 @@
 void
 dafka_private_selftest (bool verbose, const char *subtest)
 {
-// Tests for stable private classes:
-    if (streq (subtest, "$ALL") || streq (subtest, "dafka_beacon_test"))
-        dafka_beacon_test (verbose);
 }
 /*
 ################################################################################

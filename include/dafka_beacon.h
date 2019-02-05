@@ -18,7 +18,6 @@
 extern "C" {
 #endif
 
-typedef struct _dafka_beacon_t dafka_beacon_t;
 
 //  @interface
 //  Create new dafka_beacon actor instance.
@@ -30,6 +29,10 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 //
 //      zactor_destroy (&dafka_beacon);
 //
+//  Enable verbose logging of commands and activity:
+//
+//      zstr_send (dafka_beacon, "VERBOSE");
+//
 //  Start dafka_beacon actor.
 //
 //      zstr_sendx (dafka_beacon, "START", NULL);
@@ -39,14 +42,14 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 //      zstr_sendx (dafka_beacon, "STOP", NULL);
 //
 //  This is the dafka_beacon constructor as a zactor_fn;
-DAFKA_PRIVATE void
+DAFKA_EXPORT void
     dafka_beacon_actor (zsock_t *pipe, void *args);
 
-DAFKA_PRIVATE void
-    dafka_beacon_recv (zactor_t *self, zsock_t *sub, bool verbose, const char *log_prefix);
+DAFKA_EXPORT void
+dafka_beacon_recv (zactor_t *self, zsock_t *sub, bool verbose, const char *log_prefix);
 
 //  Self test of this actor
-DAFKA_PRIVATE void
+DAFKA_EXPORT void
     dafka_beacon_test (bool verbose);
 //  @end
 
