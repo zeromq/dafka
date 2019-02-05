@@ -179,12 +179,12 @@ uint64_t s_get_head (zhashx_t *heads, leveldb_t *db, leveldb_readoptions_t *ropt
     return NULL_SEQUENCE;
 }
 
-static void s_send_fetch (dafka_proto_t *msg, zsock_t *publisher, const char *sender,
+static void s_add_fetch (zhashx_t *fetches, dafka_proto_t *msg, const char *sender,
         const char* subject, const char* address, uint64_t sequence, uint32_t count) {
 
-    // Will only request 1000 messages at a time
-    if (count > 1000)
-        count = 1000;
+    // Will only request 100,000 messages at a time
+    if (count > 100000)
+        count = 100000;
 
     dafka_proto_set_id (msg,  DAFKA_PROTO_FETCH);
     dafka_proto_set_topic (msg, address);
@@ -192,7 +192,11 @@ static void s_send_fetch (dafka_proto_t *msg, zsock_t *publisher, const char *se
     dafka_proto_set_sequence (msg, sequence);
     dafka_proto_set_count (msg, count);
     dafka_proto_set_address (msg, sender);
-    dafka_proto_send (msg, publisher);
+
+    char key[255+255+2];
+    snprintf (key, 255 + 255 + 1, "%s\\%s", subject, address);
+
+    zhashx_update (fetches, key, msg);
 }
 
 void
@@ -346,6 +350,10 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
     zhashx_set_duplicator (acks, (zhashx_duplicator_fn *) dafka_proto_dup);
     zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
 
+    zhashx_t *fetches = zhashx_new ();
+    zhashx_set_duplicator (acks, (zhashx_duplicator_fn *) dafka_proto_dup);
+    zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
+
     leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
     leveldb_writeoptions_t *woptions = leveldb_writeoptions_create ();
 
@@ -387,19 +395,11 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                     if (head == NULL_SEQUENCE) {
                         uint32_t count = (uint32_t) (sequence + 1);
 
-                        s_send_fetch (msg, publisher, self->address, subject, address, 0, count);
-
-                        if (self->verbose)
-                            zsys_info ("Store: missing %d messages from %s %s 0",
-                                       count, subject, address);
+                        s_add_fetch (fetches, msg, self->address, subject, address, 0, count);
                     } else if (head < sequence) {
                         uint32_t count = (uint32_t) (sequence - head);
 
-                        s_send_fetch (msg, publisher, self->address, subject, address, head + 1, (uint32_t) sequence);
-
-                        if (self->verbose)
-                            zsys_info ("Store: missing %d messages from sequence %s %s %" PRIu64,
-                                       count, subject, address, head + 1);
+                        s_add_fetch (fetches, msg, self->address, subject, address, head + 1, count);
                     }
                 } else if (streq (command, "MSG")) {
                     const char *subject;
@@ -414,7 +414,7 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
 
                     if (head != NULL_SEQUENCE && sequence <= head) {
                         if (self->verbose)
-                            zsys_debug ("Store: dropping already received message %s %s %" PRIu64, subject, address,
+                            zsys_debug ("Store: head at % "PRIu64 "dropping already received message %s %s %" PRIu64, head, subject, address,
                                         sequence);
 
                         continue;
@@ -422,21 +422,14 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
 
                     if (head == NULL_SEQUENCE && sequence != 0) {
                         uint32_t count = (uint32_t) sequence + 1;
-                        s_send_fetch (msg, publisher, self->address, subject, address, 0, count);
-
-                        if (self->verbose)
-                            zsys_info ("Store: missing %d messages from sequence %s %s 0", count, subject, address);
+                        s_add_fetch (fetches, msg, self->address, subject, address, 0, count);
 
                         continue;
                     }
 
                     if (head != NULL_SEQUENCE && head + 1 != sequence) {
                         uint32_t count = (uint32_t) (sequence - head);
-                        s_send_fetch (msg, publisher, self->address, subject, address, head + 1, count);
-
-                        if (self->verbose)
-                            zsys_info ("Store: missing %d messages from sequence %s %s %" PRIu64,
-                                       count, subject, address, head + 1);
+                        s_add_fetch (fetches, msg, self->address, subject, address, head + 1, count);
 
                         continue;
                     }
@@ -453,11 +446,8 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                     dafka_proto_set_sequence (msg, sequence);
                     s_put_head (acks, msg);
 
-                    if (self->verbose)
-                        zsys_info ("Store: Message added to batch %s %s %" PRIu64, subject, address, sequence);
-
-                    // We stop the batch at 1000 messages
-                    if (batch_size == 1000)
+                    // We stop the batch at 100,000 messages
+                    if (batch_size == 100000)
                         break;
                 }
             }
@@ -478,10 +468,31 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                  ack_msg != NULL;
                  ack_msg = (dafka_proto_t *) zhashx_next (acks)) {
                 dafka_proto_send (ack_msg, publisher);
+
+                if (self->verbose)
+                    zsys_info ("Store: Acked %s %s %" PRIu64,
+                            dafka_proto_subject (ack_msg),
+                            dafka_proto_topic (ack_msg),
+                            dafka_proto_sequence (ack_msg));
             }
 
-            // Batch is done, clearing all the acks
+            // Sending the fetches now
+            for (dafka_proto_t *fetch_msg = (dafka_proto_t *) zhashx_first (fetches);
+                 fetch_msg != NULL;
+                 fetch_msg = (dafka_proto_t *) zhashx_next (fetches)) {
+                dafka_proto_send (fetch_msg, publisher);
+
+                if (self->verbose)
+                    zsys_info ("Store: Fetching %d from %s %s %" PRIu64,
+                               dafka_proto_count (fetch_msg),
+                               dafka_proto_subject (fetch_msg),
+                               dafka_proto_topic (fetch_msg),
+                               dafka_proto_sequence (fetch_msg));
+            }
+
+            // Batch is done, clearing all the acks and fetches
             zhashx_purge (acks);
+            zhashx_purge (fetches);
 
             if (self->verbose && batch_size)
                 zsys_info ("Store: Saved batch of %d", batch_size);
