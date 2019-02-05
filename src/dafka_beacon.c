@@ -229,7 +229,7 @@ dafka_beacon_recv_sub (dafka_beacon_t *self) {
         zsock_recv (self->sub, "ss", &sender, &address);
 
         // Drop our own beaconing
-        if (strneq (self->sender, sender)) {
+        if (self->sender == NULL || strneq (self->sender, sender)) {
             int64_t* expire = (int64_t *)  zhashx_lookup (self->peers, address);
 
             if (expire == NULL) {
