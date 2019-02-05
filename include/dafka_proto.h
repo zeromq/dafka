@@ -27,6 +27,7 @@ extern "C" {
 #define DAFKA_PROTO_FETCH 'F'                //
 #define DAFKA_PROTO_ACK 'K'                  //
 #define DAFKA_PROTO_HEAD 'H'                 //
+#define DAFKA_PROTO_EARLIEST 'E'             //
 
 //  Create a new empty dafka_proto
 DAFKA_EXPORT dafka_proto_t *
