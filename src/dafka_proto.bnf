@@ -1,6 +1,6 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | FETCH | ACK | HEAD )
+    dafka_proto     = *( MSG | FETCH | ACK | HEAD | EARLIEST )
 
     ;  Message from producer to consumers. The topic is either the subject or
     ;  recipient address.
@@ -35,6 +35,11 @@ The following ABNF grammar defines the dafka_proto:
     subject         = string                ;
     address         = string                ;
     sequence        = number-8              ;
+
+    ;  No description
+
+    EARLIEST        = signature %d'e' address
+    address         = string                ;
 
     ; A frame is zero or more octets encoded as a ZeroMQ frame
     frame           = *OCTET
