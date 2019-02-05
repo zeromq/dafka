@@ -189,16 +189,11 @@ set (dafka_headers
     include/dafka_producer.h
     include/dafka_consumer.h
     include/dafka_proto.h
+    include/dafka_beacon.h
     include/dafka_tower.h
     include/dafka_store.h
     src/dafka_util.h
 )
-
-IF (ENABLE_DRAFTS)
-    list(APPEND dafka_headers
-        include/dafka_beacon.h
-    )
-ENDIF (ENABLE_DRAFTS)
 
 source_group ("Header Files" FILES ${dafka_headers})
 install(FILES ${dafka_headers} DESTINATION include)
@@ -216,16 +211,10 @@ set (dafka_sources
     src/dafka_consumer.c
     src/dafka_util.c
     src/dafka_proto.c
+    src/dafka_beacon.c
     src/dafka_tower.c
     src/dafka_store.c
 )
-
-IF (ENABLE_DRAFTS)
-    list (APPEND dafka_sources
-        src/dafka_beacon.c
-    )
-ENDIF (ENABLE_DRAFTS)
-
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
         src/dafka_private_selftest.c
@@ -560,15 +549,10 @@ set(TEST_CLASSES
     dafka_producer
     dafka_consumer
     dafka_proto
+    dafka_beacon
     dafka_tower
     dafka_store
 )
-
-IF (ENABLE_DRAFTS)
-    list (APPEND TEST_CLASSES
-    dafka_beacon
-    )
-ENDIF (ENABLE_DRAFTS)
 
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
