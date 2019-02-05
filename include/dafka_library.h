@@ -74,14 +74,14 @@ typedef struct _dafka_consumer_t dafka_consumer_t;
 #define DAFKA_CONSUMER_T_DEFINED
 typedef struct _dafka_proto_t dafka_proto_t;
 #define DAFKA_PROTO_T_DEFINED
-typedef struct _dafka_tower_t dafka_tower_t;
-#define DAFKA_TOWER_T_DEFINED
-typedef struct _dafka_store_t dafka_store_t;
-#define DAFKA_STORE_T_DEFINED
 //  Draft classes are by default not built in stable releases
 #ifdef DAFKA_BUILD_DRAFT_API
 typedef struct _dafka_beacon_t dafka_beacon_t;
 #define DAFKA_BEACON_T_DEFINED
+typedef struct _dafka_tower_t dafka_tower_t;
+#define DAFKA_TOWER_T_DEFINED
+typedef struct _dafka_store_t dafka_store_t;
+#define DAFKA_STORE_T_DEFINED
 #endif // DAFKA_BUILD_DRAFT_API
 
 
@@ -91,10 +91,10 @@ typedef struct _dafka_beacon_t dafka_beacon_t;
 #include "dafka_producer.h"
 #include "dafka_consumer.h"
 #include "dafka_proto.h"
-#include "dafka_tower.h"
-#include "dafka_store.h"
 #ifdef DAFKA_BUILD_DRAFT_API
 #include "dafka_beacon.h"
+#include "dafka_tower.h"
+#include "dafka_store.h"
 #endif // DAFKA_BUILD_DRAFT_API
 
 #ifdef DAFKA_BUILD_DRAFT_API
