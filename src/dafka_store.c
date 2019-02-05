@@ -106,8 +106,8 @@ size_t s_serialize_key (char* output, const char* subject, const char* address, 
     *needle = '\0';
     needle++;
 
-    // To actually have the keys ordered correctly we must encode uint64 as little endian
-    size_t sequence_size = uint64_put_le ((byte *) needle, sequence);
+    // To actually have the keys ordered correctly we must encode uint64 as big endian
+    size_t sequence_size = uint64_put_be ((byte *) needle, sequence);
     needle += sequence_size;
 
     return (needle - output);
@@ -120,7 +120,7 @@ void s_deserialize_key (const char *key, const char** subject, const char **addr
     needle += strlen (needle) + 1;
     *address = needle;
     needle += strlen (needle) + 1;
-    uint64_get_le ((const byte*) needle, sequence);
+    uint64_get_be ((const byte*) needle, sequence);
 }
 
 void s_put_head (zhashx_t *heads, dafka_proto_t *msg) {

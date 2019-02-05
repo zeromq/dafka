@@ -31,16 +31,16 @@ DAFKA_EXPORT dafka_consumer_msg_t *
 DAFKA_EXPORT void
     dafka_consumer_msg_destroy (dafka_consumer_msg_t **self_p);
 
-//  Return the subject of the record.
+//  Return the subject of the message.
 DAFKA_EXPORT const char *
     dafka_consumer_msg_subject (dafka_consumer_msg_t *self);
 
-//  Return the sender address of the record.
+//  Return the sender address of the message.
 DAFKA_EXPORT const char *
     dafka_consumer_msg_address (dafka_consumer_msg_t *self);
 
-//  Return the content of the record.
-//  Content buffer is belong to the record.
+//  Return the content of the message.
+//  Content buffer is belong to the message.
 DAFKA_EXPORT const byte *
     dafka_consumer_msg_content (dafka_consumer_msg_t *self);
 
@@ -53,7 +53,7 @@ DAFKA_EXPORT size_t
 DAFKA_EXPORT zframe_t *
     dafka_consumer_msg_get_content (dafka_consumer_msg_t *self);
 
-//  Receive a record from a consumer actor.
+//  Receive a message from a consumer actor.
 //  Return 0 on success and -1 on error.
 DAFKA_EXPORT int
     dafka_consumer_msg_recv (dafka_consumer_msg_t *self, zactor_t *consumer);

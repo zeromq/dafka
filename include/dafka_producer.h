@@ -27,6 +27,10 @@ extern "C" {
 DAFKA_EXPORT void
     dafka_producer (zsock_t *pipe, void *args);
 
+//
+DAFKA_EXPORT const char *
+    dafka_producer_address (zactor_t *self);
+
 //  Self test of this class.
 DAFKA_EXPORT void
     dafka_producer_test (bool verbose);
