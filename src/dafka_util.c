@@ -60,3 +60,38 @@ uint64_hash (const void *item)
     return (size_t) value;
 }
 
+char *
+generate_address () {
+    zuuid_t *uuid = zuuid_new ();
+    char *address = strdup (zuuid_str (uuid));
+    zuuid_destroy (&uuid);
+    return address;
+}
+
+size_t
+uint64_put_le (byte* output, uint64_t value) {
+    output[7] = (byte) (((value) >> 56) & 255);
+    output[6] = (byte) (((value) >> 48) & 255);
+    output[5] = (byte) (((value) >> 40) & 255);
+    output[4] = (byte) (((value) >> 32) & 255);
+    output[3] = (byte) (((value) >> 24) & 255);
+    output[2] = (byte) (((value) >> 16) & 255);
+    output[1] = (byte) (((value) >> 8) & 255);
+    output[0] = (byte) (((value)) & 255);
+
+    return 8;
+}
+
+size_t
+uint64_get_le (const byte* input, uint64_t *value) {
+    *value =  ((uint64_t) (input [7]) << 56)
+           + ((uint64_t) (input [6]) << 48)
+           + ((uint64_t) (input [5]) << 40)
+           + ((uint64_t) (input [4]) << 32)
+           + ((uint64_t) (input [3]) << 24)
+           + ((uint64_t) (input [2]) << 16)
+           + ((uint64_t) (input [1]) << 8)
+           +  (uint64_t) (input [0]);
+
+    return 8;
+}

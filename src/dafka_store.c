@@ -23,33 +23,17 @@
 
 #define MAX_KEY_SIZE  (255 + 255 + 8 + 5)
 
+#define NULL_SEQUENCE  0xFFFFFFFFFFFFFFFF
+
 //  Structure of our actor
 
-typedef struct {
-    char subject [256];
-    char address [256];
-    uint64_t sequence;
-
-    size_t hash;
-} store_key_t;
-
 struct _dafka_store_t {
-    zsock_t *pipe;              //  Actor command pipe
-    zpoller_t *poller;          //  Socket poller
-    bool terminated;            //  Did caller ask us to quit?
     bool verbose;               //  Verbose logging enabled?
-
-    dafka_proto_t *income_msg;
-    dafka_proto_t *outgoing_msg;
-    zsock_t *pub;
-    zsock_t *sub;
-    zactor_t *beacon;
 
     leveldb_t *db;
     leveldb_options_t *dboptions;
-    leveldb_writeoptions_t *woptions;
-    leveldb_readoptions_t *roptions;
 
+    zconfig_t *config;
     char *address;
 };
 
@@ -58,35 +42,17 @@ struct _dafka_store_t {
 //  Create a new dafka_store instance
 
 static dafka_store_t *
-dafka_store_new (zsock_t *pipe, zconfig_t *config)
+dafka_store_new (zconfig_t *config)
 {
     dafka_store_t *self = (dafka_store_t *) zmalloc (sizeof (dafka_store_t));
     assert (self);
 
+    self->config = config;
+
     if (atoi (zconfig_get (config, "store/verbose", "0")))
         self->verbose = true;
 
-    self->pipe = pipe;
-    self->terminated = false;
-
-    zuuid_t *uuid = zuuid_new ();
-    self->address = strdup (zuuid_str (uuid));
-    zuuid_destroy (&uuid);
-
-    self->income_msg = dafka_proto_new ();
-    self->outgoing_msg = dafka_proto_new ();
-    self->pub = zsock_new_pub (NULL);
-    int port = zsock_bind (self->pub, "tcp://*:*");
-    assert (port != -1);
-    self->sub = zsock_new_sub (NULL, NULL);
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, "");
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_MSG, self->address);
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_FETCH, "");
-    dafka_proto_subscribe (self->sub, DAFKA_PROTO_HEAD, "");
-
-    self->beacon = zactor_new (dafka_beacon_actor, config);
-    zsock_send (self->beacon, "ssi", "START", self->address, port);
-    assert (zsock_wait (self->beacon) == 0);
+    self->address = generate_address ();
 
     // Configure and open the leveldb database for the store
     const char *db_path = zconfig_get (config, "store/db", "storedb");
@@ -98,10 +64,6 @@ dafka_store_new (zsock_t *pipe, zconfig_t *config)
         zsys_error ("Store: failed to open db %s", err);
         assert (false);
     }
-    self->woptions = leveldb_writeoptions_create();
-    self->roptions = leveldb_readoptions_create ();
-
-    self->poller = zpoller_new (self->pipe, self->sub, self->beacon, NULL);
 
     return self;
 }
@@ -117,21 +79,11 @@ dafka_store_destroy (dafka_store_t **self_p)
     if (*self_p) {
         dafka_store_t *self = *self_p;
 
-        zpoller_destroy (&self->poller);
         zstr_free (&self->address);
-        zsock_destroy (&self->sub);
-        zsock_destroy (&self->pub);
-        dafka_proto_destroy (&self->income_msg);
-        dafka_proto_destroy (&self->outgoing_msg);
-        leveldb_readoptions_destroy (self->roptions);
-        leveldb_writeoptions_destroy (self->woptions);
         leveldb_close (self->db);
         leveldb_options_destroy (self->dboptions);
-        self->roptions = NULL;
-        self->woptions = NULL;
         self->db = NULL;
         self->dboptions = NULL;
-        zactor_destroy (&self->beacon);
 
         //  Free object itself
         free (self);
@@ -139,212 +91,410 @@ dafka_store_destroy (dafka_store_t **self_p)
     }
 }
 
-//  Here we handle incoming message from the node
+size_t s_serialize_key (char* output, const char* subject, const char* address, uint64_t sequence) {
+    size_t subject_size = strlen (subject);
+    size_t address_size = strlen (address);
 
-static void
-dafka_store_recv_api (dafka_store_t *self)
-{
-    //  Get the whole message of the pipe in one go
-    zmsg_t *request = zmsg_recv (self->pipe);
-    if (!request)
-       return;        //  Interrupted
+    char* needle = output;
 
-    char *command = zmsg_popstr (request);
+    memcpy (needle, subject, subject_size);
+    needle += subject_size;
+    *needle = '\0';
+    needle++;
+    memcpy (needle, address, address_size);
+    needle += address_size;
+    *needle = '\0';
+    needle++;
 
-    if (streq (command, "$TERM"))
-        //  The $TERM command is send by zactor_destroy() method
-        self->terminated = true;
-    else {
-        zsys_error ("invalid command '%s'", command);
-        assert (false);
-    }
-    zstr_free (&command);
-    zmsg_destroy (&request);
+    // To actually have the keys ordered correctly we must encode uint64 as little endian
+    size_t sequence_size = uint64_put_le ((byte *) needle, sequence);
+    needle += sequence_size;
+
+    return (needle - output);
 }
 
-size_t s_serialize_content_key (char* output, const char* subject, const char* address, uint64_t sequence) {
-    return (size_t) snprintf (output, MAX_KEY_SIZE, "C\\%s\\%s\\%" PRIu64, subject, address, sequence);
+void s_deserialize_key (const char *key, const char** subject, const char **address, uint64_t *sequence) {
+    const char *needle = key;
+
+    *subject = needle;
+    needle += strlen (needle) + 1;
+    *address = needle;
+    needle += strlen (needle) + 1;
+    uint64_get_le ((const byte*) needle, sequence);
 }
 
-size_t s_serialize_head_key (char* output, const char* subject, const char* address) {
-    return (size_t) snprintf (output, MAX_KEY_SIZE, "H\\%s\\%s", subject, address);
+void s_put_head (zhashx_t *heads, dafka_proto_t *msg) {
+    char head_key[255+255+2];
+
+    const char *subject = dafka_proto_subject (msg);
+    const char *address = dafka_proto_topic (msg);
+
+    snprintf (head_key, 255 + 255 + 1, "%s\\%s", subject, address);
+    zhashx_update (heads, head_key, msg);
 }
 
-void s_free_value (void **hint) {
-    char *value = (char *) *hint;
-    leveldb_free (value);
+uint64_t s_get_head (zhashx_t *heads, leveldb_t *db, leveldb_readoptions_t *roptions,
+        const char *subject, const char* address) {
 
-    *hint = NULL;
-}
+    char head_key[255+255+2];
+    snprintf (head_key, 255 + 255 + 1, "%s\\%s", subject, address);
 
-static uint64_t
-dafka_store_get_head (dafka_store_t *self, char* key, size_t key_size) {
-    size_t head_size;
-    char *err = NULL;
-    uint64_t *head_sequence = (uint64_t*) leveldb_get (self->db, self->roptions, key, key_size, &head_size, &err);
-    if (err) {
-        zsys_error ("Store: failed to get head %s", err);
-        assert (false);
-    }
+    dafka_proto_t *msg = (dafka_proto_t *) zhashx_lookup (heads, head_key);
+    if (msg)
+        return dafka_proto_sequence (msg);
 
-    if (head_sequence == NULL)
-        return (uint64_t)-1;
+    leveldb_iterator_t *iter = leveldb_create_iterator (db, roptions);
 
-    uint64_t value = *head_sequence;
-    leveldb_free (head_sequence);
+    // First, trying to find the last msg of subject and address
+    char key[MAX_KEY_SIZE];
+    size_t key_size = s_serialize_key (key, subject, address, NULL_SEQUENCE);
+    leveldb_iter_seek (iter, key, key_size);
 
-    return value;
-}
-
-static void dafka_store_send_fetch (dafka_store_t *self,
-        uint64_t head_sequence, const char* subject, const char* address, uint64_t sequence) {
-    uint32_t count;
-
-    if (head_sequence == - 1)
-        count = (uint32_t)(sequence + 1);
+    // If valid, we need to take the iter one step back
+    if (leveldb_iter_valid (iter))
+        leveldb_iter_prev (iter);
+    // If not valid, we check the last message in the db
     else
-        count = (uint32_t)(sequence - head_sequence);
+        leveldb_iter_seek_to_last (iter);
 
-    if (self->verbose)
-        zsys_info ("Store: store is missing %d messages. Subject: %s, Partition: %s, Seq: %u", count, subject, address, sequence);
+    // If db is empty, return NULL SEQUENCE
+    if (!leveldb_iter_valid (iter))  {
+        leveldb_iter_destroy (iter);
+        return NULL_SEQUENCE;
+    }
+
+    // Check if the subject and topic match
+    const char *head_subject;
+    const char *head_address;
+    uint64_t head_sequence;
+    s_deserialize_key (leveldb_iter_key (iter, &key_size), &head_subject, &head_address, &head_sequence);
+
+    // If the same subject and address, return the head
+    if (streq (subject, head_subject) && streq (address, head_address)) {
+        leveldb_iter_destroy (iter);
+        return head_sequence;
+    }
+
+    leveldb_iter_destroy (iter);
+    return NULL_SEQUENCE;
+}
+
+static void s_send_fetch (dafka_proto_t *msg, zsock_t *publisher, const char *sender,
+        const char* subject, const char* address, uint64_t sequence, uint32_t count) {
 
     // Will only request 1000 messages at a time
     if (count > 1000)
         count = 1000;
 
-    dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_FETCH);
-    dafka_proto_set_topic (self->outgoing_msg, address);
-    dafka_proto_set_subject (self->outgoing_msg, subject);
-    dafka_proto_set_sequence (self->outgoing_msg, head_sequence + 1);
-    dafka_proto_set_count (self->outgoing_msg, count);
-    dafka_proto_set_address (self->outgoing_msg, self->address);
-    dafka_proto_send (self->outgoing_msg, self->pub);
+    dafka_proto_set_id (msg,  DAFKA_PROTO_FETCH);
+    dafka_proto_set_topic (msg, address);
+    dafka_proto_set_subject (msg, subject);
+    dafka_proto_set_sequence (msg, sequence);
+    dafka_proto_set_count (msg, count);
+    dafka_proto_set_address (msg, sender);
+    dafka_proto_send (msg, publisher);
 }
 
-// Handle messages from network
+void
+dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
+    zsock_t *publisher = zsock_new_pub (NULL);
+    int port = zsock_bind (publisher, "tcp://*:*");
+    char *reader_address = generate_address ();
 
-static void
-dafka_store_recv_sub (dafka_store_t *self) {
-    int rc = dafka_proto_recv (self->income_msg, self->sub);
-    if (rc == -1) //  Interrupted
-        return;
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    zsock_send (beacon, "ssi", "START", reader_address, port);
+    assert (zsock_wait (beacon) == 0);
+
+    dafka_proto_t *msg = dafka_proto_new ();
+    zpoller_t *poller = zpoller_new (publisher, beacon, pipe, NULL);
+
+    zsock_signal (pipe, 0);
+
+    bool terminated = false;
 
     char key[MAX_KEY_SIZE];
 
-    switch (dafka_proto_id (self->income_msg)) {
-        case DAFKA_PROTO_HEAD: {
-            const char *subject = dafka_proto_subject (self->income_msg);
-            const char *address = dafka_proto_address (self->income_msg);
-            uint64_t sequence = dafka_proto_sequence (self->income_msg);
+    char *command = NULL;
 
-            size_t head_key_size = s_serialize_head_key (key, subject, address);
-            uint64_t head_sequence = dafka_store_get_head (self, key, head_key_size);
+    while (!terminated) {
+        void *which = zpoller_wait (poller, -1);
 
-            if (head_sequence == -1 || head_sequence < sequence)
-                dafka_store_send_fetch (self, head_sequence, subject, address, sequence);
-
-            break;
+        if (which == beacon) {
+            // We actually don't have a subscriber, we are only using the beacon for publishing,
+            // we just need to drop the subscription
+            zmsg_t *drop = zmsg_recv (beacon);
+            zmsg_destroy (&drop);
         }
-        case DAFKA_PROTO_MSG: {
-            const char *subject = dafka_proto_subject (self->income_msg);
-            const char *address = dafka_proto_address (self->income_msg);
-            uint64_t sequence = dafka_proto_sequence (self->income_msg);
+        if (which == pipe) {
+            zstr_free (&command);
+            command = zstr_recv (pipe);
 
-            size_t head_key_size = s_serialize_head_key (key, subject, address);
-            uint64_t head_sequence = dafka_store_get_head (self, key, head_key_size);
-
-            if (head_sequence != -1 && sequence <= head_sequence) {
-                // We already have the message
-                if (self->verbose)
-                    zsys_debug ("Store: message already received. Subject: %s, Partition: %s, Seq: %u",
-                            subject, address, sequence);
-                return;
-            }
-
-            if (head_sequence + 1 != sequence) {
-                dafka_store_send_fetch (self, head_sequence, subject, address, sequence);
-                return;
-            }
-
-            // Saving head to database
-            char *err = NULL;
-            leveldb_put (self->db, self->woptions, key, head_key_size, (char*) &sequence, sizeof (uint64_t), &err);
-            if (err) {
-                zsys_error ("Store: failed to update head to db %s", err);
-                assert (false);
-            }
-
-            // Saving msg to database
-            size_t key_size = s_serialize_content_key (key, subject, address, sequence);
-            zframe_t *value = dafka_proto_content (self->income_msg);
-            leveldb_put (self->db, self->woptions, key,  key_size,
-                         (char *) zframe_data (value), zframe_size (value), &err);
-            if (err) {
-                zsys_error ("Store: failed to save message to db %s", err);
-                assert (false);
-            }
-
-            if (self->verbose)
-                zsys_info ("Store: storing a message. Subject: %s, Partition: %s, Seq: %u", subject, address, sequence);
-
-            // Sending an ack to the producer
-            dafka_proto_set_id (self->outgoing_msg,  DAFKA_PROTO_ACK);
-            dafka_proto_set_topic (self->outgoing_msg, address);
-            dafka_proto_set_subject (self->outgoing_msg, subject);
-            dafka_proto_set_sequence (self->outgoing_msg, sequence);
-            dafka_proto_send (self->outgoing_msg, self->pub);
-
-            break;
-        }
-        case DAFKA_PROTO_FETCH: {
-            const char *subject = dafka_proto_subject (self->income_msg);
-            const char *address = dafka_proto_topic (self->income_msg);
-            uint64_t sequence = dafka_proto_sequence (self->income_msg);
-            uint32_t count = dafka_proto_count (self->income_msg);
-
-            dafka_proto_set_topic (self->outgoing_msg, dafka_proto_address (self->income_msg));
-            dafka_proto_set_subject (self->outgoing_msg, subject);
-            dafka_proto_set_address (self->outgoing_msg, address);
-            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_MSG);
-
-            for (uint32_t i = 0; i < count; i++) {
-                size_t key_size = s_serialize_content_key (key, subject, address, sequence + i);
-
-                // Read data from db
-                char *err = NULL;
-                size_t value_size;
-                char* value = leveldb_get (self->db, self->roptions, key, key_size, &value_size, &err);
-                if (err) {
-                    zsys_error ("Store: failed to load msg from db %s", err);
-                    assert (false);
+            if (streq(command, "$TERM"))
+                terminated = true;
+            else if (streq (command, "FETCH")) {
+                const char *sender;
+                const char *subject;
+                const char *address;
+                uint64_t sequence;
+                uint32_t count;
+                int rc = zsock_brecv (pipe, "sss84", &sender, &subject, &address, &sequence, &count);
+                if (rc == -1) {
+                    zstr_free (&command);
+                    continue;
                 }
 
-                if (value) {
-                    if (self->verbose)
-                        zsys_info ("Store: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u, size %u",
-                               subject, address, sequence + i, value_size);
+                // Ignore messages from the write actor
+                if (streq (sender, self->address))
+                    continue;
 
-                    // Creating the frame without duplicate the data, frame will free the value when destroyed
-                    zframe_t *frame = zframe_frommem (value, value_size, s_free_value, value);
+                const leveldb_snapshot_t *snapshot = leveldb_create_snapshot (self->db);
+                leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
+                leveldb_readoptions_set_snapshot (roptions, snapshot);
+                leveldb_iterator_t *iter = leveldb_create_iterator (self->db, roptions);
+                size_t key_size = s_serialize_key (key, subject, address, sequence);
+                leveldb_iter_seek (iter, key, key_size);
 
-                    // The answer topic is the asker address
-                    dafka_proto_set_sequence (self->outgoing_msg, sequence + i);
-                    dafka_proto_set_content (self->outgoing_msg, &frame);
-                    dafka_proto_send (self->outgoing_msg, self->pub);
-                } else {
+                if (!leveldb_iter_valid (iter)) {
                     if (self->verbose)
-                        zsys_info ("Store: no answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                               subject, address, sequence + i);
-                    break;
+                        zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
+                                   subject, address, sequence);
+
+                    leveldb_iter_destroy (iter);
+                    leveldb_readoptions_destroy (roptions);
+                    leveldb_release_snapshot (self->db, snapshot);
+
+                    continue;
                 }
+
+                // For now we only sending from what the user requested, so if the sequence at the
+                // beginning doesn't match, don't send anything
+                // TODO: mark the first message as tail
+                size_t iter_key_size;
+                const char *iter_key = leveldb_iter_key (iter, &iter_key_size);
+                if (iter_key_size != key_size || memcmp (iter_key, key, key_size) != 0) {
+                    if (self->verbose)
+                        zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
+                                   subject, address, sequence);
+
+                    leveldb_iter_destroy (iter);
+                    leveldb_readoptions_destroy (roptions);
+                    leveldb_release_snapshot (self->db, snapshot);
+
+                    continue;
+                }
+
+                char max_key[MAX_KEY_SIZE];
+                size_t max_key_size = s_serialize_key (max_key, subject, address, sequence + count);
+
+                dafka_proto_set_topic (msg, sender);
+                dafka_proto_set_subject (msg, subject);
+                dafka_proto_set_address (msg, address);
+                dafka_proto_set_id (msg, DAFKA_PROTO_MSG);
+
+                uint64_t iter_sequence = sequence;
+
+                while (max_key_size == iter_key_size && memcmp (iter_key, max_key, max_key_size) < 0) {
+                    size_t content_size;
+                    const char* content = leveldb_iter_value (iter, &content_size);
+                    zframe_t *frame = zframe_new (content, content_size);
+
+                    dafka_proto_set_sequence (msg, iter_sequence);
+                    dafka_proto_set_content (msg, &frame);
+                    dafka_proto_send (msg, publisher);
+
+                    iter_sequence++;
+                    leveldb_iter_next (iter);
+
+                    if (!leveldb_iter_valid (iter))
+                        break;
+
+                    iter_key = leveldb_iter_key (iter, &iter_key_size);
+                }
+
+                leveldb_iter_destroy (iter);
+                leveldb_readoptions_destroy (roptions);
+                leveldb_release_snapshot (self->db, snapshot);
             }
-
-            break;
         }
-
-        default:
-            return;
     }
+
+    zstr_free (&command);
+
+
+    dafka_proto_destroy (&msg);
+    zpoller_destroy (&poller);
+    zactor_destroy (&beacon);
+    zstr_free (&reader_address);
+    zsock_destroy (&publisher);
+}
+
+void
+dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
+    zsock_t *publisher = zsock_new_pub (NULL);
+    int port = zsock_bind (publisher, "tcp://*:*");
+
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    zsock_send (beacon, "ssi", "START", self->address, port);
+    assert (zsock_wait (beacon) == 0);
+
+    dafka_proto_t *msg = dafka_proto_new ();
+
+    zpoller_t *poller = zpoller_new (publisher, beacon, pipe, NULL);
+
+    char key[MAX_KEY_SIZE];
+    zhashx_t *acks = zhashx_new ();
+    zhashx_set_duplicator (acks, (zhashx_duplicator_fn *) dafka_proto_dup);
+    zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
+
+    leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
+    leveldb_writeoptions_t *woptions = leveldb_writeoptions_create ();
+
+    zsock_signal (pipe, 0);
+
+    bool terminated = false;
+    while (!terminated) {
+        void *which = zpoller_wait (poller, -1);
+
+        if (which == beacon) {
+            // We actually don't have a subscriber, we are only using the beacon for publishing,
+            // we just need to drop the subscription
+            zmsg_t *drop = zmsg_recv (beacon);
+            zmsg_destroy (&drop);
+        }
+        if (which == pipe) {
+            leveldb_writebatch_t *batch = leveldb_writebatch_create ();
+            int batch_size = 0;
+
+            char *command = NULL;
+            zframe_t *content = NULL;
+
+            while (zsock_has_in (pipe)) {
+                zstr_free (&command);
+                command = zstr_recv (pipe);
+
+                if (streq(command, "$TERM"))
+                    terminated = true;
+                else if (streq (command, "HEAD")) {
+                    const char *subject;
+                    const char *address;
+                    uint64_t sequence;
+                    int rc = zsock_brecv (pipe, "ss8", &subject, &address, &sequence);
+                    if (rc == -1)
+                        continue;
+
+                    uint64_t head = s_get_head (acks, self->db, roptions, subject, address);
+
+                    if (head == NULL_SEQUENCE) {
+                        uint32_t count = (uint32_t) (sequence + 1);
+
+                        s_send_fetch (msg, publisher, self->address, subject, address, 0, count);
+
+                        if (self->verbose)
+                            zsys_info ("Store: missing %d messages from %s %s 0",
+                                       count, subject, address);
+                    } else if (head < sequence) {
+                        uint32_t count = (uint32_t) (sequence - head);
+
+                        s_send_fetch (msg, publisher, self->address, subject, address, head + 1, (uint32_t) sequence);
+
+                        if (self->verbose)
+                            zsys_info ("Store: missing %d messages from sequence %s %s %" PRIu64,
+                                       count, subject, address, head + 1);
+                    }
+                } else if (streq (command, "MSG")) {
+                    const char *subject;
+                    const char *address;
+                    uint64_t sequence;
+                    zframe_destroy (&content);
+                    int rc = zsock_brecv (pipe, "ss8p", &subject, &address, &sequence, &content);
+                    if (rc == -1)
+                        continue;
+
+                    uint64_t head = s_get_head (acks, self->db, roptions, subject, address);
+
+                    if (head != NULL_SEQUENCE && sequence <= head) {
+                        if (self->verbose)
+                            zsys_debug ("Store: dropping already received message %s %s %" PRIu64, subject, address,
+                                        sequence);
+
+                        continue;
+                    }
+
+                    if (head == NULL_SEQUENCE && sequence != 0) {
+                        uint32_t count = (uint32_t) sequence + 1;
+                        s_send_fetch (msg, publisher, self->address, subject, address, 0, count);
+
+                        if (self->verbose)
+                            zsys_info ("Store: missing %d messages from sequence %s %s 0", count, subject, address);
+
+                        continue;
+                    }
+
+                    if (head != NULL_SEQUENCE && head + 1 != sequence) {
+                        uint32_t count = (uint32_t) (sequence - head);
+                        s_send_fetch (msg, publisher, self->address, subject, address, head + 1, count);
+
+                        if (self->verbose)
+                            zsys_info ("Store: missing %d messages from sequence %s %s %" PRIu64,
+                                       count, subject, address, head + 1);
+
+                        continue;
+                    }
+
+                    // Saving to db
+                    size_t key_size = s_serialize_key (key, subject, address, sequence);
+                    leveldb_writebatch_put (batch, key, key_size, (const char *) zframe_data (content), zframe_size (content));
+                    batch_size++;
+
+                    // Add the msg to the acks and send it after we save the batch
+                    dafka_proto_set_id (msg, DAFKA_PROTO_ACK);
+                    dafka_proto_set_topic (msg, address);
+                    dafka_proto_set_subject (msg, subject);
+                    dafka_proto_set_sequence (msg, sequence);
+                    s_put_head (acks, msg);
+
+                    if (self->verbose)
+                        zsys_info ("Store: Message added to batch %s %s %" PRIu64, subject, address, sequence);
+
+                    // We stop the batch at 1000 messages
+                    if (batch_size == 1000)
+                        break;
+                }
+            }
+
+            zframe_destroy (&content);
+            zstr_free (&command);
+
+            char *err = NULL;
+            leveldb_write (self->db, woptions, batch, &err);
+            if (err) {
+                zsys_error ("Store: failed to save batch to db %s", err);
+                assert (false);
+            }
+            leveldb_writebatch_destroy (batch);
+
+            // Sending the acks now
+            for (dafka_proto_t *ack_msg = (dafka_proto_t *) zhashx_first (acks);
+                 ack_msg != NULL;
+                 ack_msg = (dafka_proto_t *) zhashx_next (acks)) {
+                dafka_proto_send (ack_msg, publisher);
+            }
+
+            // Batch is done, clearing all the acks
+            zhashx_purge (acks);
+
+            if (self->verbose && batch_size)
+                zsys_info ("Store: Saved batch of %d", batch_size);
+        }
+    }
+
+    leveldb_writeoptions_destroy (woptions);
+    leveldb_readoptions_destroy (roptions);
+    zhashx_destroy (&acks);
+    dafka_proto_destroy (&msg);
+    zpoller_destroy (&poller);
+    zactor_destroy (&beacon);
+    zsock_destroy (&publisher);
 }
 
 //  --------------------------------------------------------------------------
@@ -353,25 +503,96 @@ dafka_store_recv_sub (dafka_store_t *self) {
 void
 dafka_store_actor (zsock_t *pipe, void *arg)
 {
-    dafka_store_t * self = dafka_store_new (pipe, (zconfig_t *) arg);
+    dafka_store_t * self = dafka_store_new ((zconfig_t *) arg);
     if (!self)
         return;          //  Interrupted
 
     //  Signal actor successfully initiated
-    zsock_signal (self->pipe, 0);
+    zsock_signal (pipe, 0);
 
     if (self->verbose)
         zsys_info ("Store: running...");
 
-    while (!self->terminated) {
-        void *which = (zsock_t *) zpoller_wait (self->poller, -1);
-        if (which == self->pipe)
-            dafka_store_recv_api (self);
-        if (which == self->sub)
-            dafka_store_recv_sub (self);
-        if (which == self->beacon)
-            dafka_beacon_recv (self->beacon, self->sub, self->verbose, "Store");
+    bool terminated = false;
+
+    zactor_t *writer = zactor_new ((zactor_fn *) dafka_store_write_actor, self);
+    zactor_t *reader = zactor_new ((zactor_fn *) dafka_store_read_actor, self);
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    zsock_t *subscriber = zsock_new_sub (NULL, NULL);
+
+    dafka_proto_subscribe (subscriber, DAFKA_PROTO_MSG, "");
+    dafka_proto_subscribe (subscriber, DAFKA_PROTO_MSG, self->address);
+    dafka_proto_subscribe (subscriber, DAFKA_PROTO_HEAD, "");
+    dafka_proto_subscribe (subscriber, DAFKA_PROTO_FETCH, "");
+
+    dafka_proto_t *msg = dafka_proto_new ();
+
+    zpoller_t *poller = zpoller_new (beacon, pipe, subscriber, NULL);
+
+    while (!terminated) {
+        void *which = (zsock_t *) zpoller_wait (poller, -1);
+        if (which == pipe) {
+            char *command = zstr_recv (pipe);
+
+            if (command == NULL)
+                continue;
+
+            if (streq (command, "$TERM"))
+                terminated = true;
+
+            zstr_free (&command);
+        }
+        if (which == beacon)
+            dafka_beacon_recv (beacon, subscriber, self->verbose, "Store");
+        if (which == subscriber) {
+            int rc = dafka_proto_recv (msg, subscriber);
+            if (rc == -1)
+                continue;
+
+            switch (dafka_proto_id (msg)) {
+                case DAFKA_PROTO_FETCH: {
+                    const char *sender = dafka_proto_address (msg);
+                    const char *subject = dafka_proto_subject (msg);
+                    const char *address = dafka_proto_topic (msg);
+                    uint64_t sequence = dafka_proto_sequence (msg);
+                    uint32_t count = dafka_proto_count (msg);
+
+                    zstr_sendm (reader, "FETCH");
+                    zsock_bsend (reader, "sss84", sender, subject, address, sequence, count);
+
+                    break;
+                }
+                case DAFKA_PROTO_HEAD: {
+                    const char *subject = dafka_proto_subject (msg);
+                    const char *address = dafka_proto_address (msg);
+                    uint64_t sequence = dafka_proto_sequence (msg);
+
+                    zstr_sendm (writer, "HEAD");
+                    zsock_bsend (writer, "ss8", subject, address, sequence);
+                    break;
+                }
+                case DAFKA_PROTO_MSG: {
+                    const char *subject = dafka_proto_subject (msg);
+                    const char *address = dafka_proto_address (msg);
+                    uint64_t sequence = dafka_proto_sequence (msg);
+                    zframe_t *content = dafka_proto_get_content (msg);
+
+                    zstr_sendm (writer, "MSG");
+                    zsock_bsend (writer, "ss8p", subject, address, sequence, content);
+                    break;
+                }
+                default:
+                    assert (false);
+            }
+        }
     }
+
+    zpoller_destroy (&poller);
+    dafka_proto_destroy (&msg);
+    zsock_destroy (&subscriber);
+    zactor_destroy (&beacon);
+    zactor_destroy (&reader);
+    zactor_destroy (&writer);
 
     if (self->verbose)
         zsys_info ("Store: stopped");
@@ -409,6 +630,8 @@ dafka_store_test (bool verbose)
     zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     zconfig_put (config, "consumer/offset/reset", "earliest");
 
@@ -429,7 +652,7 @@ dafka_store_test (bool verbose)
 
     // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
-    zclock_sleep (100);
+    zclock_sleep (2000);
 
     // Producing another message
     dafka_producer_msg_set_content_str (p_msg, "3");
@@ -450,8 +673,8 @@ dafka_store_test (bool verbose)
     assert (dafka_consumer_msg_streq (c_msg, "3"));
 
     dafka_consumer_msg_destroy (&c_msg);
-    dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&consumer);
+    dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&store);
     zactor_destroy (&tower);
     zactor_destroy (&producer);
