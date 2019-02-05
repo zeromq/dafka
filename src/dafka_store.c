@@ -293,7 +293,7 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
                 dafka_proto_set_topic (msg, sender);
                 dafka_proto_set_subject (msg, subject);
                 dafka_proto_set_address (msg, address);
-                dafka_proto_set_id (msg, DAFKA_PROTO_MSG);
+                dafka_proto_set_id (msg, DAFKA_PROTO_DIRECT_MSG);
 
                 uint64_t iter_sequence = sequence;
 
@@ -532,7 +532,7 @@ dafka_store_actor (zsock_t *pipe, void *arg)
     zsock_t *subscriber = zsock_new_sub (NULL, NULL);
 
     dafka_proto_subscribe (subscriber, DAFKA_PROTO_MSG, "");
-    dafka_proto_subscribe (subscriber, DAFKA_PROTO_MSG, self->address);
+    dafka_proto_subscribe (subscriber, DAFKA_PROTO_DIRECT_MSG, self->address);
     dafka_proto_subscribe (subscriber, DAFKA_PROTO_HEAD, "");
     dafka_proto_subscribe (subscriber, DAFKA_PROTO_FETCH, "");
 
@@ -582,6 +582,7 @@ dafka_store_actor (zsock_t *pipe, void *arg)
                     zsock_bsend (writer, "ss8", subject, address, sequence);
                     break;
                 }
+                case DAFKA_PROTO_DIRECT_MSG:
                 case DAFKA_PROTO_MSG: {
                     const char *subject = dafka_proto_subject (msg);
                     const char *address = dafka_proto_address (msg);

@@ -81,7 +81,7 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
 
-    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_MSG, zuuid_str (consumer_address));
 
     self->beacon = zactor_new (dafka_beacon_actor, config);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
@@ -157,7 +157,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
 
     const char *address;
     const char *subject;
-    if (id == DAFKA_PROTO_MSG) {
+    if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) {
         address = dafka_proto_address (self->consumer_msg);
         subject = dafka_proto_subject (self->consumer_msg);
     }
@@ -191,7 +191,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
                         address,
                         msg_sequence - 1);
 
-        if (id == DAFKA_PROTO_MSG)
+        if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG)
             // Set to latest - 1 in order to process the current message
             last_known_sequence = msg_sequence - 1;
         else
@@ -202,7 +202,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
         zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
 
-    if ((id == DAFKA_PROTO_MSG && !(msg_sequence == last_known_sequence + 1)) ||
+    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && !(msg_sequence == last_known_sequence + 1)) ||
         (id == DAFKA_PROTO_HEAD && !(msg_sequence == last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
@@ -219,7 +219,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
         dafka_proto_send (self->fetch_msg, self->consumer_pub);
     }
 
-    if (id == DAFKA_PROTO_MSG) {
+    if (id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) {
         if (msg_sequence == last_known_sequence + 1) {
             if (self->verbose)
                 zsys_debug ("Consumer: Send message %u to client", msg_sequence);
