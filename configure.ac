@@ -646,6 +646,16 @@ AC_ARG_ENABLE([dafka_towerd],
 AM_CONDITIONAL([ENABLE_DAFKA_TOWERD], [test x$enable_dafka_towerd != xno])
 AM_COND_IF([ENABLE_DAFKA_TOWERD], [AC_MSG_NOTICE([ENABLE_DAFKA_TOWERD defined])])
 
+# Check for dafka_perf_store intent
+AC_ARG_ENABLE([dafka_perf_store],
+    AS_HELP_STRING([--enable-dafka_perf_store],
+        [Compile 'dafka_perf_store' in src [default=yes]]),
+    [enable_dafka_perf_store=$enableval],
+    [enable_dafka_perf_store=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_PERF_STORE], [test x$enable_dafka_perf_store != xno])
+AM_COND_IF([ENABLE_DAFKA_PERF_STORE], [AC_MSG_NOTICE([ENABLE_DAFKA_PERF_STORE defined])])
+
 # Check for dafka_selftest intent
 AC_ARG_ENABLE([dafka_selftest],
     AS_HELP_STRING([--enable-dafka_selftest],

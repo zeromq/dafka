@@ -34,10 +34,10 @@ DAFKA_PRIVATE size_t
 uint64_hash (const void *item);
 
 DAFKA_PRIVATE size_t
-uint64_put_le (byte* output, uint64_t value);
+uint64_put_be (byte* output, uint64_t value);
 
 DAFKA_PRIVATE size_t
-uint64_get_le (const byte* input, uint64_t *value);
+uint64_get_be (const byte* input, uint64_t *value);
 
 
 //  @end

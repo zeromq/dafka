@@ -192,8 +192,13 @@ set (dafka_headers
     include/dafka_tower.h
     include/dafka_store.h
     src/dafka_util.h
-    src/dafka_beacon.h
 )
+
+IF (ENABLE_DRAFTS)
+    list(APPEND dafka_headers
+        include/dafka_beacon.h
+    )
+ENDIF (ENABLE_DRAFTS)
 
 source_group ("Header Files" FILES ${dafka_headers})
 install(FILES ${dafka_headers} DESTINATION include)
@@ -211,10 +216,16 @@ set (dafka_sources
     src/dafka_consumer.c
     src/dafka_util.c
     src/dafka_proto.c
-    src/dafka_beacon.c
     src/dafka_tower.c
     src/dafka_store.c
 )
+
+IF (ENABLE_DRAFTS)
+    list (APPEND dafka_sources
+        src/dafka_beacon.c
+    )
+ENDIF (ENABLE_DRAFTS)
+
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
         src/dafka_private_selftest.c
@@ -480,6 +491,31 @@ install(TARGETS dafka_towerd
     RUNTIME DESTINATION bin
 )
 add_executable(
+    dafka_perf_store
+    "${SOURCE_DIR}/src/dafka_perf_store.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_perf_store
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_perf_store
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
     dafka_selftest
     "${SOURCE_DIR}/src/dafka_selftest.c"
 )
@@ -527,6 +563,12 @@ set(TEST_CLASSES
     dafka_tower
     dafka_store
 )
+
+IF (ENABLE_DRAFTS)
+    list (APPEND TEST_CLASSES
+    dafka_beacon
+    )
+ENDIF (ENABLE_DRAFTS)
 
 IF (ENABLE_DRAFTS)
     list (APPEND TEST_CLASSES
@@ -588,6 +630,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/dafka_console_consumer
                     ${CMAKE_BINARY_DIR}/src/dafka_stored
                     ${CMAKE_BINARY_DIR}/src/dafka_towerd
+                    ${CMAKE_BINARY_DIR}/src/dafka_perf_store
                     ${CMAKE_BINARY_DIR}/src/dafka_selftest
 )
 

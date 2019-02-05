@@ -19,10 +19,15 @@ src_libdafka_la_SOURCES = \
     src/dafka_consumer.c \
     src/dafka_util.c \
     src/dafka_proto.c \
-    src/dafka_beacon.c \
     src/dafka_tower.c \
     src/dafka_store.c \
     src/platform.h
+
+if ENABLE_DRAFTS
+src_libdafka_la_SOURCES += \
+    src/dafka_beacon.c
+
+endif
 
 if ENABLE_DRAFTS
 src_libdafka_la_SOURCES += \
@@ -77,6 +82,13 @@ src_dafka_towerd_LDADD = ${program_libs}
 src_dafka_towerd_SOURCES = src/dafka_towerd.c
 endif #ENABLE_DAFKA_TOWERD
 
+if ENABLE_DAFKA_PERF_STORE
+noinst_PROGRAMS += src/dafka_perf_store
+src_dafka_perf_store_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_perf_store_LDADD = ${program_libs}
+src_dafka_perf_store_SOURCES = src/dafka_perf_store.c
+endif #ENABLE_DAFKA_PERF_STORE
+
 if ENABLE_DAFKA_SELFTEST
 check_PROGRAMS += src/dafka_selftest
 noinst_PROGRAMS += src/dafka_selftest
@@ -100,6 +112,7 @@ src: \
 		src/dafka_console_consumer \
 		src/dafka_stored \
 		src/dafka_towerd \
+		src/dafka_perf_store \
 		src/dafka_selftest \
 		src/libdafka.la
 
