@@ -252,6 +252,8 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
                         zsys_info ("Producer: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
                                subject, address, sequence + index);
 
+                    dafka_proto_set_id (cached_msg, DAFKA_PROTO_DIRECT_MSG);
+                    dafka_proto_set_topic (cached_msg, dafka_proto_address (self->sub_msg));
                     dafka_proto_send (cached_msg, self->socket);
                 }
             }

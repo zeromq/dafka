@@ -19,6 +19,16 @@
         <field name = "content" type = "frame" />
     </message>
 
+    <message name = "DIRECT MSG" id="'D'">
+        Direct message from producer to consumer.
+        The topic is the recipient address.
+
+        <field name = "subject" type = "string" />
+        <field name = "address" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+        <field name = "content" type = "frame" />
+    </message>
+
     <message name = "FETCH" id="'F'">
         Consumer publish the message when a message is missing.
         Topic is the address of the producer (partition).
