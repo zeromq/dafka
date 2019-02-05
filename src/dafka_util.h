@@ -18,6 +18,8 @@
 extern "C" {
 #endif
 
+DAFKA_PRIVATE char *
+generate_address ();
 
 DAFKA_PRIVATE void
 uint64_destroy (void **item_p);
@@ -30,6 +32,13 @@ uint64_cmp (const void *item1, const void *item2);
 
 DAFKA_PRIVATE size_t
 uint64_hash (const void *item);
+
+DAFKA_PRIVATE size_t
+uint64_put_le (byte* output, uint64_t value);
+
+DAFKA_PRIVATE size_t
+uint64_get_le (const byte* input, uint64_t *value);
+
 
 //  @end
 
