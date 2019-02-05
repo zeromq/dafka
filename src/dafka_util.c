@@ -69,29 +69,29 @@ generate_address () {
 }
 
 size_t
-uint64_put_le (byte* output, uint64_t value) {
-    output[7] = (byte) (((value) >> 56) & 255);
-    output[6] = (byte) (((value) >> 48) & 255);
-    output[5] = (byte) (((value) >> 40) & 255);
-    output[4] = (byte) (((value) >> 32) & 255);
-    output[3] = (byte) (((value) >> 24) & 255);
-    output[2] = (byte) (((value) >> 16) & 255);
-    output[1] = (byte) (((value) >> 8) & 255);
-    output[0] = (byte) (((value)) & 255);
+uint64_put_be (byte* output, uint64_t value) {
+    output[0] = (byte) (((value) >> 56) & 255);
+    output[1] = (byte) (((value) >> 48) & 255);
+    output[2] = (byte) (((value) >> 40) & 255);
+    output[3] = (byte) (((value) >> 32) & 255);
+    output[4] = (byte) (((value) >> 24) & 255);
+    output[5] = (byte) (((value) >> 16) & 255);
+    output[6] = (byte) (((value) >> 8) & 255);
+    output[7] = (byte) (((value)) & 255);
 
     return 8;
 }
 
 size_t
-uint64_get_le (const byte* input, uint64_t *value) {
-    *value =  ((uint64_t) (input [7]) << 56)
-           + ((uint64_t) (input [6]) << 48)
-           + ((uint64_t) (input [5]) << 40)
-           + ((uint64_t) (input [4]) << 32)
-           + ((uint64_t) (input [3]) << 24)
-           + ((uint64_t) (input [2]) << 16)
-           + ((uint64_t) (input [1]) << 8)
-           +  (uint64_t) (input [0]);
+uint64_get_be (const byte* input, uint64_t *value) {
+    *value =  ((uint64_t) (input [0]) << 56)
+           + ((uint64_t) (input [1]) << 48)
+           + ((uint64_t) (input [2]) << 40)
+           + ((uint64_t) (input [3]) << 32)
+           + ((uint64_t) (input [4]) << 24)
+           + ((uint64_t) (input [5]) << 16)
+           + ((uint64_t) (input [6]) << 8)
+           +  (uint64_t) (input [7]);
 
     return 8;
 }

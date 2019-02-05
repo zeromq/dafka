@@ -78,6 +78,11 @@ typedef struct _dafka_tower_t dafka_tower_t;
 #define DAFKA_TOWER_T_DEFINED
 typedef struct _dafka_store_t dafka_store_t;
 #define DAFKA_STORE_T_DEFINED
+//  Draft classes are by default not built in stable releases
+#ifdef DAFKA_BUILD_DRAFT_API
+typedef struct _dafka_beacon_t dafka_beacon_t;
+#define DAFKA_BEACON_T_DEFINED
+#endif // DAFKA_BUILD_DRAFT_API
 
 
 //  Public classes, each with its own header file
@@ -88,6 +93,9 @@ typedef struct _dafka_store_t dafka_store_t;
 #include "dafka_proto.h"
 #include "dafka_tower.h"
 #include "dafka_store.h"
+#ifdef DAFKA_BUILD_DRAFT_API
+#include "dafka_beacon.h"
+#endif // DAFKA_BUILD_DRAFT_API
 
 #ifdef DAFKA_BUILD_DRAFT_API
 

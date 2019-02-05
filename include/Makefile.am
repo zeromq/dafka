@@ -13,6 +13,11 @@ include_HEADERS = \
     dafka_store.h \
     dafka_library.h
 
+if ENABLE_DRAFTS
+include_HEADERS += \
+    dafka_beacon.h
+
+endif
 
 
 ################################################################################
