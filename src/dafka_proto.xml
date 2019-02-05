@@ -44,4 +44,8 @@
         <field name = "sequence" type = "number" size = "8" />
     </message>
 
+    <message name = "EARLIEST" id = "'E'">
+        <field name = "address" type = "string" />
+    </message>
+
 </class>

@@ -16,8 +16,7 @@
     dafka_consumer -
 @discuss
     TODO:
-        - Option start consuming from beginning or latest (config)
-        - Add parameter in console-consumer
+      - Send earliest message when a store connects
 @end
 */
 
@@ -38,7 +37,8 @@ struct _dafka_consumer_t {
     zsock_t *consumer_pub;      // Publisher to ask for missed messages
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
-    dafka_proto_t *fetch_msg;   // Reusable publisher message
+    dafka_proto_t *fetch_msg;   // Reusable fetch message
+    dafka_proto_t *earlist_msg; // Reusable earliest message
     zactor_t* beacon;           // Beacon actor
     bool reset_latest;          // Wheather to process records from earliest or latest
 };
@@ -72,16 +72,21 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     int port = zsock_bind (self->consumer_pub, "tcp://*:*");
     assert (port != -1);
 
+    zuuid_t *consumer_address = zuuid_new ();
+    self->earlist_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->earlist_msg, DAFKA_PROTO_EARLIEST);
+    dafka_proto_set_address (self->earlist_msg, zuuid_str (consumer_address));
+
     self->fetch_msg = dafka_proto_new ();
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
-    zuuid_t *consumer_address = zuuid_new ();
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
+
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, zuuid_str (consumer_address));
-    zuuid_destroy(&consumer_address);
 
     self->beacon = zactor_new (dafka_beacon_actor, config);
-    zsock_send (self->beacon, "ssi", "START", dafka_proto_address (self->fetch_msg), port);
+    zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
     assert (zsock_wait (self->beacon) == 0);
+    zuuid_destroy(&consumer_address);
 
     self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, NULL);
 
@@ -103,7 +108,7 @@ dafka_consumer_destroy (dafka_consumer_t **self_p)
         zpoller_destroy (&self->poller);
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
-        dafka_proto_destroy (&self->consumer_msg);
+
         dafka_proto_destroy (&self->fetch_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
@@ -128,6 +133,12 @@ s_subscribe (dafka_consumer_t *self, const char *topic)
 
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
+
+    if (self->verbose)
+        zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
+
+    dafka_proto_set_topic (self->earlist_msg, topic);
+    dafka_proto_send (self->earlist_msg, self->consumer_pub);
 }
 
 
@@ -338,23 +349,23 @@ dafka_consumer_test (bool verbose)
 
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (1000);
+    zclock_sleep (100);
 
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
     int rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure message is published before consumer subscribes
+    zclock_sleep (100);  // Make sure message is published before consumer subscribes
 
     rc = dafka_consumer_subscribe (consumer, "hello");
     assert (rc == 0);
-    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    zclock_sleep (250);  // Make sure subscription is active before sending the next message
 
     // This message is discarded but triggers a FETCH from the store
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure the first two messages have been received from the store and the consumer is now up to date
+    zclock_sleep (100);  // Make sure the first two messages have been received from the store and the consumer is now up to date
 
     dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
     rc = dafka_producer_msg_send (p_msg, producer);
@@ -392,7 +403,7 @@ dafka_consumer_test (bool verbose)
 
     consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (1000);
+    zclock_sleep (100);
 
     //  This message is missed by the consumer and later ignored because the
     //  offset reset is set to latest.
@@ -400,16 +411,15 @@ dafka_consumer_test (bool verbose)
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure message is published before consumer subscribes
+    zclock_sleep (100);  // Make sure message is published before consumer subscribes
 
     rc = dafka_consumer_subscribe (consumer, "hello");
     assert (rc == 0);
-    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    zclock_sleep (250);  // Make sure subscription is active before sending the next message
 
     dafka_producer_msg_set_content_str (p_msg , "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);
 
     // Receive the second message from the PRODUCER
     c_msg = dafka_consumer_msg_new ();

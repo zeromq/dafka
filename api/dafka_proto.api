@@ -26,6 +26,9 @@
     <constant name = "head" value = "'H'" >
 
     </constant>
+    <constant name = "earliest" value = "'E'" >
+
+    </constant>
 
 <constructor>
     Create a new empty dafka_proto

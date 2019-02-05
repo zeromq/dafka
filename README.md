@@ -207,6 +207,9 @@ Please add '@interface' section in './../src/dafka_consumer.c'.
 This is the class self test code:
 
 ```c
+    // ----------------------------------------------------
+    // Test with consumer.offset.reset = earliest
+    // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
@@ -215,13 +218,14 @@ This is the class self test code:
     zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "consumer/offset/reset", "earliest");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
     
-    dafka_producer_args_t pub_args = {"hello", config};
+    dafka_producer_args_t pub_args = { "hello", config };
     zactor_t *producer =  zactor_new (dafka_producer, &pub_args);
     assert (producer);
     
@@ -273,7 +277,47 @@ This is the class self test code:
     zactor_destroy (&producer);
     zactor_destroy (&store);
     zactor_destroy (&consumer);
+    
+    // ----------------------------------------------------
+    // Test with consumer.offset.reset = latest
+    // ----------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "latest");
+    
+    producer =  zactor_new (dafka_producer, &pub_args);
+    assert (producer);
+    
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (1000);
+    
+    //  This message is missed by the consumer and later ignored because the
+    //  offset reset is set to latest.
+    p_msg = dafka_producer_msg_new ();
+    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);  // Make sure message is published before consumer subscribes
+    
+    rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    
+    dafka_producer_msg_set_content_str (p_msg , "HELLO ATEM");
+    rc = dafka_producer_msg_send (p_msg, producer);
+    assert (rc == 0);
+    sleep (1);
+    
+    // Receive the second message from the PRODUCER
+    c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
+    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
+    
+    dafka_producer_msg_destroy (&p_msg);
+    dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&tower);
+    zactor_destroy (&producer);
+    zactor_destroy (&consumer);
     zconfig_destroy (&config);
 ```
 
@@ -373,7 +417,10 @@ This is the class self test code:
     zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
     zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
+    zconfig_put (config, "consumer/offset/reset", "earliest");
     
     // Creating the store
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
@@ -392,7 +439,7 @@ This is the class self test code:
     
     // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
-    zclock_sleep (100);
+    zclock_sleep (2000);
     
     // Producing another message
     dafka_producer_msg_set_content_str (p_msg, "3");
@@ -413,8 +460,8 @@ This is the class self test code:
     assert (dafka_consumer_msg_streq (c_msg, "3"));
     
     dafka_consumer_msg_destroy (&c_msg);
-    dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&consumer);
+    dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&store);
     zactor_destroy (&tower);
     zactor_destroy (&producer);
