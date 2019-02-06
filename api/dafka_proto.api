@@ -17,6 +17,9 @@
     <constant name = "msg" value = "'M'" >
 
     </constant>
+    <constant name = "direct_msg" value = "'D'" >
+
+    </constant>
     <constant name = "fetch" value = "'F'" >
 
     </constant>

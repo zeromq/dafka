@@ -37,12 +37,9 @@ all_tests [] = {
     { "dafka_producer", dafka_producer_test, true, true, NULL },
     { "dafka_consumer", dafka_consumer_test, true, true, NULL },
     { "dafka_proto", dafka_proto_test, true, true, NULL },
+    { "dafka_beacon", dafka_beacon_test, true, true, NULL },
     { "dafka_tower", dafka_tower_test, true, true, NULL },
     { "dafka_store", dafka_store_test, true, true, NULL },
-#ifdef DAFKA_BUILD_DRAFT_API
-// Tests for draft public classes:
-    { "dafka_beacon", dafka_beacon_test, false, true, NULL },
-#endif // DAFKA_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel
 };
 

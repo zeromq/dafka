@@ -24,6 +24,7 @@ extern "C" {
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
 #define DAFKA_PROTO_MSG 'M'                  //
+#define DAFKA_PROTO_DIRECT_MSG 'D'           //
 #define DAFKA_PROTO_FETCH 'F'                //
 #define DAFKA_PROTO_ACK 'K'                  //
 #define DAFKA_PROTO_HEAD 'H'                 //

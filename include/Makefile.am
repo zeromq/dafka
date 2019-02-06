@@ -9,15 +9,11 @@ include_HEADERS = \
     dafka_producer.h \
     dafka_consumer.h \
     dafka_proto.h \
+    dafka_beacon.h \
     dafka_tower.h \
     dafka_store.h \
     dafka_library.h
 
-if ENABLE_DRAFTS
-include_HEADERS += \
-    dafka_beacon.h
-
-endif
 
 
 ################################################################################

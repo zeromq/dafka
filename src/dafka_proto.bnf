@@ -1,12 +1,21 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | FETCH | ACK | HEAD | EARLIEST )
+    dafka_proto     = *( MSG | DIRECT-MSG | FETCH | ACK | HEAD | EARLIEST )
 
     ;  Message from producer to consumers. The topic is either the subject or
     ;  recipient address.
 
     MSG             = signature %d'm' subject address sequence content
     signature       = %xAA %xA0             ; two octets
+    subject         = string                ;
+    address         = string                ;
+    sequence        = number-8              ;
+    content         = frame                 ;
+
+    ;  Direct message from producer to consumer. The topic is the recipient
+    ;  address.
+
+    DIRECT-MSG      = signature %d'd' subject address sequence content
     subject         = string                ;
     address         = string                ;
     sequence        = number-8              ;

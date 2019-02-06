@@ -20,7 +20,7 @@
          implied = "1"
     />
 
-    <actor name = "dafka_beacon" />
+    <actor name = "dafka_beacon" state = "stable" />
     <actor name = "dafka_tower" state = "stable" />
     <actor name = "dafka_store" state = "stable" />
 
