@@ -19,15 +19,10 @@ src_libdafka_la_SOURCES = \
     src/dafka_consumer.c \
     src/dafka_util.c \
     src/dafka_proto.c \
+    src/dafka_beacon.c \
     src/dafka_tower.c \
     src/dafka_store.c \
     src/platform.h
-
-if ENABLE_DRAFTS
-src_libdafka_la_SOURCES += \
-    src/dafka_beacon.c
-
-endif
 
 if ENABLE_DRAFTS
 src_libdafka_la_SOURCES += \
