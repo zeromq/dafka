@@ -256,6 +256,9 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
                     dafka_proto_set_topic (cached_msg, dafka_proto_address (self->sub_msg));
                     dafka_proto_send (cached_msg, self->socket);
                 }
+                // No answer, exit the for loop
+                else
+                    break;
             }
             break;
         }
