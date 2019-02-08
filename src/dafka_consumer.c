@@ -339,6 +339,7 @@ dafka_consumer_test (bool verbose)
     // Test with consumer.offset.reset = earliest
     // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put(config, "beacon/interval", "50");
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
@@ -362,7 +363,7 @@ dafka_consumer_test (bool verbose)
 
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
 
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
@@ -416,7 +417,7 @@ dafka_consumer_test (bool verbose)
 
     consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
 
     //  This message is missed by the consumer and later ignored because the
     //  offset reset is set to latest.
