@@ -17,6 +17,11 @@
 @discuss
     TODO:
       - Send earliest message when a store connects
+      - We must not send FETCH on every message, the problem is, that if you
+        missed something, and there is high rate, you will end up sending a
+        lot of fetch messages for same address
+      - Prioritize DIRECT_MSG messages over MSG this will avoid discrding MSGs
+        when catching up
 @end
 */
 
@@ -134,11 +139,13 @@ s_subscribe (dafka_consumer_t *self, const char *topic)
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
 
-    if (self->verbose)
-        zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
+    if (!self->reset_latest) {
+        if (self->verbose)
+            zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
 
-    dafka_proto_set_topic (self->earlist_msg, topic);
-    dafka_proto_send (self->earlist_msg, self->consumer_pub);
+        dafka_proto_set_topic (self->earlist_msg, topic);
+        dafka_proto_send (self->earlist_msg, self->consumer_pub);
+    }
 }
 
 
@@ -180,8 +187,10 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
                     id, address, subject, msg_sequence);
 
     //  Check if we missed some messages
+    // TODO: If unkown send earliest
     uint64_t last_known_sequence = -1;
-    if (zhashx_lookup (self->sequence_index, sequence_key))
+    bool last_known = zhashx_lookup (self->sequence_index, sequence_key);
+    if (last_known)
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
     else
     if (self->reset_latest) {
@@ -201,9 +210,11 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
 
         zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
+    printf("LAST KNOWN %u\n", last_known_sequence);
 
-    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && !(msg_sequence == last_known_sequence + 1)) ||
-        (id == DAFKA_PROTO_HEAD && !(msg_sequence == last_known_sequence))) {
+    // TODO: I'm so ugly and complicated please make me pretty
+    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (!last_known || msg_sequence > last_known_sequence + 1)) ||
+        (id == DAFKA_PROTO_HEAD && (!last_known || msg_sequence > last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
             zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",
