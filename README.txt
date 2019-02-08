@@ -139,7 +139,13 @@ Dafka gives the following guarantees:
 
 We designed Dafka the be a drop-in replacement for Apache Kafka.
 
-Therefore it would have to have higher throughput and lower latency.
+While Kafka makes it easy for consumers to come and go as they like their
+consumer group feature which relies on finding consensus in a group of peers
+makes joining very expensive. It can take seconds before a consumer ready to
+consume records. The same is true for producer. Dafka tries to avoid finding
+consensus and leader election and therefore Dafka intentionally avoids features
+like consumer groups in favor of higher throughput, lower latency and fast
+consumer/producer initialisation.
 
 ### Producing and Storing
 
