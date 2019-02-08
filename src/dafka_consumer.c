@@ -212,7 +212,6 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
 
         zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
-    printf("LAST KNOWN %u\n", last_known_sequence);
 
     // TODO: I'm so ugly and complicated please make me pretty
     if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (!last_known || msg_sequence > last_known_sequence + 1)) ||
