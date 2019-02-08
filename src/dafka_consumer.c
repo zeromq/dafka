@@ -114,6 +114,8 @@ dafka_consumer_destroy (dafka_consumer_t **self_p)
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
 
+        dafka_proto_destroy (&self->consumer_msg);
+        dafka_proto_destroy (&self->earlist_msg);
         dafka_proto_destroy (&self->fetch_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
@@ -337,6 +339,7 @@ dafka_consumer_test (bool verbose)
     // Test with consumer.offset.reset = earliest
     // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put(config, "beacon/interval", "50");
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
@@ -360,7 +363,7 @@ dafka_consumer_test (bool verbose)
 
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
 
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
@@ -414,7 +417,7 @@ dafka_consumer_test (bool verbose)
 
     consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
 
     //  This message is missed by the consumer and later ignored because the
     //  offset reset is set to latest.
