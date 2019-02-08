@@ -114,6 +114,8 @@ dafka_consumer_destroy (dafka_consumer_t **self_p)
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
 
+        dafka_proto_destroy (&self->consumer_msg);
+        dafka_proto_destroy (&self->earlist_msg);
         dafka_proto_destroy (&self->fetch_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
