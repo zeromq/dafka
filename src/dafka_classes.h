@@ -39,6 +39,11 @@ typedef struct _dafka_util_t dafka_util_t;
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DAFKA_BUILD_DRAFT_API
 
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DAFKA_PRIVATE void
+    dafka_util_test (bool verbose);
+
 //  Self test for private classes
 DAFKA_PRIVATE void
     dafka_private_selftest (bool verbose, const char *subtest);

@@ -39,6 +39,10 @@ uint64_put_be (byte* output, uint64_t value);
 DAFKA_PRIVATE size_t
 uint64_get_be (const byte* input, uint64_t *value);
 
+DAFKA_PRIVATE void
+dafka_util_test (bool verbose);
+
+
 
 //  @end
 
