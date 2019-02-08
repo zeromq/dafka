@@ -109,6 +109,38 @@ re-read records or set their offset to a newer offset and skip ahead.
 In that way consumer have no influence on the cluster, the producer and other
 consumers. They simply can come and go as they please.
 
+### Distribution
+
+Partition are distributed to the Dafka Cluster which consists of Dafka Stores.
+Each partition is replicated to each store for fault tolerance.
+
+### Producer
+
+Producers publish records to a topic. Each producer creates its own partition
+that only it publishes to. Records are send directly to stores and consumers.
+When a producer goes offline the consumers can retrieve to already send records
+from the stores.
+
+### Consumer
+
+Consumers subscribe to a topic. Each consumer will receive records published to
+that topic from all partitions.
+
+### Guarantees
+
+Dafka gives the following guarantees:
+
+* Records sent by a producer are appended in the stores in the same order they
+  are sent.
+* Consumers will provide records of a partition to the user in the same order
+  they are sent by the producer.
+
+## Design
+
+We designed Dafka the be a drop-in replacement for Apache Kafka.
+
+Therefore it would have to have higher throughput and lower latency.
+
 ### Producing and Storing
 
 [diagram]
@@ -118,6 +150,8 @@ consumers. They simply can come and go as they please.
                             |    PUB     |
                             \-----+------/
                                   |
+                          Publish | MSG
+                          Publish | HEAD
                                   |
         +-----------------+-------+-------+------------------+
         |                 |               |                  |
@@ -130,7 +164,73 @@ consumers. They simply can come and go as they please.
   +-----------+     +-----------+   +------------+     +------------+
 [/diagram]
 
+[diagram]
+           +------------+
+           |  Producer  |
+           +------------+
+           |    PUB     |
+           \-----+------/
+                 ^
+                 |
+                 |
+        +--------+--------+
+        |                 |
+    ACK |                 | ACK
+        |                 |
+  /-----+-----\     /-----+-----\
+  |    SUB    |     |    SUB    |
+  +-----------+ ... +-----------+
+  |  Store 1  |     |  Store n  |
+  +-----------+     +-----------+
+[/diagram]
+
+### Missed messages
+
+[diagram]
+                    +------------+
+                    |  Consumer  |
+                    +------------+
+                    |    PUB     |
+                    \-----+------/
+                          |
+                 FETCH mis|sing messages
+                          |
+        +-----------------+---------------+
+        |                 |               |
+        |                 |               |
+        v                 v               v
+  /-----+-----\     /-----+-----\   /-----+------\
+  |    SUB    |     |    SUB    |   |    SUB     |
+  +-----------+ ... +-----------+   +------------+
+  |  Store 1  |     |  Store n  |   | Producer x |
+  +-----------+     +-----------+   +------------+
+[/diagram]
+
+[diagram]
+                    +------------+
+                    |  Consumer  |
+                    +------------+
+                    |    SUB     |
+                    \-----+------/
+                          ^
+                          |
+                          |
+        +-----------------+---------------+
+        |                 |               |
+        |     Send missing|message        |
+        |                 |               |
+  /-----+-----\     /-----+-----\   /-----+------\
+  |    PUB    |     |    PUB    |   |    PUB     |
+  +-----------+ ... +-----------+   +------------+
+  |  Store 1  |     |  Store n  |   | Producer x |
+  +-----------+     +-----------+   +------------+
+[/diagram]
+
+### Dead producer
+
 To be continued ...
+
+## Implementation
 
 ### Ownership and License
 

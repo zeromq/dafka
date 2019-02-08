@@ -16,7 +16,23 @@
 
 **[Topics and Partitions](#topics-and-partitions)**
 
+**[Distribution](#distribution)**
+
+**[Producer](#producer)**
+
+**[Consumer](#consumer)**
+
+**[Guarantees](#guarantees)**
+
+**[Design](#design)**
+
 **[Producing and Storing](#producing-and-storing)**
+
+**[Missed messages](#missed-messages)**
+
+**[Dead producer](#dead-producer)**
+
+**[Implementation](#implementation)**
 
 **[Ownership and License](#ownership-and-license)**
 
@@ -113,13 +129,63 @@ re-read records or set their offset to a newer offset and skip ahead.
 In that way consumer have no influence on the cluster, the producer and other
 consumers. They simply can come and go as they please.
 
+### Distribution
+
+Partition are distributed to the Dafka Cluster which consists of Dafka Stores.
+Each partition is replicated to each store for fault tolerance.
+
+### Producer
+
+Producers publish records to a topic. Each producer creates its own partition
+that only it publishes to. Records are send directly to stores and consumers.
+When a producer goes offline the consumers can retrieve to already send records
+from the stores.
+
+### Consumer
+
+Consumers subscribe to a topic. Each consumer will receive records published to
+that topic from all partitions.
+
+### Guarantees
+
+Dafka gives the following guarantees:
+
+* Records sent by a producer are appended in the stores in the same order they
+  are sent.
+* Consumers will provide records of a partition to the user in the same order
+  they are sent by the producer.
+
+## Design
+
+We designed Dafka the be a drop-in replacement for Apache Kafka.
+
+Therefore it would have to have higher throughput and lower latency.
+
 ### Producing and Storing
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_3.png" alt="3">
 </center>
 
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_4.png" alt="4">
+</center>
+
+### Missed messages
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_5.png" alt="5">
+</center>
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_6.png" alt="6">
+</center>
+
+### Dead producer
+
 To be continued ...
+
+## Implementation
 
 ### Ownership and License
 
@@ -181,8 +247,7 @@ This is the API provided by Dafka v1.x, in alphabetical order.
 dafka_consumer -
 
 TODO:
-    - Option start consuming from beginning or latest (config)
-    - Add parameter in console-consumer
+  - Send earliest message when a store connects
 
 This is the class interface:
 
@@ -234,23 +299,23 @@ This is the class self test code:
     
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (1000);
+    zclock_sleep (100);
     
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
     int rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure message is published before consumer subscribes
+    zclock_sleep (100);  // Make sure message is published before consumer subscribes
     
     rc = dafka_consumer_subscribe (consumer, "hello");
     assert (rc == 0);
-    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    zclock_sleep (250);  // Make sure subscription is active before sending the next message
     
     // This message is discarded but triggers a FETCH from the store
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure the first two messages have been received from the store and the consumer is now up to date
+    zclock_sleep (100);  // Make sure the first two messages have been received from the store and the consumer is now up to date
     
     dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
     rc = dafka_producer_msg_send (p_msg, producer);
@@ -288,7 +353,7 @@ This is the class self test code:
     
     consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (1000);
+    zclock_sleep (100);
     
     //  This message is missed by the consumer and later ignored because the
     //  offset reset is set to latest.
@@ -296,16 +361,15 @@ This is the class self test code:
     dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);  // Make sure message is published before consumer subscribes
+    zclock_sleep (100);  // Make sure message is published before consumer subscribes
     
     rc = dafka_consumer_subscribe (consumer, "hello");
     assert (rc == 0);
-    zclock_sleep (1000);  // Make sure subscription is active before sending the next message
+    zclock_sleep (250);  // Make sure subscription is active before sending the next message
     
     dafka_producer_msg_set_content_str (p_msg , "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    sleep (1);
     
     // Receive the second message from the PRODUCER
     c_msg = dafka_consumer_msg_new ();
@@ -335,6 +399,10 @@ This is the class interface:
     //
     DAFKA_EXPORT void
         dafka_producer (zsock_t *pipe, void *args);
+    
+    //
+    DAFKA_EXPORT const char *
+        dafka_producer_address (zactor_t *self);
     
     //  Self test of this class.
     DAFKA_EXPORT void
@@ -411,11 +479,11 @@ This is the class self test code:
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "beacon/sub_address","inproc://store-tower-sub");
-    zconfig_put (config, "beacon/pub_address","inproc://store-tower-pub");
+    zconfig_put (config, "beacon/sub_address", "inproc://store-tower-sub");
+    zconfig_put (config, "beacon/pub_address", "inproc://store-tower-pub");
     zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "tower/sub_address","inproc://store-tower-sub");
-    zconfig_put (config, "tower/pub_address","inproc://store-tower-pub");
+    zconfig_put (config, "tower/sub_address", "inproc://store-tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://store-tower-pub");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
