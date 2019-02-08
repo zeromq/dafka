@@ -189,7 +189,8 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
     //  Check if we missed some messages
     // TODO: If unkown send earliest
     uint64_t last_known_sequence = -1;
-    if (zhashx_lookup (self->sequence_index, sequence_key))
+    bool last_known = zhashx_lookup (self->sequence_index, sequence_key);
+    if (last_known)
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
     else
     if (self->reset_latest) {
@@ -209,9 +210,11 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
 
         zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
+    printf("LAST KNOWN %u\n", last_known_sequence);
 
-    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (msg_sequence < last_known_sequence + 1)) ||
-        (id == DAFKA_PROTO_HEAD && (msg_sequence < last_known_sequence))) {
+    // TODO: I'm so ugly and complicated please make me pretty
+    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (!last_known || msg_sequence > last_known_sequence + 1)) ||
+        (id == DAFKA_PROTO_HEAD && (!last_known || msg_sequence > last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
             zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",
