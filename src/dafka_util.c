@@ -95,3 +95,8 @@ uint64_get_be (const byte* input, uint64_t *value) {
 
     return 8;
 }
+
+void
+dafka_util_test (bool verbose) {
+
+}
