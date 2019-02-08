@@ -17,6 +17,11 @@
 @discuss
     TODO:
       - Send earliest message when a store connects
+      - We must not send FETCH on every message, the problem is, that if you
+        missed something, and there is high rate, you will end up sending a
+        lot of fetch messages for same address
+      - Prioritize DIRECT_MSG messages over MSG this will avoid discrding MSGs
+        when catching up
 @end
 */
 
@@ -182,6 +187,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
                     id, address, subject, msg_sequence);
 
     //  Check if we missed some messages
+    // TODO: If unkown send earliest
     uint64_t last_known_sequence = -1;
     if (zhashx_lookup (self->sequence_index, sequence_key))
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
