@@ -303,6 +303,10 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
                 dafka_proto_set_content (outgoing_msg, &frame);
                 dafka_proto_send (outgoing_msg, publisher);
 
+                if (self->verbose)
+                    zsys_info ("Store: found answer for consumer. Subject: %s, Partition: %s, Seq: %lu",
+                            subject, address, iter_sequence);
+
                 iter_sequence++;
                 leveldb_iter_next (iter);
 
@@ -655,12 +659,13 @@ dafka_store_test (bool verbose) {
     dafka_consumer_msg_recv (c_msg, consumer);
     assert (dafka_consumer_msg_streq (c_msg, "3"));
 
+
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&consumer);
     dafka_producer_msg_destroy (&p_msg);
+    zactor_destroy (&producer);
     zactor_destroy (&store);
     zactor_destroy (&tower);
-    zactor_destroy (&producer);
     zconfig_destroy (&config);
     //  @end
 
