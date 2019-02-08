@@ -134,11 +134,13 @@ s_subscribe (dafka_consumer_t *self, const char *topic)
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
 
-    if (self->verbose)
-        zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
+    if (!self->reset_latest) {
+        if (self->verbose)
+            zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
 
-    dafka_proto_set_topic (self->earlist_msg, topic);
-    dafka_proto_send (self->earlist_msg, self->consumer_pub);
+        dafka_proto_set_topic (self->earlist_msg, topic);
+        dafka_proto_send (self->earlist_msg, self->consumer_pub);
+    }
 }
 
 
