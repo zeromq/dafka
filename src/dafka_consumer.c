@@ -202,8 +202,8 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
         zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
     }
 
-    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && !(msg_sequence == last_known_sequence + 1)) ||
-        (id == DAFKA_PROTO_HEAD && !(msg_sequence == last_known_sequence))) {
+    if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (msg_sequence < last_known_sequence + 1)) ||
+        (id == DAFKA_PROTO_HEAD && (msg_sequence < last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
             zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",
