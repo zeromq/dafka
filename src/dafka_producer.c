@@ -102,7 +102,6 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
     dafka_beacon_args_t beacon_args = {"Producer", args->config};
     self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (address), port);
-    assert (zsock_wait (self->beacon) == 0);
     zuuid_destroy (&address);
 
     self->message_cache = zhashx_new ();
