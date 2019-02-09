@@ -203,9 +203,9 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
     int port = zsock_bind (publisher, "tcp://*:*");
     char *reader_address = generate_address ();
 
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    dafka_beacon_args_t beacon_args = {"Store Reader", self->config};
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (beacon, "ssi", "START", reader_address, port);
-    assert (zsock_wait (beacon) == 0);
 
     zsock_t *subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (subscriber, DAFKA_PROTO_FETCH, "");
@@ -224,7 +224,7 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
         void *which = zpoller_wait (poller, -1);
 
         if (which == beacon)
-            dafka_beacon_recv (beacon, subscriber, self->verbose, "Store Read");
+            dafka_beacon_recv (beacon, subscriber, self->verbose, "Store Reader");
         if (which == pipe) {
             char *command = zstr_recv (pipe);
 
@@ -336,9 +336,9 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
     zsock_t *publisher = zsock_new_pub (NULL);
     int port = zsock_bind (publisher, "tcp://*:*");
 
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    dafka_beacon_args_t beacon_args = {"Store Writer", self->config};
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (beacon, "ssi", "START", self->address, port);
-    assert (zsock_wait (beacon) == 0);
 
     zsock_t *direct_sub = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (direct_sub, DAFKA_PROTO_DIRECT_MSG, self->address);
