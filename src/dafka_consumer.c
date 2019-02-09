@@ -88,9 +88,9 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
 
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_MSG, zuuid_str (consumer_address));
 
-    self->beacon = zactor_new (dafka_beacon_actor, config);
+    dafka_beacon_args_t beacon_args = {"Consumer", config};
+    self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
-    assert (zsock_wait (self->beacon) == 0);
     zuuid_destroy(&consumer_address);
 
     self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, NULL);

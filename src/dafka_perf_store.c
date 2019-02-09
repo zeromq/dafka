@@ -28,7 +28,8 @@ typedef struct{
 } subscriber_args;
 
 void subscriber_actor (zsock_t *pipe, subscriber_args *args) {
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, args->config);
+    dafka_beacon_args_t beacon_args = {"Subscriber", args->config};
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_t *subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (subscriber, DAFKA_PROTO_ACK, args->producer_address);
 

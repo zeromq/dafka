@@ -43,6 +43,8 @@ struct _dafka_beacon_t {
 
     zsock_t *pub;
     zsock_t *sub;
+
+    char* log_prefix;
 };
 
 int zconfig_get_int (zconfig_t* config, const char *path, int default_value) {
@@ -58,9 +60,13 @@ int zconfig_get_int (zconfig_t* config, const char *path, int default_value) {
 //  Create a new beacon instance
 
 static dafka_beacon_t *
-dafka_beacon_new (zsock_t *pipe, zconfig_t *config) {
+dafka_beacon_new (zsock_t *pipe, dafka_beacon_args_t *args) {
+    assert (args);
+
     dafka_beacon_t *self = (dafka_beacon_t *) zmalloc (sizeof (dafka_beacon_t));
     assert (self);
+
+    zconfig_t *config = args->config;
 
     self->pipe = pipe;
     self->terminated = false;
@@ -87,6 +93,8 @@ dafka_beacon_new (zsock_t *pipe, zconfig_t *config) {
     self->poller = zpoller_new (self->pipe, self->sub, NULL);
     zpoller_set_nonstop (self->poller, true);
 
+    self->log_prefix = strdup (args->log_prefix);
+
     return self;
 }
 
@@ -107,6 +115,7 @@ beacon_destroy (dafka_beacon_t **self_p) {
         zstr_free (&self->sender);
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
+        zstr_free (&self->log_prefix);
 
         //  Free object itself
         free (self);
@@ -139,7 +148,7 @@ dafka_beacon_start (dafka_beacon_t *self) {
     int rc = zsock_recv (self->pipe, "si", &self->sender, &port);
 
     if (rc == -1) {
-        zsys_error ("Beacon: error while receiving start command");
+        zsys_error ("%s Beacon: error while receiving start command", self->log_prefix);
         zsock_signal (self->pipe, 255);
         return -1;
     }
@@ -152,11 +161,9 @@ dafka_beacon_start (dafka_beacon_t *self) {
     // Sending the first beacon immediately
     zsock_send (self->pub, "ssi", "B", self->sender, self->port);
 
-    zsock_signal (self->pipe, 0);
-
     if (self->verbose)
-        zsys_debug ("Beacon: started. port: %d interval: %d uuid: %s",
-                    self->port, self->interval, self->sender);
+        zsys_debug ("%s Beacon: started. port: %d interval: %d uuid: %s",
+                    self->log_prefix, self->port, self->interval, self->sender);
 
     return 0;
 }
@@ -220,7 +227,7 @@ dafka_beacon_recv_sub (dafka_beacon_t *self) {
             zsock_signal (self->pipe, 0);
 
             if (self->verbose)
-                zsys_info ("Beacon: connected to tower");
+                zsys_info ("%s Beacon: connected to tower", self->log_prefix);
         }
     } else if (streq (topic, "B")) {
         char *sender;
@@ -268,7 +275,7 @@ dafka_beacon_clear_dead_peers (int timer_id, dafka_beacon_t *self) {
             char *address = (char*) zhashx_cursor(self->peers);
 
             if (self->verbose)
-                zsys_debug ("Beacon: peer dead %s", address);
+                zsys_debug ("%s Beacon: peer dead %s", self->log_prefix, address);
 
             zsock_send (self->pipe, "ss", "DISCONNECT", address);
             zhashx_delete (self->peers, address);
@@ -281,7 +288,7 @@ dafka_beacon_clear_dead_peers (int timer_id, dafka_beacon_t *self) {
 
 void
 dafka_beacon_actor (zsock_t *pipe, void *args) {
-    dafka_beacon_t *self = dafka_beacon_new (pipe, (zconfig_t *) args);
+    dafka_beacon_t *self = dafka_beacon_new (pipe, (dafka_beacon_args_t *) args);
     if (!self)
         return;          //  Interrupted
 
@@ -291,7 +298,7 @@ dafka_beacon_actor (zsock_t *pipe, void *args) {
     // Connect subscriber to tower
     int rc = zsock_attach (self->sub, self->tower_pub_address, false);
     if (rc == -1) {
-        zsys_error ("Beacon: error while connecting subscriber to towers %s", self->tower_pub_address);
+        zsys_error ("%s Beacon: error while connecting subscriber to towers %s", self->log_prefix, self->tower_pub_address);
         zsock_signal (self->pipe, 255);
 
         beacon_destroy (&self);
@@ -301,7 +308,7 @@ dafka_beacon_actor (zsock_t *pipe, void *args) {
     // Connect publisher to tower
     rc = zsock_attach (self->pub, self->tower_sub_address, false);
     if (rc == -1) {
-        zsys_error ("Beacon: error while connecting subscriber to towers %s", self->tower_pub_address);
+        zsys_error ("%s Beacon: error while connecting subscriber to towers %s", self->log_prefix, self->tower_pub_address);
         zsock_signal (self->pipe, 255);
 
         beacon_destroy (&self);
