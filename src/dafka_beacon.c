@@ -161,8 +161,6 @@ dafka_beacon_start (dafka_beacon_t *self) {
     // Sending the first beacon immediately
     zsock_send (self->pub, "ssi", "B", self->sender, self->port);
 
-    zsock_signal (self->pipe, 0);
-
     if (self->verbose)
         zsys_debug ("%s Beacon: started. port: %d interval: %d uuid: %s",
                     self->log_prefix, self->port, self->interval, self->sender);
