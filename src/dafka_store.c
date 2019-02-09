@@ -203,7 +203,8 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
     int port = zsock_bind (publisher, "tcp://*:*");
     char *reader_address = generate_address ();
 
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    dafka_beacon_args_t beacon_args = {"Store Reader", self->config};
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (beacon, "ssi", "START", reader_address, port);
     assert (zsock_wait (beacon) == 0);
 
@@ -336,7 +337,8 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
     zsock_t *publisher = zsock_new_pub (NULL);
     int port = zsock_bind (publisher, "tcp://*:*");
 
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, self->config);
+    dafka_beacon_args_t beacon_args = {"Store Writer", self->config};
+    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (beacon, "ssi", "START", self->address, port);
     assert (zsock_wait (beacon) == 0);
 

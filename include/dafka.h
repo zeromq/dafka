@@ -24,4 +24,9 @@ typedef struct {
     zconfig_t *config;
 } dafka_producer_args_t;
 
+typedef struct {
+    const char *log_prefix;
+    zconfig_t *config;
+} dafka_beacon_args_t;
+
 #endif
