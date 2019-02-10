@@ -365,6 +365,15 @@ dafka_consumer_test (bool verbose)
     printf (" * dafka_consumer: ");
     //  @selftest
     // ----------------------------------------------------
+    //  Cleanup old test artifacts
+    // ----------------------------------------------------
+    if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
+        zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+        zdir_remove (store_dir, true);
+        zdir_destroy (&store_dir);
+    }
+
+    // ----------------------------------------------------
     // Test with consumer.offset.reset = earliest
     // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
@@ -476,6 +485,13 @@ dafka_consumer_test (bool verbose)
     zactor_destroy (&producer);
     zactor_destroy (&consumer);
     zconfig_destroy (&config);
+
+    // ----------------------------------------------------
+    //  Cleanup test artifacts
+    // ----------------------------------------------------
+    zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+    zdir_remove (store_dir, true);
+    zdir_destroy (&store_dir);
     //  @end
 
     printf ("OK\n");
