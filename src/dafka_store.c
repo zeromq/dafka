@@ -89,110 +89,51 @@ dafka_store_destroy (dafka_store_t **self_p) {
     }
 }
 
-size_t s_serialize_key (char *output, const char *subject, const char *address, uint64_t sequence) {
-    size_t subject_size = strlen (subject);
-    size_t address_size = strlen (address);
+uint64_t s_get_head (leveldb_t *db, leveldb_readoptions_t *roptions,
+                     zhashx_t *heads, dafka_head_key_t *key) {
+    uint64_t *sequence_p = (uint64_t *) zhashx_lookup (heads, key);
+    if (sequence_p)
+        return *sequence_p;
 
-    char *needle = output;
+    size_t key_size;
+    const char *key_bytes = dafka_head_key_encode (key, &key_size);
 
-    memcpy (needle, subject, subject_size);
-    needle += subject_size;
-    *needle = '\0';
-    needle++;
-    memcpy (needle, address, address_size);
-    needle += address_size;
-    *needle = '\0';
-    needle++;
+    size_t value_size;
+    char* err = NULL;
+    char *value = leveldb_get (db, roptions, key_bytes, key_size, &value_size, &err);
+    if (err) {
+        zsys_error ("Error to get head from db %s", err);
+        assert (false);
+    }
 
-    // To actually have the keys ordered correctly we must encode uint64 as big endian
-    size_t sequence_size = uint64_put_be ((byte *) needle, sequence);
-    needle += sequence_size;
-
-    return (needle - output);
-}
-
-void s_deserialize_key (const char *key, const char **subject, const char **address, uint64_t *sequence) {
-    const char *needle = key;
-
-    *subject = needle;
-    needle += strlen (needle) + 1;
-    *address = needle;
-    needle += strlen (needle) + 1;
-    uint64_get_be ((const byte *) needle, sequence);
-}
-
-void s_put_head (zhashx_t *heads, dafka_proto_t *msg) {
-    char head_key[255 + 255 + 2];
-
-    const char *subject = dafka_proto_subject (msg);
-    const char *address = dafka_proto_topic (msg);
-
-    snprintf (head_key, 255 + 255 + 1, "%s\\%s", subject, address);
-    zhashx_update (heads, head_key, msg);
-}
-
-uint64_t s_get_head (zhashx_t *heads, leveldb_t *db, leveldb_readoptions_t *roptions,
-                     const char *subject, const char *address) {
-
-    char head_key[255 + 255 + 2];
-    snprintf (head_key, 255 + 255 + 1, "%s\\%s", subject, address);
-
-    dafka_proto_t *msg = (dafka_proto_t *) zhashx_lookup (heads, head_key);
-    if (msg)
-        return dafka_proto_sequence (msg);
-
-    leveldb_iterator_t *iter = leveldb_create_iterator (db, roptions);
-
-    // First, trying to find the last msg of subject and address
-    char key[MAX_KEY_SIZE];
-    size_t key_size = s_serialize_key (key, subject, address, NULL_SEQUENCE);
-    leveldb_iter_seek (iter, key, key_size);
-
-    // If valid, we need to take the iter one step back
-    if (leveldb_iter_valid (iter))
-        leveldb_iter_prev (iter);
-        // If not valid, we check the last message in the db
-    else
-        leveldb_iter_seek_to_last (iter);
-
-    // If db is empty, return NULL SEQUENCE
-    if (!leveldb_iter_valid (iter)) {
-        leveldb_iter_destroy (iter);
+    if (value == NULL)
         return NULL_SEQUENCE;
-    }
 
-    // Check if the subject and topic match
-    const char *head_subject;
-    const char *head_address;
-    uint64_t head_sequence;
-    s_deserialize_key (leveldb_iter_key (iter, &key_size), &head_subject, &head_address, &head_sequence);
+    assert (value_size == sizeof (uint64_t));
 
-    // If the same subject and address, return the head
-    if (streq (subject, head_subject) && streq (address, head_address)) {
-        leveldb_iter_destroy (iter);
-        return head_sequence;
-    }
+    uint64_t sequence;
+    uint64_get_be ((const byte *)value, &sequence);
 
-    leveldb_iter_destroy (iter);
-    return NULL_SEQUENCE;
+    return sequence;
 }
 
-static void s_add_fetch (zhashx_t *fetches, dafka_proto_t *msg, const char *sender,
-                         const char *subject, const char *address, uint64_t sequence, uint32_t count) {
+static void s_add_fetch (zhashx_t *fetches,
+        dafka_head_key_t * key,
+        const char *sender,
+        uint64_t sequence, uint32_t count) {
 
     // Will only request 100,000 messages at a time
     if (count > 100000)
         count = 100000;
 
+    dafka_proto_t *msg = dafka_proto_new ();
+
     dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
-    dafka_proto_set_topic (msg, address);
-    dafka_proto_set_subject (msg, subject);
+    dafka_proto_set_topic (msg, dafka_head_key_address (key));
+    dafka_proto_set_subject (msg, dafka_head_key_subject (key));
     dafka_proto_set_sequence (msg, sequence);
     dafka_proto_set_count (msg, count);
     dafka_proto_set_address (msg, sender);
-
-    char key[255 + 255 + 2];
-    snprintf (key, 255 + 255 + 1, "%s\\%s", subject, address);
 
     zhashx_update (fetches, key, msg);
 }
@@ -217,7 +158,7 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
 
     zsock_signal (pipe, 0);
 
-    char key[MAX_KEY_SIZE];
+    dafka_msg_key_t *msg_key = dafka_msg_key_new ();
 
     bool terminated = false;
     while (!terminated) {
@@ -252,7 +193,11 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
             leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
             leveldb_readoptions_set_snapshot (roptions, snapshot);
             leveldb_iterator_t *iter = leveldb_create_iterator (self->db, roptions);
-            size_t key_size = s_serialize_key (key, subject, address, sequence);
+
+            dafka_msg_key_set (msg_key, subject, address, sequence);
+
+            size_t key_size;
+            const char *key = dafka_msg_key_encode (msg_key, &key_size);
             leveldb_iter_seek (iter, key, key_size);
 
             if (!leveldb_iter_valid (iter)) {
@@ -284,8 +229,9 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
                 continue;
             }
 
-            char max_key[MAX_KEY_SIZE];
-            size_t max_key_size = s_serialize_key (max_key, subject, address, sequence + count);
+            size_t max_key_size;
+            dafka_msg_key_set (msg_key, subject, address, sequence + count);
+            const char *max_key = dafka_msg_key_encode (msg_key, &max_key_size);
 
             dafka_proto_set_topic (outgoing_msg, sender);
             dafka_proto_set_subject (outgoing_msg, subject);
@@ -322,6 +268,7 @@ dafka_store_read_actor (zsock_t *pipe, dafka_store_t *self) {
         }
     }
 
+    dafka_msg_key_destroy (&msg_key);
     dafka_proto_destroy (&incoming_msg);
     dafka_proto_destroy (&outgoing_msg);
     zsock_destroy (&subscriber);
@@ -352,14 +299,18 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
 
     zpoller_t *poller = zpoller_new (direct_sub, pubsub_sub, publisher, beacon, pipe, NULL);
 
-    char key[MAX_KEY_SIZE];
-    zhashx_t *acks = zhashx_new ();
-    zhashx_set_duplicator (acks, (zhashx_duplicator_fn *) dafka_proto_dup);
-    zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
+    dafka_msg_key_t *msg_key = dafka_msg_key_new ();
+    dafka_head_key_t *head_key = dafka_head_key_new ();
+
+    zhashx_t *heads = zhashx_new ();
+    dafka_head_key_hashx_set (heads);
+    zhashx_set_duplicator (heads, uint64_dup);
+    zhashx_set_destructor (heads, uint64_destroy);
 
     zhashx_t *fetches = zhashx_new ();
-    zhashx_set_duplicator (acks, (zhashx_duplicator_fn *) dafka_proto_dup);
-    zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
+    dafka_head_key_hashx_set (fetches);
+    zhashx_set_duplicator (fetches, NULL);
+    zhashx_set_destructor (fetches, (zhashx_destructor_fn *) dafka_proto_destroy);
 
     leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
     leveldb_writeoptions_t *woptions = leveldb_writeoptions_create ();
@@ -430,18 +381,20 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                         const char *address = dafka_proto_address (incoming_msg);
                         uint64_t sequence = dafka_proto_sequence (incoming_msg);
 
-                        uint64_t head = s_get_head (acks, self->db, roptions, subject, address);
+                        dafka_head_key_set (head_key, subject, address);
+
+                        uint64_t head = s_get_head (self->db, roptions, heads, head_key);
 
                         if (head == NULL_SEQUENCE) {
                             uint32_t count = (uint32_t) (sequence + 1);
 
-                            s_add_fetch (fetches, incoming_msg, self->address, subject, address, 0, count);
+                            s_add_fetch (fetches, head_key, self->address, 0, count);
                         }
                         else
                         if (head < sequence) {
                             uint32_t count = (uint32_t) (sequence - head);
 
-                            s_add_fetch (fetches, incoming_msg, self->address, subject, address, head + 1, count);
+                            s_add_fetch (fetches, head_key, self->address, head + 1, count);
                         }
                         break;
                     }
@@ -452,7 +405,8 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                         uint64_t sequence = dafka_proto_sequence (incoming_msg);
                         zframe_t *content = dafka_proto_content (incoming_msg);
 
-                        uint64_t head = s_get_head (acks, self->db, roptions, subject, address);
+                        dafka_head_key_set (head_key, subject, address);
+                        uint64_t head = s_get_head (self->db, roptions, heads, head_key);
 
                         if (head != NULL_SEQUENCE && sequence <= head) {
                             if (self->verbose)
@@ -462,26 +416,34 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
                         else
                         if (head == NULL_SEQUENCE && sequence != 0) {
                             uint32_t count = (uint32_t) sequence + 1;
-                            s_add_fetch (fetches, incoming_msg, self->address, subject, address, 0, count);
+                            s_add_fetch (fetches, head_key, self->address, 0, count);
                         }
                         else
                         if (head != NULL_SEQUENCE && head + 1 != sequence) {
                             uint32_t count = (uint32_t) (sequence - head);
-                            s_add_fetch (fetches, incoming_msg, self->address, subject, address, head + 1, count);
+                            s_add_fetch (fetches, head_key, self->address, head + 1, count);
                         }
                         else {
-                            // Saving to db
-                            size_t key_size = s_serialize_key (key, subject, address, sequence);
-                            leveldb_writebatch_put (batch, key, key_size, (const char *) zframe_data (content),
-                                                    zframe_size (content));
+                            // Saving msg to db
+                            dafka_msg_key_set (msg_key, subject, address, sequence);
+                            size_t msg_key_size;
+                            const char *msg_key_bytes = dafka_msg_key_encode (msg_key, &msg_key_size);
+                            leveldb_writebatch_put (batch,
+                                    msg_key_bytes, msg_key_size,
+                                    (const char *) zframe_data (content), zframe_size (content));
+
+                            // update the head
+                            char sequence_bytes[sizeof(uint64_t)];
+                            size_t sequence_size = uint64_put_be ((byte *) sequence_bytes, sequence);
+                            size_t head_key_size;
+                            const char *head_key_bytes = dafka_head_key_encode (head_key, &head_key_size);
+                            leveldb_writebatch_put (batch,
+                                    head_key_bytes, head_key_size,
+                                    sequence_bytes, sequence_size); // TODO; we might be override it multiple times in a batch
                             batch_size++;
 
-                            // Add the msg to the acks and send it after we save the batch
-                            dafka_proto_set_id (incoming_msg, DAFKA_PROTO_ACK);
-                            dafka_proto_set_topic (incoming_msg, address);
-                            dafka_proto_set_subject (incoming_msg, subject);
-                            dafka_proto_set_sequence (incoming_msg, sequence);
-                            s_put_head (acks, incoming_msg);
+                            // Update the head in the heads hash
+                            zhashx_update (heads, head_key, &sequence);
                         }
 
                         break;
@@ -500,16 +462,26 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
             leveldb_writebatch_destroy (batch);
 
             // Sending the acks now
-            for (dafka_proto_t *ack_msg = (dafka_proto_t *) zhashx_first (acks);
-                 ack_msg != NULL;
-                 ack_msg = (dafka_proto_t *) zhashx_next (acks)) {
-                dafka_proto_send (ack_msg, publisher);
+            dafka_proto_set_address (outgoint_msg, self->address);
+            for (uint64_t *head_p = (uint64_t *) zhashx_first (heads);
+                 head_p != NULL;
+                 head_p = (uint64_t *) zhashx_next (heads)) {
+
+                uint64_t head = *head_p;
+                dafka_head_key_t *current_head_key =
+                        (dafka_head_key_t *) zhashx_cursor (heads);
+
+                dafka_proto_set_id (outgoint_msg, DAFKA_PROTO_ACK);
+                dafka_proto_set_topic (outgoint_msg, dafka_head_key_address (current_head_key));
+                dafka_proto_set_subject (outgoint_msg, dafka_head_key_subject (current_head_key));
+                dafka_proto_set_sequence (outgoint_msg, head);
+                dafka_proto_send (outgoint_msg, publisher);
 
                 if (self->verbose)
                     zsys_info ("Store: Acked %s %s %" PRIu64,
-                               dafka_proto_subject (ack_msg),
-                               dafka_proto_topic (ack_msg),
-                               dafka_proto_sequence (ack_msg));
+                               dafka_head_key_subject (current_head_key),
+                               dafka_head_key_address (current_head_key),
+                               head);
             }
 
             // Sending the fetches now
@@ -527,7 +499,7 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
             }
 
             // Batch is done, clearing all the acks and fetches
-            zhashx_purge (acks);
+            zhashx_purge (heads);
             zhashx_purge (fetches);
 
             if (self->verbose && batch_size)
@@ -537,7 +509,7 @@ dafka_store_write_actor (zsock_t *pipe, dafka_store_t *self) {
 
     leveldb_writeoptions_destroy (woptions);
     leveldb_readoptions_destroy (roptions);
-    zhashx_destroy (&acks);
+    zhashx_destroy (&heads);
     zhashx_destroy (&fetches);
     dafka_proto_destroy (&incoming_msg);
     dafka_proto_destroy (&outgoint_msg);
