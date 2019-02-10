@@ -228,11 +228,8 @@ dafka_consumer_recv_sub (dafka_consumer_t *self)
                     zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
                     last_sequence_known = true;
                 }
-                else
-                    s_send_get_heads_msg (self, subject);
             }
 
-            //if (last_sequence_known) { TODO: Use once receiving answers to EARLIEST message
             //  Check if we missed some messages
             if (!last_sequence_known || current_sequence > last_known_sequence + 1)
                 s_send_fetch (self, subject, address, current_sequence, last_known_sequence);
@@ -244,7 +241,6 @@ dafka_consumer_recv_sub (dafka_consumer_t *self)
                 zhashx_update (self->sequence_index, sequence_key, &current_sequence);
                 zsock_bsend (self->pipe, "ssf", subject, address, content);
             }
-            //} TODO: Use once receiving answers to EARLIEST message
             break;
         }
         case DAFKA_PROTO_HEAD:
@@ -262,15 +258,11 @@ dafka_consumer_recv_sub (dafka_consumer_t *self)
                     zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
                     last_sequence_known = true;
                 }
-                else
-                    s_send_get_heads_msg (self, subject);
             }
 
-            //if (last_sequence_known) { TODO: Use once receiving answers to EARLIEST message
             //  Check if we missed some messages
             if (!last_sequence_known || current_sequence > last_known_sequence)
                 s_send_fetch (self, subject, address, current_sequence, last_known_sequence);
-            //} TODO: Use once receiving answers to EARLIEST message
 
             break;
         }
