@@ -129,7 +129,7 @@ dafka_head_key_encode (dafka_head_key_t *self, size_t *size_p) {
 }
 
 int
-dafka_head_key_decode (dafka_head_key_t *self, byte* buffer, size_t size) {
+dafka_head_key_decode (dafka_head_key_t *self, const byte* buffer, size_t size) {
     assert (self);
 
     if (size < 1 + 2)
@@ -168,6 +168,26 @@ dafka_head_key_cmp (const dafka_head_key_t *self, const dafka_head_key_t *other)
     }
     return r;
 }
+
+int
+dafka_head_key_iter (dafka_head_key_t *self, leveldb_iterator_t *iter) {
+    assert (self);
+    assert (iter);
+
+    size_t size;
+    const char* bytes = leveldb_iter_key (iter, &size);
+
+    return dafka_head_key_decode (self, (const byte *) bytes, size);
+}
+
+void
+dafka_head_key_iter_seek (dafka_head_key_t *self, leveldb_iterator_t *iter) {
+    assert (self);
+    assert (iter);
+
+    leveldb_iter_seek (iter, (const char *) self->buffer, self->buffer_size);
+}
+
 
 // Set hashx key functions, comparator, hasher, dup and destroy
 void
