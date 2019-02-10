@@ -23,6 +23,8 @@ src_libdafka_la_SOURCES = \
     src/dafka_proto.c \
     src/dafka_beacon.c \
     src/dafka_tower.c \
+    src/dafka_store_reader.c \
+    src/dafka_store_writer.c \
     src/dafka_store.c \
     src/platform.h
 

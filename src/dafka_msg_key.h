@@ -14,6 +14,8 @@
 #ifndef DAFKA_MSG_KEY_H_INCLUDED
 #define DAFKA_MSG_KEY_H_INCLUDED
 
+#include <leveldb/c.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,10 +51,16 @@ DAFKA_PRIVATE const char *
     dafka_msg_key_encode (dafka_msg_key_t *self, size_t *size_p);
 
 DAFKA_PRIVATE int
-    dafka_msg_key_decode (dafka_msg_key_t *self, byte* buffer, size_t size);
+    dafka_msg_key_decode (dafka_msg_key_t *self, const byte* buffer, size_t size);
 
 DAFKA_PRIVATE int
     dafka_msg_key_cmp (const dafka_msg_key_t *self, const dafka_msg_key_t *other);
+
+DAFKA_PRIVATE int
+    dafka_msg_key_iter (dafka_msg_key_t *self, leveldb_iterator_t *iter);
+
+DAFKA_PRIVATE void
+    dafka_msg_key_iter_seek (dafka_msg_key_t *self, leveldb_iterator_t *iter);
 
 // Set hashx key functions, comparator, hasher, dup and destroy
 DAFKA_PRIVATE void

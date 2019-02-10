@@ -39,12 +39,22 @@ typedef struct _dafka_head_key_t dafka_head_key_t;
 typedef struct _dafka_util_t dafka_util_t;
 #define DAFKA_UTIL_T_DEFINED
 #endif
+#ifndef DAFKA_STORE_READER_T_DEFINED
+typedef struct _dafka_store_reader_t dafka_store_reader_t;
+#define DAFKA_STORE_READER_T_DEFINED
+#endif
+#ifndef DAFKA_STORE_WRITER_T_DEFINED
+typedef struct _dafka_store_writer_t dafka_store_writer_t;
+#define DAFKA_STORE_WRITER_T_DEFINED
+#endif
 
 //  Internal API
 
 #include "dafka_msg_key.h"
 #include "dafka_head_key.h"
 #include "dafka_util.h"
+#include "dafka_store_reader.h"
+#include "dafka_store_writer.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DAFKA_BUILD_DRAFT_API
