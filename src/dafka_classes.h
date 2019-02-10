@@ -27,6 +27,14 @@
 //  Extra headers
 
 //  Opaque class structures to allow forward references
+#ifndef DAFKA_MSG_KEY_T_DEFINED
+typedef struct _dafka_msg_key_t dafka_msg_key_t;
+#define DAFKA_MSG_KEY_T_DEFINED
+#endif
+#ifndef DAFKA_HEAD_KEY_T_DEFINED
+typedef struct _dafka_head_key_t dafka_head_key_t;
+#define DAFKA_HEAD_KEY_T_DEFINED
+#endif
 #ifndef DAFKA_UTIL_T_DEFINED
 typedef struct _dafka_util_t dafka_util_t;
 #define DAFKA_UTIL_T_DEFINED
@@ -34,6 +42,8 @@ typedef struct _dafka_util_t dafka_util_t;
 
 //  Internal API
 
+#include "dafka_msg_key.h"
+#include "dafka_head_key.h"
 #include "dafka_util.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***

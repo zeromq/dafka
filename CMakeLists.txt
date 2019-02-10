@@ -192,6 +192,8 @@ set (dafka_headers
     include/dafka_beacon.h
     include/dafka_tower.h
     include/dafka_store.h
+    src/dafka_msg_key.h
+    src/dafka_head_key.h
     src/dafka_util.h
 )
 
@@ -205,6 +207,8 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_msg_key.c
+    src/dafka_head_key.c
     src/dafka_consumer_msg.c
     src/dafka_producer_msg.c
     src/dafka_producer.c
