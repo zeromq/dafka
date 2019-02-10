@@ -149,6 +149,15 @@ void
 dafka_store_test (bool verbose) {
     printf (" * dafka_store: ");
     //  @selftest
+    // ----------------------------------------------------
+    //  Cleanup old test artifacts
+    // ----------------------------------------------------
+    if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
+        zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+        zdir_remove (store_dir, true);
+        zdir_destroy (&store_dir);
+    }
+
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
@@ -211,6 +220,13 @@ dafka_store_test (bool verbose) {
     zactor_destroy (&store);
     zactor_destroy (&tower);
     zconfig_destroy (&config);
+
+    // ----------------------------------------------------
+    //  Cleanup test artifacts
+    // ----------------------------------------------------
+    zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+    zdir_remove (store_dir, true);
+    zdir_destroy (&store_dir);
     //  @end
 
     printf ("OK\n");
