@@ -29,7 +29,10 @@
     <constant name = "head" value = "'H'" >
 
     </constant>
-    <constant name = "earliest" value = "'E'" >
+    <constant name = "direct_head" value = "'E'" >
+
+    </constant>
+    <constant name = "get_heads" value = "'G'" >
 
     </constant>
 

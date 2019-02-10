@@ -43,7 +43,11 @@ EXTRA_DIST += \
 endif
 
 EXTRA_DIST += \
+    src/dafka_msg_key.h \
+    src/dafka_head_key.h \
     src/dafka_util.h \
+    src/dafka_store_reader.h \
+    src/dafka_store_writer.h \
     LICENSE \
     README.txt \
     README.md \

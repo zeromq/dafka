@@ -192,7 +192,11 @@ set (dafka_headers
     include/dafka_beacon.h
     include/dafka_tower.h
     include/dafka_store.h
+    src/dafka_msg_key.h
+    src/dafka_head_key.h
     src/dafka_util.h
+    src/dafka_store_reader.h
+    src/dafka_store_writer.h
 )
 
 source_group ("Header Files" FILES ${dafka_headers})
@@ -205,6 +209,8 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_msg_key.c
+    src/dafka_head_key.c
     src/dafka_consumer_msg.c
     src/dafka_producer_msg.c
     src/dafka_producer.c
@@ -213,6 +219,8 @@ set (dafka_sources
     src/dafka_proto.c
     src/dafka_beacon.c
     src/dafka_tower.c
+    src/dafka_store_reader.c
+    src/dafka_store_writer.c
     src/dafka_store.c
 )
 IF (ENABLE_DRAFTS)
