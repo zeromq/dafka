@@ -180,14 +180,19 @@ dafka_store_test (bool verbose) {
 
     // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
-    zclock_sleep (2000);
+    zclock_sleep (100);
 
     // Producing another message
     dafka_producer_msg_set_content_str (p_msg, "3");
     dafka_producer_msg_send (p_msg, producer);
+    zclock_sleep (100);
+
+    // Killing the producer, to make sure the HEADs are coming from the store
+    zactor_destroy (&producer);
 
     // Starting a consumer and check that consumer recv all 3 messages
     zactor_t *consumer = zactor_new (dafka_consumer, config);
+    zclock_sleep (1000);
     dafka_consumer_subscribe (consumer, "TEST");
 
     dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
@@ -200,11 +205,9 @@ dafka_store_test (bool verbose) {
     dafka_consumer_msg_recv (c_msg, consumer);
     assert (dafka_consumer_msg_streq (c_msg, "3"));
 
-
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&consumer);
     dafka_producer_msg_destroy (&p_msg);
-    zactor_destroy (&producer);
     zactor_destroy (&store);
     zactor_destroy (&tower);
     zconfig_destroy (&config);

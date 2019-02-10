@@ -43,7 +43,7 @@ struct _dafka_consumer_t {
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
     dafka_proto_t *fetch_msg;   // Reusable fetch message
-    dafka_proto_t *earlist_msg; // Reusable earliest message
+    dafka_proto_t *get_heads_msg; // Reusable get heads message
     zactor_t* beacon;           // Beacon actor
     bool reset_latest;          // Wheather to process records from earliest or latest
 };
@@ -78,15 +78,16 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     assert (port != -1);
 
     zuuid_t *consumer_address = zuuid_new ();
-    self->earlist_msg = dafka_proto_new ();
-    dafka_proto_set_id (self->earlist_msg, DAFKA_PROTO_EARLIEST);
-    dafka_proto_set_address (self->earlist_msg, zuuid_str (consumer_address));
+    self->get_heads_msg = dafka_proto_new ();
+    dafka_proto_set_id (self->get_heads_msg, DAFKA_PROTO_GET_HEADS);
+    dafka_proto_set_address (self->get_heads_msg, zuuid_str (consumer_address));
 
     self->fetch_msg = dafka_proto_new ();
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
 
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_MSG, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_HEAD, zuuid_str (consumer_address));
 
     dafka_beacon_args_t beacon_args = {"Consumer", config};
     self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
@@ -115,7 +116,7 @@ dafka_consumer_destroy (dafka_consumer_t **self_p)
         zsock_destroy (&self->consumer_pub);
 
         dafka_proto_destroy (&self->consumer_msg);
-        dafka_proto_destroy (&self->earlist_msg);
+        dafka_proto_destroy (&self->get_heads_msg);
         dafka_proto_destroy (&self->fetch_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
@@ -143,10 +144,10 @@ s_subscribe (dafka_consumer_t *self, const char *topic)
 
     if (!self->reset_latest) {
         if (self->verbose)
-            zsys_debug ("Consumer: Send EARLIEST message for topic %s", topic);
+            zsys_debug ("Consumer: Send GET HEADS message for topic %s", topic);
 
-        dafka_proto_set_topic (self->earlist_msg, topic);
-        dafka_proto_send (self->earlist_msg, self->consumer_pub);
+        dafka_proto_set_topic (self->get_heads_msg, topic);
+        dafka_proto_send (self->get_heads_msg, self->consumer_pub);
     }
 }
 
@@ -171,7 +172,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
         subject = dafka_proto_subject (self->consumer_msg);
     }
     else
-    if (id == DAFKA_PROTO_HEAD) {
+    if (id == DAFKA_PROTO_HEAD || id == DAFKA_PROTO_DIRECT_HEAD) {
         address = dafka_proto_address (self->consumer_msg);
         subject = dafka_proto_subject (self->consumer_msg);
     }
@@ -206,7 +207,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
             // Set to latest - 1 in order to process the current message
             last_known_sequence = msg_sequence - 1;
         else
-        if (id == DAFKA_PROTO_HEAD)
+        if (id == DAFKA_PROTO_HEAD || id == DAFKA_PROTO_DIRECT_HEAD)
             // Set to latest in order to skip fetching older messages
             last_known_sequence = msg_sequence;
 
@@ -215,7 +216,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
 
     // TODO: I'm so ugly and complicated please make me pretty
     if (((id == DAFKA_PROTO_MSG || id == DAFKA_PROTO_DIRECT_MSG) && (!last_known || msg_sequence > last_known_sequence + 1)) ||
-        (id == DAFKA_PROTO_HEAD && (!last_known || msg_sequence > last_known_sequence))) {
+        ((id == DAFKA_PROTO_HEAD || id == DAFKA_PROTO_DIRECT_HEAD) && (!last_known || msg_sequence > last_known_sequence))) {
         uint64_t no_of_missed_messages = msg_sequence - last_known_sequence;
         if (self->verbose)
             zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",

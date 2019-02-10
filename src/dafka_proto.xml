@@ -54,7 +54,13 @@
         <field name = "sequence" type = "number" size = "8" />
     </message>
 
-    <message name = "EARLIEST" id = "'E'">
+    <message name = "DIRECT HEAD" id = "'E'">
+        <field name = "subject" type = "string" />
+        <field name = "address" type = "string" />
+        <field name = "sequence" type = "number" size = "8" />
+    </message>
+
+    <message name = "GET HEADS" id = "'G'">
         <field name = "address" type = "string" />
     </message>
 

@@ -42,6 +42,7 @@ struct _dafka_store_reader_t {
     dafka_msg_key_t *first_key;
     dafka_msg_key_t *iter_key;
     dafka_msg_key_t *last_key;
+    dafka_head_key_t *head_key;
 };
 
 
@@ -70,9 +71,10 @@ dafka_store_reader_new (zsock_t *pipe, const char* writer_address, leveldb_t *db
     self->publisher = zsock_new_pub (NULL);
     int port = zsock_bind (self->publisher, "tcp://*:*");
 
-    //  Create the subscriber and subscribe for fetch messages
+    //  Create the subscriber and subscribe for fetch & get heads messages
     self->subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_FETCH, "");
+    dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_GET_HEADS, "");
 
     //  Create and start the beaconing
     dafka_beacon_args_t beacon_args = {"Store Reader", config};
@@ -85,6 +87,7 @@ dafka_store_reader_new (zsock_t *pipe, const char* writer_address, leveldb_t *db
     self->first_key = dafka_msg_key_new ();
     self->iter_key = dafka_msg_key_new ();
     self->last_key = dafka_msg_key_new ();
+    self->head_key = dafka_head_key_new ();
 
     self->poller = zpoller_new (self->pipe, self->subscriber, self->beacon, self->publisher, NULL);
 
@@ -103,6 +106,7 @@ dafka_store_reader_destroy (dafka_store_reader_t **self_p)
         dafka_store_reader_t *self = *self_p;
 
         zpoller_destroy (&self->poller);
+        dafka_head_key_destroy (&self->head_key);
         dafka_msg_key_destroy (&self->last_key);
         dafka_msg_key_destroy (&self->iter_key);
         dafka_msg_key_destroy (&self->first_key);
@@ -148,10 +152,6 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
         return;
 
     const char *sender = dafka_proto_address (self->incoming_msg);
-    const char *subject = dafka_proto_subject (self->incoming_msg);;
-    const char *address = dafka_proto_topic (self->incoming_msg);
-    uint64_t sequence = dafka_proto_sequence (self->incoming_msg);
-    uint32_t count = dafka_proto_count (self->incoming_msg);
 
     // Ignore messages from the write actor
     if (streq (sender, self->writer_address))
@@ -160,70 +160,130 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
     const leveldb_snapshot_t *snapshot = leveldb_create_snapshot (self->db);
     leveldb_readoptions_t *roptions = leveldb_readoptions_create ();
     leveldb_readoptions_set_snapshot (roptions, snapshot);
-
-    //  Search the first message
     leveldb_iterator_t *iter = leveldb_create_iterator (self->db, roptions);
-    dafka_msg_key_set (self->first_key, subject, address, sequence);
-    dafka_msg_key_iter_seek (self->first_key, iter);
 
-    if (!leveldb_iter_valid (iter)) {
-        if (self->verbose)
-            zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
-                       subject, address, sequence);
+    switch (dafka_proto_id (self->incoming_msg)) {
+        case DAFKA_PROTO_FETCH: {
 
-        leveldb_iter_destroy (iter);
-        leveldb_readoptions_destroy (roptions);
-        leveldb_release_snapshot (self->db, snapshot);
+            const char *subject = dafka_proto_subject (self->incoming_msg);;
+            const char *address = dafka_proto_topic (self->incoming_msg);
+            uint64_t sequence = dafka_proto_sequence (self->incoming_msg);
+            uint32_t count = dafka_proto_count (self->incoming_msg);
 
-        return;
-    }
+            //  Search the first message
+            dafka_msg_key_set (self->first_key, subject, address, sequence);
+            dafka_msg_key_iter_seek (self->first_key, iter);
 
-    // For now we only sending from what the user requested, so if the sequence at the
-    // beginning doesn't match, don't send anything
-    // TODO: mark the first message as tail
-    dafka_msg_key_iter (self->iter_key, iter);
-    if (dafka_msg_key_cmp (self->first_key, self->iter_key) != 0) {
-        if (self->verbose)
-            zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
-                       subject, address, sequence);
+            if (!leveldb_iter_valid (iter)) {
+                if (self->verbose)
+                    zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
+                               subject, address, sequence);
 
-        leveldb_iter_destroy (iter);
-        leveldb_readoptions_destroy (roptions);
-        leveldb_release_snapshot (self->db, snapshot);
+                leveldb_iter_destroy (iter);
+                leveldb_readoptions_destroy (roptions);
+                leveldb_release_snapshot (self->db, snapshot);
 
-        return;
-    }
+                return;
+            }
 
-    dafka_msg_key_set (self->last_key, subject, address, sequence + count);
+            // For now we only sending from what the user requested, so if the sequence at the
+            // beginning doesn't match, don't send anything
+            // TODO: mark the first message as tail
+            dafka_msg_key_iter (self->iter_key, iter);
+            if (dafka_msg_key_cmp (self->first_key, self->iter_key) != 0) {
+                if (self->verbose)
+                    zsys_info ("Store: no answer for consumer. Subject: %s, Address: %s, Seq: %" PRIu64,
+                               subject, address, sequence);
 
-    dafka_proto_set_topic (self->outgoing_msg, sender);
-    dafka_proto_set_subject (self->outgoing_msg, subject);
-    dafka_proto_set_address (self->outgoing_msg, address);
-    dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_MSG);
+                leveldb_iter_destroy (iter);
+                leveldb_readoptions_destroy (roptions);
+                leveldb_release_snapshot (self->db, snapshot);
 
-    while (dafka_msg_key_cmp (self->iter_key, self->last_key) <= 0) {
-        size_t content_size;
-        const char *content = leveldb_iter_value (iter, &content_size);
-        zframe_t *frame = zframe_new (content, content_size);
+                return;
+            }
 
-        uint64_t iter_sequence = dafka_msg_key_sequence (self->iter_key);
+            dafka_msg_key_set (self->last_key, subject, address, sequence + count);
 
-        dafka_proto_set_sequence (self->outgoing_msg, iter_sequence);
-        dafka_proto_set_content (self->outgoing_msg, &frame);
-        dafka_proto_send (self->outgoing_msg, self->publisher);
+            dafka_proto_set_topic (self->outgoing_msg, sender);
+            dafka_proto_set_subject (self->outgoing_msg, subject);
+            dafka_proto_set_address (self->outgoing_msg, address);
+            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_MSG);
 
-        if (self->verbose)
-            zsys_info ("Store: found answer for consumer. Subject: %s, Partition: %s, Seq: %lu",
-                       subject, address, iter_sequence);
+            while (dafka_msg_key_cmp (self->iter_key, self->last_key) <= 0) {
+                size_t content_size;
+                const char *content = leveldb_iter_value (iter, &content_size);
+                zframe_t *frame = zframe_new (content, content_size);
 
-        leveldb_iter_next (iter);
+                uint64_t iter_sequence = dafka_msg_key_sequence (self->iter_key);
 
-        if (!leveldb_iter_valid (iter))
+                dafka_proto_set_sequence (self->outgoing_msg, iter_sequence);
+                dafka_proto_set_content (self->outgoing_msg, &frame);
+                dafka_proto_send (self->outgoing_msg, self->publisher);
+
+                if (self->verbose)
+                    zsys_info ("Store: found answer for consumer. Subject: %s, Partition: %s, Seq: %lu",
+                               subject, address, iter_sequence);
+
+                leveldb_iter_next (iter);
+
+                if (!leveldb_iter_valid (iter))
+                    break;
+
+                //  Get the next key, if it not a valid key (different table), break the loop
+                if (dafka_msg_key_iter (self->iter_key, iter) == -1)
+                    break;
+            }
             break;
+        }
+        case DAFKA_PROTO_GET_HEADS: {
+            const char *subject = dafka_proto_topic (self->incoming_msg);
 
-        //  Get the next key, if it not a valid key (different table), break the loop
-        if (dafka_msg_key_iter (self->iter_key, iter) == -1)
+            dafka_head_key_set (self->head_key, subject, "");
+            dafka_head_key_iter_seek (self->head_key, iter);
+
+            if (!leveldb_iter_valid (iter)) {
+                if (self->verbose)
+                    zsys_info ("Store Reader: No heads for subject %s", subject);
+
+                leveldb_iter_destroy (iter);
+                leveldb_readoptions_destroy (roptions);
+                leveldb_release_snapshot (self->db, snapshot);
+                return;
+            }
+
+            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_HEAD);
+            dafka_proto_set_topic (self->outgoing_msg, sender);
+
+            rc = dafka_head_key_iter (self->head_key, iter);
+            while (rc == 0 && str_start_with (subject, dafka_head_key_subject (self->head_key))) {
+                size_t sequence_size;
+                const char* sequence_bytes = leveldb_iter_value (iter, &sequence_size);
+                uint64_t sequence;
+                uint64_get_be ((const byte*) sequence_bytes, &sequence);
+
+                dafka_proto_set_subject (self->outgoing_msg, dafka_head_key_subject (self->head_key));
+                dafka_proto_set_address (self->outgoing_msg, dafka_head_key_address (self->head_key));
+                dafka_proto_set_sequence (self->outgoing_msg, sequence);
+                dafka_proto_send (self->outgoing_msg, self->publisher);
+
+                if (self->verbose)
+                    zsys_info ("Store Reader: Found head answer to consumer %s %s %lu",
+                            dafka_head_key_subject (self->head_key),
+                            dafka_head_key_address (self->head_key),
+                            sequence);
+
+                leveldb_iter_next (iter);
+                if (!leveldb_iter_valid (iter))
+                    break;
+
+                rc = dafka_head_key_iter (self->head_key, iter);
+            }
+
+
             break;
+        }
+        default:
+            assert (false);
     }
 
     leveldb_iter_destroy (iter);
