@@ -22,6 +22,8 @@
 
     <actor name = "dafka_beacon" state = "stable" />
     <actor name = "dafka_tower" state = "stable" />
+    <actor name = "dafka_store_reader" private = "1" selftest = "0" />
+    <actor name = "dafka_store_writer" private = "1" selftest = "0" />
     <actor name = "dafka_store" state = "stable" />
 
     <class name = "dafka_msg_key" private = "1" selftest = "0" />

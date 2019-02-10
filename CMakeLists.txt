@@ -195,6 +195,8 @@ set (dafka_headers
     src/dafka_msg_key.h
     src/dafka_head_key.h
     src/dafka_util.h
+    src/dafka_store_reader.h
+    src/dafka_store_writer.h
 )
 
 source_group ("Header Files" FILES ${dafka_headers})
@@ -217,6 +219,8 @@ set (dafka_sources
     src/dafka_proto.c
     src/dafka_beacon.c
     src/dafka_tower.c
+    src/dafka_store_reader.c
+    src/dafka_store_writer.c
     src/dafka_store.c
 )
 IF (ENABLE_DRAFTS)
