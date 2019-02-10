@@ -179,11 +179,7 @@ dafka_consumer_recv_subscriptions (dafka_consumer_t *self)
     else
         return;     // Unexpected message id
 
-    // TODO: Extract into struct and/or add zstr_concat
-    char *sequence_key = (char *) malloc (strlen (address) + strlen (subject) + 2);
-    strcpy (sequence_key, subject);
-    strcat (sequence_key, "/");
-    strcat (sequence_key, address);
+    char *sequence_key = zsys_sprintf ("%s/%s", subject, address);
 
     if (self->verbose)
         zsys_debug ("Consumer: Received message %c from %s on subject %s with sequence %u",
