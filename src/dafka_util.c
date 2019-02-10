@@ -96,6 +96,15 @@ uint64_get_be (const byte* input, uint64_t *value) {
     return 8;
 }
 
+bool str_start_with (const char *pre, const char *str)
+{
+    size_t pre_len = strlen(pre);
+    size_t str_len = strlen(str);
+
+    return str_len < pre_len ? false : strncmp(pre, str, pre_len) == 0;
+}
+
+
 void
 dafka_util_test (bool verbose) {
 
