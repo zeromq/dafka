@@ -90,6 +90,10 @@ DAFKA_EXPORT void
 DAFKA_EXPORT void
     dafka_proto_unsubscribe (zsock_t *sub, char id, const char *topic);
 
+//  Get whether the last subscription received on XPUB socket was of type subscribe.
+DAFKA_EXPORT bool
+    dafka_proto_is_subscribe (dafka_proto_t *self);
+
 //  Get the dafka_proto message id
 DAFKA_EXPORT char
     dafka_proto_id (dafka_proto_t *self);

@@ -82,11 +82,13 @@ dafka_store_writer_new (zsock_t *pipe, const char* address, leveldb_t *db, zconf
     // Create the direct subscriber and subscribe to direct messaging
     self->direct_subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (self->direct_subscriber, DAFKA_PROTO_DIRECT_MSG, self->address);
+    zsock_set_rcvhwm (self->direct_subscriber, 100000); // TODO: should be configurable, now it is the same is fetch max count
 
     //  Create the msg subscriber and subscribe to msg and head
     self->msg_subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_MSG, "");
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_HEAD, "");
+    zsock_set_rcvhwm (self->msg_subscriber, 100000); // TODO: should be configurable
 
     //  Create and start the beaconing
     dafka_beacon_args_t beacon_args = {"Store Writer", config};
@@ -205,6 +207,9 @@ static void dafka_store_writer_add_fetch (dafka_store_writer_t *self,
         zhashx_insert (fetches, self->head_key, msg);
     }
 
+    if (count > 100000)
+        count = 100000;
+
     dafka_proto_set_sequence (msg, sequence);
     dafka_proto_set_count (msg, count);
 }
@@ -289,7 +294,7 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
 
                 if (head != NULL_SEQUENCE && sequence <= head) {
                     if (self->verbose)
-                        zsys_debug ("Store: head at % "PRIu64 "dropping already received message %s %s %" PRIu64,
+                        zsys_debug ("Store: head at % "PRIu64 " dropping already received message %s %s %" PRIu64,
                                     head, subject, address, sequence);
                 }
                 else
@@ -360,21 +365,44 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
     for (dafka_proto_t *fetch_msg = (dafka_proto_t *) zhashx_first (fetches);
          fetch_msg != NULL;
          fetch_msg = (dafka_proto_t *) zhashx_next (fetches)) {
-        dafka_proto_send (fetch_msg, self->publisher);
 
-        if (self->verbose)
-            zsys_info ("Store: Fetching %d from %s %s %" PRIu64,
-                       dafka_proto_count (fetch_msg),
-                       dafka_proto_subject (fetch_msg),
-                       dafka_proto_topic (fetch_msg),
-                       dafka_proto_sequence (fetch_msg));
+        bool fetch = true;
+
+        // Checking if the fetch is still needed according to the recent head
+        uint64_t *head_p = zhashx_lookup (self->heads, (dafka_head_key_t *) zhashx_cursor (fetches));
+        if (head_p) {
+            uint64_t head = *head_p;
+            uint64_t sequence = dafka_proto_sequence (fetch_msg);
+            uint32_t count = dafka_proto_count (fetch_msg);
+
+            if (head >= sequence + count) {
+                fetch = false;
+            }
+            else
+            if (head > sequence) {
+                // We can change the sequence and count
+                dafka_proto_set_sequence (fetch_msg, head);
+                dafka_proto_set_count (fetch_msg, count - ((uint32_t )(head - sequence)));
+            }
+        }
+
+        if (fetch) {
+            dafka_proto_send (fetch_msg, self->publisher);
+
+            if (self->verbose)
+                zsys_info ("Store: Fetching %d from %s %s %" PRIu64,
+                           dafka_proto_count (fetch_msg),
+                           dafka_proto_subject (fetch_msg),
+                           dafka_proto_topic (fetch_msg),
+                           dafka_proto_sequence (fetch_msg));
+        }
     }
 
     // Batch is done, clearing all the acks and fetches
     zhashx_destroy (&acks);
     zhashx_destroy (&fetches);
 
-    if (self->verbose && batch_size)
+    if (self->verbose)
         zsys_info ("Store: Saved batch of %d", batch_size);
 }
 

@@ -111,6 +111,11 @@
     <argument name = "topic" type = "string" />
 </method>
 
+<method name = "is subscribe">
+    Get whether the last subscription received on XPUB socket was of type subscribe.
+    <return type = "boolean" />
+</method>
+
 <method name = "id">
     Get the dafka_proto message id
     <return type = "char" />

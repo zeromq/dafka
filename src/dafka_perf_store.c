@@ -81,6 +81,8 @@ void subscriber_actor (zsock_t *pipe, subscriber_args *args) {
 
 int main (int argc, char *argv [])
 {
+    zsys_set_sndhwm (100000);
+
     zargs_t *args = zargs_new (argc, argv);
 
     if (zargs_hasx (args, "--help", "-h", NULL) || zargs_arguments (args) != 2) {
@@ -131,6 +133,8 @@ int main (int argc, char *argv [])
         dafka_producer_msg_init_content (msg, (size_t) size);
         dafka_producer_msg_send (msg, producer);
     }
+
+    printf ("Done publishing\n");
 
     // Now waiting for the subscriber confirmation
     zsock_wait (subscriber);
