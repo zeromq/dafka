@@ -40,12 +40,14 @@ struct _dafka_consumer_t {
     dafka_proto_t *consumer_msg;// Reusable consumer message
 
     zsock_t *consumer_pub;      // Publisher to ask for missed messages
+    dafka_proto_t *pub_msg;     // Reusable message for receiving xpub subscriptions
     zhashx_t *sequence_index;   // Index containing the latest sequence for each
                                 // known publisher
     dafka_proto_t *fetch_msg;   // Reusable fetch message
     dafka_proto_t *get_heads_msg; // Reusable get heads message
     zactor_t* beacon;           // Beacon actor
     bool reset_latest;          // Wheather to process records from earliest or latest
+    zlist_t *topics;            // List of topics the consumer is subscribed for
 };
 
 //  --------------------------------------------------------------------------
@@ -73,9 +75,11 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     zhashx_set_destructor(self->sequence_index, uint64_destroy);
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
 
-    self->consumer_pub = zsock_new_pub (NULL);
+    self->consumer_pub = zsock_new_xpub (NULL);
+    zsock_set_xpub_verbose (self->consumer_pub, 1);
     int port = zsock_bind (self->consumer_pub, "tcp://*:*");
     assert (port != -1);
+    self->pub_msg = dafka_proto_new ();
 
     zuuid_t *consumer_address = zuuid_new ();
     self->get_heads_msg = dafka_proto_new ();
@@ -94,7 +98,10 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config)
     zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
     zuuid_destroy(&consumer_address);
 
-    self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, NULL);
+    self->topics = zlist_new ();
+    zlist_autofree (self->topics);
+
+    self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, self->consumer_pub, NULL);
 
     return self;
 }
@@ -112,12 +119,14 @@ dafka_consumer_destroy (dafka_consumer_t **self_p)
 
         //  Free class properties
         zpoller_destroy (&self->poller);
+        zlist_destroy (&self->topics);
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
 
         dafka_proto_destroy (&self->consumer_msg);
         dafka_proto_destroy (&self->get_heads_msg);
         dafka_proto_destroy (&self->fetch_msg);
+        dafka_proto_destroy (&self->pub_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
 
@@ -183,6 +192,8 @@ s_subscribe (dafka_consumer_t *self, const char *topic)
 
     if (!self->reset_latest)
         s_send_get_heads_msg (self, topic);
+
+    zlist_append (self->topics, (void*) topic);
 }
 
 
@@ -302,6 +313,31 @@ dafka_consumer_recv_api (dafka_consumer_t *self)
     zmsg_destroy (&request);
 }
 
+// Here we handle subscriptions from xpub
+
+static void
+dafka_consumer_recv_pub (dafka_consumer_t *self) {
+    int rc = dafka_proto_recv (self->pub_msg, self->consumer_pub);
+    if (rc == -1)
+        return;
+
+    // If a store just subscribed for GET HEADS we will issue a new get heads message
+    if (dafka_proto_id (self->pub_msg) == DAFKA_PROTO_GET_HEADS &&
+        dafka_proto_is_subscribe (self->pub_msg)) {
+
+        if (self->verbose)
+            zsys_info ("Consumer: connected to store");
+
+        if (!self->reset_latest) {
+            for (const char *topic = (const char *) zlist_first (self->topics);
+                 topic != NULL;
+                 topic = (const char *) zlist_next (self->topics)) {
+                s_send_get_heads_msg (self, topic);
+            }
+        }
+    }
+}
+
 
 //  --------------------------------------------------------------------------
 //  This is the actor which runs in its own thread.
@@ -327,6 +363,8 @@ dafka_consumer (zsock_t *pipe, void *args)
             dafka_consumer_recv_sub (self);
         if (which == self->beacon)
             dafka_beacon_recv (self->beacon, self->consumer_sub, self->verbose, "Consumer");
+        if (which == self->consumer_pub)
+            dafka_consumer_recv_pub (self);
     }
     bool verbose = self->verbose;
     dafka_consumer_destroy (&self);

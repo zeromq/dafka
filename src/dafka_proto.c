@@ -35,6 +35,7 @@ struct _dafka_proto_t {
     zframe_t *routing_id;               //  Routing_id from ROUTER, if any
     char id;                            //  dafka_proto message ID
     char *topic;                        //  Topic to send and receive over pub/sub
+    bool is_subscribe;                  //  Indicate if it a subscribe or unsubscribe command
     byte *needle;                       //  Read/write pointer for serialization
     byte *ceiling;                      //  Valid upper limit for read pointer
     char subject [256];                 //  subject
@@ -335,7 +336,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -343,7 +344,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             {
             char *es = NULL;
@@ -391,7 +392,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -399,7 +400,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             {
             char *es = NULL;
@@ -447,7 +448,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *es = NULL;
@@ -487,7 +488,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             break;
         case DAFKA_PROTO_ACK:
@@ -503,7 +504,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *es = NULL;
@@ -535,7 +536,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -543,7 +544,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             {
             char *es = NULL;
@@ -575,7 +576,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->subject, s, 255);
+            strncpy (self->subject, s, 256);
             }
             {
             char *s = zconfig_get (content, "address", NULL);
@@ -583,7 +584,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             {
             char *es = NULL;
@@ -615,7 +616,7 @@ dafka_proto_t *
                 dafka_proto_destroy (&self);
                 return NULL;
             }
-            strncpy (self->address, s, 255);
+            strncpy (self->address, s, 256);
             }
             break;
     }
@@ -703,13 +704,27 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
         rc = -1;                //  Interrupted
         goto malformed;
     }
-    //  Get and check protocol signature
     self->needle = (byte *) zmq_msg_data (&frame);
     self->ceiling = self->needle + zmq_msg_size (&frame);
 
+    if (zsock_type (input) == ZMQ_XPUB) {
+        byte is_subscribe;
+        GET_NUMBER1 (is_subscribe);
+        self->is_subscribe = is_subscribe == 1;
+        GET_NUMBER1 (self->id);
+        zstr_free (&self->topic);
+        size_t topic_size = self->ceiling - self->needle;
+        self->topic = (char *) malloc (topic_size + 1);
+        memcpy (self->topic, self->needle, topic_size);
+        self->needle += topic_size;
+        *self->needle = '0';
+        zmq_msg_close (&frame);
+        return rc;
+    }
+
     GET_NUMBER1 (self->id);
     zstr_free (&self->topic);
-    size_t topic_size = strnlen ((char *) self->needle, self->ceiling - self->needle - 1);
+    size_t topic_size = strnlen (self->needle, self->ceiling - self->needle - 1);
     self->topic = (char *) malloc (topic_size + 1);
     memcpy (self->topic, self->needle, topic_size + 1);
     self->needle += topic_size + 1;
@@ -1248,6 +1263,15 @@ dafka_proto_unsubscribe (zsock_t *sub, char id, const char *topic) {
     char* subscription = zsys_sprintf ("%c%s", id, topic);
     zsock_set_unsubscribe (sub, subscription);
     zstr_free (&subscription);
+}
+
+//  --------------------------------------------------------------------------
+//  Get the type of subscription received from a XPUB socket
+
+bool
+dafka_proto_is_subscribe (dafka_proto_t *self) {
+    assert (self);
+    return self->is_subscribe;
 }
 
 //  --------------------------------------------------------------------------
