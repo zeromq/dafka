@@ -64,4 +64,13 @@
         <field name = "address" type = "string" />
     </message>
 
+    <message name = "CONSUMER HELLO" id = "'W'">
+        <field name = "address" type = "string" />
+        <field name = "subjects" type = "strings" />
+    </message>
+
+    <message name = "STORE HELLO" id = "'L'">
+        <field name = "address" type = "string" />
+    </message>
+
 </class>
