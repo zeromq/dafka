@@ -35,6 +35,12 @@
     <constant name = "get_heads" value = "'G'" >
 
     </constant>
+    <constant name = "consumer_hello" value = "'W'" >
+
+    </constant>
+    <constant name = "store_hello" value = "'L'" >
+
+    </constant>
 
 <constructor>
     Create a new empty dafka_proto
@@ -174,5 +180,17 @@
 <method name = "set count">
     Set the count field
     <argument name = "count" type = "number" size = "4" />
+</method>
+<method name = "subjects">
+    Get the subjects field
+    <return type = "zlist" />
+</method>
+<method name = "get subjects">
+    Get the subjects field and transfer ownership to caller
+    <return type = "zlist" />
+</method>
+<method name = "set subjects">
+    Set the subjects field
+    <argument name = "subjects_p" type = "zlist" by_reference = "1" />
 </method>
 </class>

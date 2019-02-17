@@ -201,7 +201,6 @@ dafka_store_test (bool verbose) {
 
     // Starting a consumer and check that consumer recv all 3 messages
     zactor_t *consumer = zactor_new (dafka_consumer, config);
-    zclock_sleep (1000);
     dafka_consumer_subscribe (consumer, "TEST");
 
     dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
