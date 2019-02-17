@@ -30,6 +30,8 @@ extern "C" {
 #define DAFKA_PROTO_HEAD 'H'                 //
 #define DAFKA_PROTO_DIRECT_HEAD 'E'          //
 #define DAFKA_PROTO_GET_HEADS 'G'            //
+#define DAFKA_PROTO_CONSUMER_HELLO 'W'       //
+#define DAFKA_PROTO_STORE_HELLO 'L'          //
 
 //  Create a new empty dafka_proto
 DAFKA_EXPORT dafka_proto_t *
@@ -149,6 +151,18 @@ DAFKA_EXPORT uint32_t
 //  Set the count field
 DAFKA_EXPORT void
     dafka_proto_set_count (dafka_proto_t *self, uint32_t count);
+
+//  Get the subjects field
+DAFKA_EXPORT zlist_t *
+    dafka_proto_subjects (dafka_proto_t *self);
+
+//  Get the subjects field and transfer ownership to caller
+DAFKA_EXPORT zlist_t *
+    dafka_proto_get_subjects (dafka_proto_t *self);
+
+//  Set the subjects field
+DAFKA_EXPORT void
+    dafka_proto_set_subjects (dafka_proto_t *self, zlist_t **subjects_p);
 
 //  Self test of this class.
 DAFKA_EXPORT void

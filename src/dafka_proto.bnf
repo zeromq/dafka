@@ -1,6 +1,6 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | DIRECT-MSG | FETCH | ACK | HEAD | DIRECT-HEAD | GET-HEADS )
+    dafka_proto     = *( MSG | DIRECT-MSG | FETCH | ACK | HEAD | DIRECT-HEAD | GET-HEADS | CONSUMER-HELLO | STORE-HELLO )
 
     ;  Message from producer to consumers. The topic is either the subject or
     ;  recipient address.
@@ -57,11 +57,28 @@ The following ABNF grammar defines the dafka_proto:
     GET-HEADS       = signature %d'g' address
     address         = string                ;
 
+    ;  No description
+
+    CONSUMER-HELLO  = signature %d'w' address subjects
+    address         = string                ;
+    subjects        = strings               ;
+
+    ;  No description
+
+    STORE-HELLO     = signature %d'l' address
+    address         = string                ;
+
+    ; A list of string values
+    strings         = strings-count *strings-value
+    strings-count   = number-4
+    strings-value   = longstr
+
     ; A frame is zero or more octets encoded as a ZeroMQ frame
     frame           = *OCTET
 
     ; Strings are always length + text contents
     string          = number-1 *VCHAR
+    longstr         = number-4 *VCHAR
 
     ; Numbers are unsigned integers in network byte order
     number-1        = 1OCTET
