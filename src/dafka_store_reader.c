@@ -68,13 +68,15 @@ dafka_store_reader_new (zsock_t *pipe, const char* writer_address, leveldb_t *db
     self->address = generate_address ();
 
     //  Create and bind publisher
-    self->publisher = zsock_new_pub (NULL);
+    self->publisher = zsock_new_xpub (NULL);
+    zsock_set_xpub_verbose (self->publisher, 1);
     int port = zsock_bind (self->publisher, "tcp://*:*");
 
     //  Create the subscriber and subscribe for fetch & get heads messages
     self->subscriber = zsock_new_sub (NULL, NULL);
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_FETCH, "");
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_GET_HEADS, "");
+    dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_CONSUMER_HELLO, self->address);
 
     //  Create and start the beaconing
     dafka_beacon_args_t beacon_args = {"Store Reader", config};
@@ -121,6 +123,51 @@ dafka_store_reader_destroy (dafka_store_reader_t **self_p)
         free (self);
         *self_p = NULL;
     }
+}
+
+
+static void
+s_send_heads (dafka_store_reader_t *self,
+        leveldb_iterator_t *iter,
+        const char *sender, const char *subject) {
+    dafka_head_key_set (self->head_key, subject, "");
+    dafka_head_key_iter_seek (self->head_key, iter);
+
+    if (!leveldb_iter_valid (iter)) {
+        if (self->verbose)
+            zsys_info ("Store Reader: No heads for subject %s", subject);
+
+        return;
+    }
+
+    dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_HEAD);
+    dafka_proto_set_topic (self->outgoing_msg, sender);
+
+    int rc = dafka_head_key_iter (self->head_key, iter);
+    while (rc == 0 && str_start_with (subject, dafka_head_key_subject (self->head_key))) {
+        size_t sequence_size;
+        const char* sequence_bytes = leveldb_iter_value (iter, &sequence_size);
+        uint64_t sequence;
+        uint64_get_be ((const byte*) sequence_bytes, &sequence);
+
+        dafka_proto_set_subject (self->outgoing_msg, dafka_head_key_subject (self->head_key));
+        dafka_proto_set_address (self->outgoing_msg, dafka_head_key_address (self->head_key));
+        dafka_proto_set_sequence (self->outgoing_msg, sequence);
+        dafka_proto_send (self->outgoing_msg, self->publisher);
+
+        if (self->verbose)
+            zsys_info ("Store Reader: Found head answer to consumer %s %s %lu",
+                       dafka_head_key_subject (self->head_key),
+                       dafka_head_key_address (self->head_key),
+                       sequence);
+
+        leveldb_iter_next (iter);
+        if (!leveldb_iter_valid (iter))
+            break;
+
+        rc = dafka_head_key_iter (self->head_key, iter);
+    }
+
 }
 
 //  Here we handle incoming message from the node
@@ -235,50 +282,22 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
             }
             break;
         }
+        case DAFKA_PROTO_CONSUMER_HELLO: {
+            zlist_t *subjects = dafka_proto_get_subjects (self->incoming_msg);
+
+            for (const char* subject = (const char *) zlist_first (subjects);
+                 subject != NULL;
+                 subject = (const char *) zlist_next (subjects)) {
+                s_send_heads (self, iter, sender, subject);
+            }
+
+            zlist_destroy (&subjects);
+
+            break;
+        }
         case DAFKA_PROTO_GET_HEADS: {
             const char *subject = dafka_proto_topic (self->incoming_msg);
-
-            dafka_head_key_set (self->head_key, subject, "");
-            dafka_head_key_iter_seek (self->head_key, iter);
-
-            if (!leveldb_iter_valid (iter)) {
-                if (self->verbose)
-                    zsys_info ("Store Reader: No heads for subject %s", subject);
-
-                leveldb_iter_destroy (iter);
-                leveldb_readoptions_destroy (roptions);
-                leveldb_release_snapshot (self->db, snapshot);
-                return;
-            }
-
-            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_HEAD);
-            dafka_proto_set_topic (self->outgoing_msg, sender);
-
-            rc = dafka_head_key_iter (self->head_key, iter);
-            while (rc == 0 && str_start_with (subject, dafka_head_key_subject (self->head_key))) {
-                size_t sequence_size;
-                const char* sequence_bytes = leveldb_iter_value (iter, &sequence_size);
-                uint64_t sequence;
-                uint64_get_be ((const byte*) sequence_bytes, &sequence);
-
-                dafka_proto_set_subject (self->outgoing_msg, dafka_head_key_subject (self->head_key));
-                dafka_proto_set_address (self->outgoing_msg, dafka_head_key_address (self->head_key));
-                dafka_proto_set_sequence (self->outgoing_msg, sequence);
-                dafka_proto_send (self->outgoing_msg, self->publisher);
-
-                if (self->verbose)
-                    zsys_info ("Store Reader: Found head answer to consumer %s %s %lu",
-                            dafka_head_key_subject (self->head_key),
-                            dafka_head_key_address (self->head_key),
-                            sequence);
-
-                leveldb_iter_next (iter);
-                if (!leveldb_iter_valid (iter))
-                    break;
-
-                rc = dafka_head_key_iter (self->head_key, iter);
-            }
-
+            s_send_heads (self, iter, sender, subject);
 
             break;
         }
@@ -289,6 +308,25 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
     leveldb_iter_destroy (iter);
     leveldb_readoptions_destroy (roptions);
     leveldb_release_snapshot (self->db, snapshot);
+}
+
+static void
+dafka_store_reader_recv_publisher (dafka_store_reader_t *self) {
+    int rc = dafka_proto_recv (self->incoming_msg, self->publisher);
+    if (rc == -1)
+        return;
+
+    const char *consumer_address = dafka_proto_topic (self->incoming_msg);
+
+    if (dafka_proto_id (self->incoming_msg) == DAFKA_PROTO_STORE_HELLO && dafka_proto_is_subscribe (self->incoming_msg)) {
+        if (self->verbose)
+            zsys_info ("Store Reader: Consumer %s connected", consumer_address);
+
+        dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_STORE_HELLO);
+        dafka_proto_set_address (self->outgoing_msg, self->address);
+        dafka_proto_set_topic (self->outgoing_msg, consumer_address);
+        dafka_proto_send (self->outgoing_msg, self->publisher);
+    }
 }
 
 //  --------------------------------------------------------------------------
@@ -312,6 +350,8 @@ dafka_store_reader_actor (zsock_t *pipe, dafka_store_reader_args_t *args)
             dafka_beacon_recv (self->beacon, self->subscriber, self->verbose, "Store Reader");
         if (which == self->subscriber)
             dafka_store_reader_recv_subscriber (self);
+        if (which == self->publisher)
+            dafka_store_reader_recv_publisher (self);
     }
     dafka_store_reader_destroy (&self);
 }

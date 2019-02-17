@@ -369,7 +369,7 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
         bool fetch = true;
 
         // Checking if the fetch is still needed according to the recent head
-        uint64_t *head_p = zhashx_lookup (self->heads, (dafka_head_key_t *) zhashx_cursor (fetches));
+        uint64_t *head_p = (uint64_t *) zhashx_lookup (self->heads, (dafka_head_key_t *) zhashx_cursor (fetches));
         if (head_p) {
             uint64_t head = *head_p;
             uint64_t sequence = dafka_proto_sequence (fetch_msg);
