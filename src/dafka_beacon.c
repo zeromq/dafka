@@ -34,6 +34,7 @@ struct _dafka_beacon_t {
     zhashx_t *peers;
 
     char *sender;
+    char *address;
     int port;
 
     int beacon_timeout;
@@ -82,6 +83,7 @@ dafka_beacon_new (zsock_t *pipe, dafka_beacon_args_t *args) {
     self->interval = zconfig_get_int(config, "beacon/interval", 1000);
     self->tower_sub_address = strdup (zconfig_get (config, "beacon/sub_address","tcp://127.0.0.1:5556"));
     self->tower_pub_address = strdup (zconfig_get (config, "beacon/pub_address","tcp://127.0.0.1:5557"));
+    self->address = strdup (zconfig_get (config, "beacon/address", ""));
 
     // Creating publisher socket
     self->pub = zsock_new_pub (NULL);
@@ -116,6 +118,7 @@ beacon_destroy (dafka_beacon_t **self_p) {
         zsock_destroy (&self->sub);
         zsock_destroy (&self->pub);
         zstr_free (&self->log_prefix);
+        zstr_free (&self->address);
 
         //  Free object itself
         free (self);
@@ -127,7 +130,7 @@ void
 dafka_beacon_interval (int timer_id, dafka_beacon_t *self) {
     (void)timer_id;
 
-    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
+    zsock_send (self->pub, "sssi", "B", self->sender, self->address, self->port);
 }
 
 //  Start this actor. Return a value greater or equal to zero if initialization
@@ -159,7 +162,7 @@ dafka_beacon_start (dafka_beacon_t *self) {
     self->timer_id = ztimerset_add (self->timerset, (size_t) self->interval, (ztimerset_fn *) dafka_beacon_interval, self);
 
     // Sending the first beacon immediately
-    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
+    zsock_send (self->pub, "sssi", "B", self->sender, self->address, self->port);
 
     if (self->verbose)
         zsys_debug ("%s Beacon: started. port: %d interval: %d uuid: %s",
@@ -249,7 +252,7 @@ dafka_beacon_recv_sub (dafka_beacon_t *self) {
 
                 // New node on the network, sending a beacon immediately
                 if (self->port != -1)
-                    zsock_send (self->pub, "ssi", "B", self->sender, self->port);
+                    zsock_send (self->pub, "sssi", "B", self->sender, self->address, self->port);
             } else {
                 *expire = zclock_time () + self->beacon_timeout;
             }
@@ -371,10 +374,71 @@ dafka_beacon_test (bool verbose) {
     printf (" * dafka_beacon: ");
     //  @selftest
     //  Simple create/destroy test
-//    zactor_t *beacon = zactor_new (dafka_beacon_actor, NULL);
-//    assert (beacon);
-//
-//    zactor_destroy (&beacon);
+
+    zconfig_t *config = zconfig_new ("root", NULL);
+
+    zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "beacon/sub_address","inproc://beacon-tower-sub");
+    zconfig_put (config, "beacon/pub_address","inproc://beacon-tower-pub");
+    zconfig_put (config, "tower/verbose", verbose ? "1" : "0");
+    zconfig_put (config, "tower/sub_address", "inproc://beacon-tower-sub");
+    zconfig_put (config, "tower/pub_address", "inproc://beacon-tower-pub");
+
+    dafka_beacon_args_t args = {"test", config};
+
+    zactor_t *tower = zactor_new (dafka_tower_actor, config);
+    assert (tower);
+
+    zactor_t *receiver = zactor_new (dafka_beacon_actor, &args);
+    assert (receiver);
+
+    // We first test with a provided address
+    zconfig_put (config, "beacon/address", "somestring");
+    zactor_t *sender = zactor_new (dafka_beacon_actor, &args);
+    assert (sender);
+
+    zsock_send (sender, "ssi", "START", "unique string", 1000);
+
+    char *command = zstr_recv (receiver);
+    char *address = zstr_recv (receiver);
+
+    assert (streq (command, "CONNECT"));
+    assert (streq (address, "tcp://somestring:1000"));
+
+    zactor_destroy (&sender);
+
+    // Testing disconnect
+    zstr_free (&command);
+    zstr_free (&address);
+    command = zstr_recv (receiver);
+    address = zstr_recv (receiver);
+
+    assert (streq (command, "DISCONNECT"));
+    assert (streq (address, "tcp://somestring:1000"));
+
+    // Testing without a provided address, tower should discover peer ip.
+    zconfig_put (config, "beacon/address", "");
+    sender = zactor_new (dafka_beacon_actor, &args);
+    assert (sender);
+
+    zsock_send (sender, "ssi", "START", "unique string2", 1000);
+
+    zstr_free (&command);
+    zstr_free (&address);
+    command = zstr_recv (receiver);
+    address = zstr_recv (receiver);
+
+    assert (streq (command, "CONNECT"));
+    assert (strneq (address, "tcp://somestring:1000"));
+    assert (strneq (address, "tcp://:1000"));
+    assert (strneq (address, "tcp://127.0.0.1:1000"));
+
+    zstr_free (&command);
+    zstr_free (&address);
+    zactor_destroy (&receiver);
+    zactor_destroy (&sender);
+    zactor_destroy (&tower);
+    zconfig_destroy (&config);
     //  @end
 
     printf ("OK\n");
