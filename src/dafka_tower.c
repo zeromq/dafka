@@ -135,27 +135,33 @@ dafka_tower_actor (zsock_t *pipe, void *args) {
             dafka_tower_recv_api (self);
         else if (which == self->xsub) {
             char *sender;
+            char *host;
             int port;
             zframe_t *topic = zframe_recv (self->xsub);
-            zsock_recv (self->xsub, "si", &sender, &port);
+            zsock_recv (self->xsub, "ssi", &sender, &host, &port);
 
-            const char *peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
+            const char *peer_address;
+            if (host && strneq (host, ""))
+                peer_address = host;
+            else {
+                peer_address = zframe_meta (topic, ZMQ_MSG_PROPERTY_PEER_ADDRESS);
 
-            // If the nodes connect over inproc we don't have there address, so we will use
-            // own address
-            if (peer_address == NULL)
-                peer_address = self->own_address;
-            else
-            if (streq (peer_address, "127.0.0.1"))
-                peer_address = self->own_address;
+                // If the nodes connect over inproc we don't have there address, so we will use
+                // own address
+                if (peer_address == NULL)
+                    peer_address = self->own_address;
+                else if (streq (peer_address, "127.0.0.1"))
+                    peer_address = self->own_address;
+            }
 
-            char *address = zsys_sprintf ("tcp://%s:%d", peer_address, port);
+            char *endpoint = zsys_sprintf ("tcp://%s:%d", peer_address, port);
 
             // Forwarding the msg
             zframe_send (&topic, self->xpub, ZMQ_MORE);
-            zsock_send (self->xpub, "ss", sender, address);
+            zsock_send (self->xpub, "ss", sender, endpoint);
 
-            zstr_free (&address);
+            zstr_free (&endpoint);
+            zstr_free (&host);
             zstr_free (&sender);
         } else if (which == self->xpub) {
             zframe_t *subscription = zframe_recv (self->xpub);
