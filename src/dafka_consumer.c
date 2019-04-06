@@ -257,6 +257,12 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
                     // Set to latest - 1 in order to process the current message
                     last_known_sequence = current_sequence - 1;
                     zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
+                } else {
+                    zsys_debug ("Consumer: Setting offset for topic %s on partition %s to earliest %u",
+                                subject,
+                                address,
+                                last_known_sequence);
+                    zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
                 }
             }
 
