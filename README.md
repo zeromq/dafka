@@ -11,52 +11,34 @@
 
 
 **[Overview](#overview)**
-
-**[Scope and Goals](#scope-and-goals)**
-
-**[Topics and Partitions](#topics-and-partitions)**
-
-**[Distribution](#distribution)**
-
-**[Producer](#producer)**
-
-**[Consumer](#consumer)**
-
-**[Guarantees](#guarantees)**
+*  [Scope and Goals](#scope-and-goals)
+*  [Topics and Partitions](#topics-and-partitions)
+*  [Stores](#stores)
+*  [Producer](#producer)
+*  [Consumer](#consumer)
+*  [Guarantees](#guarantees)
 
 **[Design](#design)**
-
-**[Producing and Storing](#producing-and-storing)**
-
-**[Missed messages](#missed-messages)**
-
-**[Dead producer](#dead-producer)**
+*  [Producing and Storing](#producing-and-storing)
+*  [Missed messages](#missed-messages)
+*  [Dead producer](#dead-producer)
 
 **[Implementation](#implementation)**
-
-**[Ownership and License](#ownership-and-license)**
+*  [Ownership and License](#ownership-and-license)
 
 **[Using Dafka](#using-dafka)**
-
-**[Building and Installing](#building-and-installing)**
-
-**[Linking with an Application](#linking-with-an-application)**
-
-**[API v1 Summary](#api-v1-summary)**
-*  [dafka_consumer - no title found](#dafka_consumer---no-title-found)
-*  [dafka_producer - no title found](#dafka_producer---no-title-found)
-*  [dafka_store - no title found](#dafka_store---no-title-found)
-*  [dafka_tower - no title found](#dafka_tower---no-title-found)
-
-**[Documentation](#documentation)**
-
-**[Development](#development)**
-
-**[Hints to Contributors](#hints-to-contributors)**
-
-**[Code Generation](#code-generation)**
-
-**[This Document](#this-document)**
+*  [Building and Installing](#building-and-installing)
+*  [Linking with an Application](#linking-with-an-application)
+*  [API v1 Summary](#api-v1-summary)
+&emsp;[dafka_consumer - no title found](#dafka_consumer---no-title-found)
+&emsp;[dafka_producer - no title found](#dafka_producer---no-title-found)
+&emsp;[dafka_store - no title found](#dafka_store---no-title-found)
+&emsp;[dafka_tower - no title found](#dafka_tower---no-title-found)
+*  [Documentation](#documentation)
+*  [Development](#development)
+*  [Hints to Contributors](#hints-to-contributors)
+*  [Code Generation](#code-generation)
+*  [This Document](#this-document)
 
 ## Overview
 
@@ -122,14 +104,14 @@ have been consumed.
 </center>
 
 Consumers maintain their own offset while reading records of a partition. In fact
-neither the Dafka Cluster nor the Producers keep track of the consumers offset.
+neither the Dafka Cluster nor the producers keep track of the consumers offset.
 This design allows Consumer to either reset their offset to an older offset and
 re-read records or set their offset to a newer offset and skip ahead.
 
 In that way consumer have no influence on the cluster, the producer and other
 consumers. They simply can come and go as they please.
 
-### Distribution
+### Stores
 
 Partition are distributed to the Dafka Cluster which consists of Dafka Stores.
 Each partition is replicated to each store for fault tolerance.
@@ -137,9 +119,9 @@ Each partition is replicated to each store for fault tolerance.
 ### Producer
 
 Producers publish records to a topic. Each producer creates its own partition
-that only it publishes to. Records are send directly to stores and consumers.
-When a producer goes offline the consumers can retrieve to already send records
-from the stores.
+that only it publishes to. Records are send directly to *stores* and
+*consumers*. When a producer goes offline its partition is still available to
+consumers from the dafka stores.
 
 ### Consumer
 
@@ -163,15 +145,31 @@ While Kafka makes it easy for consumers to come and go as they like their
 consumer group feature which relies on finding consensus in a group of peers
 makes joining very expensive. It can take seconds before a consumer ready to
 consume records. The same is true for producer. Dafka tries to avoid finding
-consensus and leader election and therefore Dafka intentionally avoids features
-like consumer groups in favor of higher throughput, lower latency and fast
-consumer/producer initialisation.
+consensus and perform leader election and therefore Dafka intentionally avoids
+features like consumer groups in favor of higher throughput, lower latency as
+well as faster consumer and producer initialization.
+
+This design section discusses the different message types of the Dafka protocol.
 
 ### Producing and Storing
+
+Producers published records using the MSG message type. MSG messages are send
+directly to all connected stores as well as all connected consumers. Once
+a producer published its first records it starts sending HEAD messages at
+a regular interval informing both stores and consumer about the last published
+records which gives stores and consumers a chance to figure out whether or not
+the missed one or more records.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_3.png" alt="3">
 </center>
+
+Because producers publish records directly to consumers the presence of a store
+is not necessarily required. When a new consumer joins producers must supply all
+already published records to that new consumer. Therefore the producer must
+store a all published records that are not stored by a configurable minimum
+number stores. To inform a producer about the successful storing of a records
+the stores send a ACK message to the producer.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_4.png" alt="4">
@@ -179,9 +177,16 @@ consumer/producer initialisation.
 
 ### Missed messages
 
+Consumer discover missed messages by receiving HEAD messages. In order to fetch
+missed messages consumer send a FETCH message to all connected stores and the
+producer to request the number of missed messages.
+
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_5.png" alt="5">
 </center>
+
+As a response to a FETCH message a store or producer may send all missed records
+that the consumer requested.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_6.png" alt="6">
@@ -284,9 +289,19 @@ This is the class self test code:
 
 ```c
     // ----------------------------------------------------
+    //  Cleanup old test artifacts
+    // ----------------------------------------------------
+    if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
+        zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+        zdir_remove (store_dir, true);
+        zdir_destroy (&store_dir);
+    }
+    
+    // ----------------------------------------------------
     // Test with consumer.offset.reset = earliest
     // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "beacon/interval", "50");
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "beacon/pub_address", "inproc://consumer-tower-pub");
@@ -301,8 +316,8 @@ This is the class self test code:
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
     
-    dafka_producer_args_t pub_args = { "hello", config };
-    zactor_t *producer =  zactor_new (dafka_producer, &pub_args);
+    dafka_producer_args_t pub_args = {"hello", config};
+    zactor_t *producer = zactor_new (dafka_producer, &pub_args);
     assert (producer);
     
     zactor_t *store = zactor_new (dafka_store_actor, config);
@@ -310,10 +325,10 @@ This is the class self test code:
     
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
     
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
-    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    dafka_producer_msg_set_content_str (p_msg, "HELLO MATE");
     int rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
     zclock_sleep (100);  // Make sure message is published before consumer subscribes
@@ -326,7 +341,8 @@ This is the class self test code:
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
-    zclock_sleep (100);  // Make sure the first two messages have been received from the store and the consumer is now up to date
+    zclock_sleep (
+            100);  // Make sure the first two messages have been received from the store and the consumer is now up to date
     
     dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
     rc = dafka_producer_msg_send (p_msg, producer);
@@ -359,17 +375,17 @@ This is the class self test code:
     // ----------------------------------------------------
     zconfig_put (config, "consumer/offset/reset", "latest");
     
-    producer =  zactor_new (dafka_producer, &pub_args);
+    producer = zactor_new (dafka_producer, &pub_args);
     assert (producer);
     
     consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
-    zclock_sleep (100);
+    zclock_sleep (250);
     
     //  This message is missed by the consumer and later ignored because the
     //  offset reset is set to latest.
     p_msg = dafka_producer_msg_new ();
-    dafka_producer_msg_set_content_str (p_msg , "HELLO MATE");
+    dafka_producer_msg_set_content_str (p_msg, "HELLO MATE");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
     zclock_sleep (100);  // Make sure message is published before consumer subscribes
@@ -378,7 +394,7 @@ This is the class self test code:
     assert (rc == 0);
     zclock_sleep (250);  // Make sure subscription is active before sending the next message
     
-    dafka_producer_msg_set_content_str (p_msg , "HELLO ATEM");
+    dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
     
@@ -394,6 +410,13 @@ This is the class self test code:
     zactor_destroy (&producer);
     zactor_destroy (&consumer);
     zconfig_destroy (&config);
+    
+    // ----------------------------------------------------
+    //  Cleanup test artifacts
+    // ----------------------------------------------------
+    zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+    zdir_remove (store_dir, true);
+    zdir_destroy (&store_dir);
 ```
 
 #### dafka_producer - no title found
@@ -487,6 +510,15 @@ Please add '@interface' section in './../src/dafka_store.c'.
 This is the class self test code:
 
 ```c
+    // ----------------------------------------------------
+    //  Cleanup old test artifacts
+    // ----------------------------------------------------
+    if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
+        zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+        zdir_remove (store_dir, true);
+        zdir_destroy (&store_dir);
+    }
+    
     //  Simple create/destroy test
     zconfig_t *config = zconfig_new ("root", NULL);
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
@@ -518,11 +550,15 @@ This is the class self test code:
     
     // Starting the store
     zactor_t *store = zactor_new (dafka_store_actor, config);
-    zclock_sleep (2000);
+    zclock_sleep (100);
     
     // Producing another message
     dafka_producer_msg_set_content_str (p_msg, "3");
     dafka_producer_msg_send (p_msg, producer);
+    zclock_sleep (100);
+    
+    // Killing the producer, to make sure the HEADs are coming from the store
+    zactor_destroy (&producer);
     
     // Starting a consumer and check that consumer recv all 3 messages
     zactor_t *consumer = zactor_new (dafka_consumer, config);
@@ -543,8 +579,14 @@ This is the class self test code:
     dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&store);
     zactor_destroy (&tower);
-    zactor_destroy (&producer);
     zconfig_destroy (&config);
+    
+    // ----------------------------------------------------
+    //  Cleanup test artifacts
+    // ----------------------------------------------------
+    zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
+    zdir_remove (store_dir, true);
+    zdir_destroy (&store_dir);
 ```
 
 #### dafka_tower - no title found
