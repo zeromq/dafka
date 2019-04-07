@@ -11,7 +11,7 @@
 
 ## Contents
 
-.toc 3
+.toc 2
 
 ## Overview
 
@@ -102,14 +102,14 @@ have been consumed.
 [/diagram]
 
 Consumers maintain their own offset while reading records of a partition. In fact
-neither the Dafka Cluster nor the Producers keep track of the consumers offset.
+neither the Dafka Cluster nor the producers keep track of the consumers offset.
 This design allows Consumer to either reset their offset to an older offset and
 re-read records or set their offset to a newer offset and skip ahead.
 
 In that way consumer have no influence on the cluster, the producer and other
 consumers. They simply can come and go as they please.
 
-### Distribution
+### Stores
 
 Partition are distributed to the Dafka Cluster which consists of Dafka Stores.
 Each partition is replicated to each store for fault tolerance.
@@ -117,9 +117,9 @@ Each partition is replicated to each store for fault tolerance.
 ### Producer
 
 Producers publish records to a topic. Each producer creates its own partition
-that only it publishes to. Records are send directly to stores and consumers.
-When a producer goes offline the consumers can retrieve to already send records
-from the stores.
+that only it publishes to. Records are send directly to *stores* and
+*consumers*. When a producer goes offline its partition is still available to
+consumers from the dafka stores.
 
 ### Consumer
 
@@ -143,11 +143,20 @@ While Kafka makes it easy for consumers to come and go as they like their
 consumer group feature which relies on finding consensus in a group of peers
 makes joining very expensive. It can take seconds before a consumer ready to
 consume records. The same is true for producer. Dafka tries to avoid finding
-consensus and leader election and therefore Dafka intentionally avoids features
-like consumer groups in favor of higher throughput, lower latency and fast
-consumer/producer initialisation.
+consensus and perform leader election and therefore Dafka intentionally avoids
+features like consumer groups in favor of higher throughput, lower latency as
+well as faster consumer and producer initialization.
+
+This design section discusses the different message types of the Dafka protocol.
 
 ### Producing and Storing
+
+Producers published records using the MSG message type. MSG messages are send
+directly to all connected stores as well as all connected consumers. Once
+a producer published its first records it starts sending HEAD messages at
+a regular interval informing both stores and consumer about the last published
+records which gives stores and consumers a chance to figure out whether or not
+the missed one or more records.
 
 [diagram]
                             +------------+
@@ -157,7 +166,7 @@ consumer/producer initialisation.
                             \-----+------/
                                   |
                           Publish | MSG
-                          Publish | HEAD
+                          Publish | HEAD (interval)
                                   |
         +-----------------+-------+-------+------------------+
         |                 |               |                  |
@@ -169,6 +178,13 @@ consumer/producer initialisation.
   |  Store 1  |     |  Store n  |   | Consumer 1 |     | Consumer m |
   +-----------+     +-----------+   +------------+     +------------+
 [/diagram]
+
+Because producers publish records directly to consumers the presence of a store
+is not necessarily required. When a new consumer joins producers must supply all
+already published records to that new consumer. Therefore the producer must
+store a all published records that are not stored by a configurable minimum
+number stores. To inform a producer about the successful storing of a records
+the stores send a ACK message to the producer.
 
 [diagram]
            +------------+
@@ -192,6 +208,10 @@ consumer/producer initialisation.
 
 ### Missed messages
 
+Consumer discover missed messages by receiving HEAD messages. In order to fetch
+missed messages consumer send a FETCH message to all connected stores and the
+producer to request the number of missed messages.
+
 [diagram]
                     +------------+
                     |  Consumer  |
@@ -211,6 +231,9 @@ consumer/producer initialisation.
   |  Store 1  |     |  Store n  |   | Producer x |
   +-----------+     +-----------+   +------------+
 [/diagram]
+
+As a response to a FETCH message a store or producer may send all missed records
+that the consumer requested.
 
 [diagram]
                     +------------+
