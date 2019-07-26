@@ -212,11 +212,12 @@ the stores send a ACK message to the producer.
   +-----------+     +-----------+
 [/diagram]
 
-### Missed messages
+### Missed records
 
-Consumer discover missed messages by receiving HEAD messages. In order to fetch
-missed messages consumer send a FETCH message to all connected stores and the
-producer to request the number of missed messages.
+Consumer can discover missed records by either receiving HEAD messages or
+receiving a MSG message with a higher offset. In order to fetch missed messages
+consumers send a FETCH message to all connected stores and the producer of that
+message to request the missed messages.
 
 [diagram]
                     +------------+
@@ -238,8 +239,8 @@ producer to request the number of missed messages.
   +-----------+     +-----------+   +------------+
 [/diagram]
 
-As a response to a FETCH message a store or producer may send all missed records
-that the consumer requested.
+As a response to a FETCH message a store and/or producer may send all missed records
+that the consumer requested directly to the consumer with the DIRECT_MSG.
 
 [diagram]
                     +------------+
@@ -252,7 +253,7 @@ that the consumer requested.
                           |
         +-----------------+---------------+
         |                 |               |
-        |     Send missing|message        |
+        |     Send missing|message (DIRECT|_MSG)
         |                 |               |
   /-----+-----\     /-----+-----\   /-----+------\
   |    PUB    |     |    PUB    |   |    PUB     |
