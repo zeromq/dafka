@@ -45,10 +45,10 @@ First a few concepts:
 * Producers send record to the Cluster and directly to the Consumers.
 * Missed records are obtained either from the Producer or the Cluster.
 
-In Dafka the communication between the clients is done with a simple,
+In Dafka the communication between clients is done with a simple,
 high-performance, language and transport agnostic protocol. This protocol is
 versioned and maintains backwards compatibility with older version. We provide
-a C client for Dafka.
+a C and Java client for Dafka.
 
 ### Topics and Partitions
 
@@ -111,7 +111,7 @@ consumers. They simply can come and go as they please.
 
 ### Stores
 
-Partition are distributed to the Dafka Cluster which consists of Dafka Stores.
+Partitions are distributed to the Dafka Cluster which consists of Dafka Stores.
 Each partition is replicated to each store for fault tolerance.
 
 ### Producer
@@ -119,12 +119,18 @@ Each partition is replicated to each store for fault tolerance.
 Producers publish records to a topic. Each producer creates its own partition
 that only it publishes to. Records are send directly to *stores* and
 *consumers*. When a producer goes offline its partition is still available to
-consumers from the dafka stores.
+consumers from the Dafka stores.
 
 ### Consumer
 
 Consumers subscribe to a topic. Each consumer will receive records published to
 that topic from all partitions.
+
+### Tower
+
+Each Dafka cluster has one or more towers. The towers are used to connect
+producer, consumers and stores to each other. At this point no traffic is
+proxied through the towers.
 
 ### Guarantees
 
@@ -137,15 +143,15 @@ Dafka gives the following guarantees:
 
 ## Design
 
-We designed Dafka the be a drop-in replacement for Apache Kafka.
+We designed Dafka to be a drop-in replacement for Apache Kafka.
 
-While Kafka makes it easy for consumers to come and go as they like their
+While Kafka makes it easy for consumers to come and go as they like, their
 consumer group feature which relies on finding consensus in a group of peers
-makes joining very expensive. It can take seconds before a consumer ready to
+makes joining very expensive. It can take seconds before a consumer is ready to
 consume records. The same is true for producer. Dafka tries to avoid finding
-consensus and perform leader election and therefore Dafka intentionally avoids
-features like consumer groups in favor of higher throughput, lower latency as
-well as faster consumer and producer initialization.
+consensus and therefore intentionally avoids features like consumer groups in
+favor of higher throughput, lower latency as well as faster consumer and
+producer initialization.
 
 This design section discusses the different message types of the Dafka protocol.
 
