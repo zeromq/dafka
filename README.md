@@ -21,7 +21,7 @@
 
 **[Design](#design)**
 *  [Producing and Storing](#producing-and-storing)
-*  [Missed messages](#missed-messages)
+*  [Missed records](#missed-records)
 *  [Dead producer](#dead-producer)
 
 **[Implementation](#implementation)**
@@ -182,18 +182,19 @@ the stores send a ACK message to the producer.
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_4.png" alt="4">
 </center>
 
-### Missed messages
+### Missed records
 
-Consumer discover missed messages by receiving HEAD messages. In order to fetch
-missed messages consumer send a FETCH message to all connected stores and the
-producer to request the number of missed messages.
+Consumer can discover missed records by either receiving HEAD messages or
+receiving a MSG message with a higher offset. In order to fetch missed messages
+consumers send a FETCH message to all connected stores and the producer of that
+message to request the missed messages.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_5.png" alt="5">
 </center>
 
-As a response to a FETCH message a store or producer may send all missed records
-that the consumer requested.
+As a response to a FETCH message a store and/or producer may send all missed records
+that the consumer requested directly to the consumer with the DIRECT_MSG.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_6.png" alt="6">
