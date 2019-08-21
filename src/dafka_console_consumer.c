@@ -57,6 +57,9 @@ int main (int argc, char *argv [])
     zactor_t *consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
 
+    // Give time until connected to pubs and stores
+    usleep (500);
+
     int rc = dafka_consumer_subscribe (consumer, topic);
     assert (rc == 0);
 
