@@ -39,6 +39,12 @@ int main (int argc, char** argv) {
     if (zargs_has (args, "--verbose"))
         zconfig_put (config, "tower/verbose", "1");
 
+    if (zargs_has (args, "--pub"))
+        zconfig_put (config, "tower/pub_address", zargs_get (args, "--pub"));
+
+    if (zargs_has (args, "--sub"))
+        zconfig_put (config, "tower/sub_address", zargs_get (args, "--sub"));
+
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
     char* command = zstr_recv (tower);
