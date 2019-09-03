@@ -30,7 +30,7 @@ struct _dafka_producer_t {
 
     //  Class properties
     zsock_t *socket;            // Socket to publish messages to
-    zsock_t *producer_sub;          // Socket to subscribe to messages
+    zsock_t *producer_sub;      // Socket to subscribe to messages
     dafka_proto_t *msg;         // Reusable MSG message to publish
     dafka_proto_t *head_msg;    // Reusable HEAD message to publish
     dafka_proto_t *sub_msg;     // Reusable ACK message to receive
@@ -83,7 +83,7 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
     assert (self->socket);
 
     self->msg = dafka_proto_new ();
-    dafka_proto_set_id (self->msg, DAFKA_PROTO_MSG);
+    dafka_proto_set_id (self->msg, DAFKA_PROTO_RECORD);
     dafka_proto_set_topic (self->msg, args->topic);
     dafka_proto_set_subject (self->msg, args->topic);
     zuuid_t *address = zuuid_new ();
@@ -252,7 +252,7 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
                         zsys_info ("Producer: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
                                subject, address, sequence + index);
 
-                    dafka_proto_set_id (cached_msg, DAFKA_PROTO_DIRECT_MSG);
+                    dafka_proto_set_id (cached_msg, DAFKA_PROTO_DIRECT_RECORD);
                     dafka_proto_set_topic (cached_msg, dafka_proto_address (self->sub_msg));
                     dafka_proto_send (cached_msg, self->socket);
                 }

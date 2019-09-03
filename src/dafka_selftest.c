@@ -31,6 +31,12 @@ typedef struct {
 
 static test_item_t
 all_tests [] = {
+#ifdef DAFKA_BUILD_DRAFT_API
+// Tests for stable/draft private classes:
+// Now built only with --enable-drafts, so even stable builds are hidden behind the flag
+    { "dafka_util", NULL, true, false, "dafka_util_test" },
+    { "private_classes", NULL, false, false, "$ALL" }, // compat option for older projects
+#endif // DAFKA_BUILD_DRAFT_API
 // Tests for stable public classes:
     { "dafka_consumer_msg", dafka_consumer_msg_test, true, true, NULL },
     { "dafka_producer_msg", dafka_producer_msg_test, true, true, NULL },
@@ -40,12 +46,6 @@ all_tests [] = {
     { "dafka_beacon", dafka_beacon_test, true, true, NULL },
     { "dafka_tower", dafka_tower_test, true, true, NULL },
     { "dafka_store", dafka_store_test, true, true, NULL },
-#ifdef DAFKA_BUILD_DRAFT_API
-// Tests for stable/draft private classes:
-// Now built only with --enable-drafts, so even stable builds are hidden behind the flag
-    { "dafka_util", NULL, true, false, "dafka_util_test" },
-    { "private_classes", NULL, false, false, "$ALL" }, // compat option for older projects
-#endif // DAFKA_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel
 };
 

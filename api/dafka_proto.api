@@ -14,10 +14,10 @@
     ************************************************************************
  -->
 <class name = "dafka_proto">
-    <constant name = "msg" value = "'M'" >
+    <constant name = "record" value = "'M'" >
 
     </constant>
-    <constant name = "direct_msg" value = "'D'" >
+    <constant name = "direct_record" value = "'D'" >
 
     </constant>
     <constant name = "fetch" value = "'F'" >
@@ -137,14 +137,6 @@
     <return type = "string" />
 </method>
 
-<method name = "subject">
-    Get the subject field
-    <return type = "string" />
-</method>
-<method name = "set subject">
-    Set the subject field
-    <argument name = "subject" type = "string" />
-</method>
 <method name = "address">
     Get the address field
     <return type = "string" />
@@ -152,6 +144,14 @@
 <method name = "set address">
     Set the address field
     <argument name = "address" type = "string" />
+</method>
+<method name = "subject">
+    Get the subject field
+    <return type = "string" />
+</method>
+<method name = "set subject">
+    Set the subject field
+    <argument name = "subject" type = "string" />
 </method>
 <method name = "sequence">
     Get the sequence field
