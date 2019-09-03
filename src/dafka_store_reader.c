@@ -254,7 +254,7 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
             dafka_proto_set_topic (self->outgoing_msg, sender);
             dafka_proto_set_subject (self->outgoing_msg, subject);
             dafka_proto_set_address (self->outgoing_msg, address);
-            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_MSG);
+            dafka_proto_set_id (self->outgoing_msg, DAFKA_PROTO_DIRECT_RECORD);
 
             while (dafka_msg_key_cmp (self->iter_key, self->last_key) <= 0) {
                 size_t content_size;

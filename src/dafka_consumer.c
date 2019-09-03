@@ -94,7 +94,7 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
     dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
 
-    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_MSG, zuuid_str (consumer_address));
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_RECORD, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_HEAD, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_STORE_HELLO, zuuid_str (consumer_address));
 
@@ -207,7 +207,7 @@ s_subscribe (dafka_consumer_t *self, const char *topic) {
     if (self->verbose)
         zsys_debug ("Consumer: Subscribe to topic %s", topic);
 
-    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_MSG, topic);
+    dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_RECORD, topic);
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
 
     if (!self->reset_latest)
@@ -244,8 +244,8 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
         last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
 
     switch (dafka_proto_id (self->consumer_msg)) {
-        case DAFKA_PROTO_MSG:
-        case DAFKA_PROTO_DIRECT_MSG: {
+        case DAFKA_PROTO_RECORD:
+        case DAFKA_PROTO_DIRECT_RECORD: {
             if (!last_sequence_known) {
                 last_sequence_known = true;
                 if (self->reset_latest) {

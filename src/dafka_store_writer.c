@@ -81,12 +81,12 @@ dafka_store_writer_new (zsock_t *pipe, const char* address, leveldb_t *db, zconf
 
     // Create the direct subscriber and subscribe to direct messaging
     self->direct_subscriber = zsock_new_sub (NULL, NULL);
-    dafka_proto_subscribe (self->direct_subscriber, DAFKA_PROTO_DIRECT_MSG, self->address);
+    dafka_proto_subscribe (self->direct_subscriber, DAFKA_PROTO_DIRECT_RECORD, self->address);
     zsock_set_rcvhwm (self->direct_subscriber, 100000); // TODO: should be configurable, now it is the same is fetch max count
 
     //  Create the msg subscriber and subscribe to msg and head
     self->msg_subscriber = zsock_new_sub (NULL, NULL);
-    dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_MSG, "");
+    dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_RECORD, "");
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_HEAD, "");
     zsock_set_rcvhwm (self->msg_subscriber, 100000); // TODO: should be configurable
 
@@ -282,8 +282,8 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                 }
                 break;
             }
-            case DAFKA_PROTO_DIRECT_MSG:
-            case DAFKA_PROTO_MSG: {
+            case DAFKA_PROTO_DIRECT_RECORD:
+            case DAFKA_PROTO_RECORD: {
                 const char *subject = dafka_proto_subject (self->incoming_msg);
                 const char *address = dafka_proto_address (self->incoming_msg);
                 uint64_t sequence = dafka_proto_sequence (self->incoming_msg);

@@ -1,6 +1,6 @@
 <class
     name = "dafka_proto"
-    signature = "0"
+    signature = "5"
     pubsub = "1"
     title = "dafka_proto"
     script = "zproto_codec_c"
@@ -9,68 +9,120 @@
     project_header = "dafka_classes.h"
     export_macro = "DAFKA_EXPORT">
 
-    <message name = "MSG" id="'M'">
-        Message from producer to consumers.
-        The topic is either the subject or recipient address.
+    <grammar>
+    DAFKA           = join-consumer / publish / offsets
+
+    join-consumer   = S:STORE-HELLO C:CONSUMER-HELLO *( S:DIRECT-HEAD [ consumer-fetch ] )
+
+    consumer-fetch  = C:FETCH 1*( P:DIRECT-RECORD / S:DIRECT-RECORD )
+
+    publish         = P:RECORD [ consumer-fetch / store-fetch S:ACK ]
+
+    store-fetch     = S:FETCH 1*( ( P:DIRECT-RECORD / S:DIRECT-RECORD ) [ S:ACK ] )
+
+    offsets         = P:HEAD [ consumer-fetch / store-fetch ]
+    </grammar>
+
+     <!-- Header for all messages -->
+    <header>
+        <field name = "version" type = "number" size = "1" value = "1">Version = 1</field>
+        <field name = "address" type = "string" />
+    </header>
+
+    <message name = "RECORD" id="'M'">
+        Record from producer to consumers and stores.
+
+        Topic is the name of the topic.
+        Subject is the name of the topic.
+        Address is the address of the producer (partition).
 
         <field name = "subject" type = "string" />
-        <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
     </message>
 
-    <message name = "DIRECT MSG" id="'D'">
-        Direct message from producer to consumer.
-        The topic is the recipient address.
+    <message name = "DIRECT RECORD" id="'D'">
+        Direct record from a producer or a store to a consumer.
+
+        Topic is the address of the requestor.
+        Subject is the name of the topic.
+        Address is the address of the producer (partition).
 
         <field name = "subject" type = "string" />
-        <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
     </message>
 
     <message name = "FETCH" id="'F'">
-        Consumer publish the message when a message is missing.
+        Consumer or store publish this message when a record is missing.
+        Either producer or a store can answer.
+
         Topic is the address of the producer (partition).
-        Either the producer or a store daemon can answer.
+        Subject is the name of the topic.
+        Address is the address of this message's sender.
+
+        Count is the number of messages to fetch starting with the record
+        identified by sequence.
 
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "count" type = "number" size = "4" />
-        <field name = "address" type = "string" />
     </message>
 
     <message name = "ACK" id = "'K'">
-        Ack from a store daemon to a producer.
-        Topic is the address of the producer.
+        Ack from a stores to a producer.
+
+        Topic is the address of the producer (partition).
+        Subject is the name of the topic.
 
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
 
     <message name = "HEAD" id = "'H'">
+        Head from producer to consumers and stores.
+
+        Topic is the name of the topic.
+        Subject is the name of the topic.
+        Address is the address of the producer (partition).
+
         <field name = "subject" type = "string" />
-        <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
 
     <message name = "DIRECT HEAD" id = "'E'">
+        Head from producer or store to a consumers.
+
+        Topic is the name of the topic.
+        Subject is the name of the topic.
+        Address is the address of the producer (partition).
+
         <field name = "subject" type = "string" />
-        <field name = "address" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
 
     <message name = "GET HEADS" id = "'G'">
-        <field name = "address" type = "string" />
+        Get heads from stores send by a consumer.
+
+        Topic is the name of the topic.
+        Address is the address of the consumer.
     </message>
 
     <message name = "CONSUMER HELLO" id = "'W'">
-        <field name = "address" type = "string" />
+        Hello message from a consumer to a store.
+
+        Topic is the store's address.
+        Address is the address of the consumer.
+        Subjects is a list of all topic the consumer is subscribed to.
+
         <field name = "subjects" type = "strings" />
     </message>
 
     <message name = "STORE HELLO" id = "'L'">
-        <field name = "address" type = "string" />
+        Hello message from a store to a consumer.
+
+        Topic is the consumer's address.
+        Address is the address of the store.
     </message>
 
 </class>
