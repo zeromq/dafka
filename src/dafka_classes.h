@@ -24,8 +24,6 @@
 //  External API
 #include "../include/dafka.h"
 
-//  Extra headers
-
 //  Opaque class structures to allow forward references
 #ifndef DAFKA_MSG_KEY_T_DEFINED
 typedef struct _dafka_msg_key_t dafka_msg_key_t;
@@ -47,6 +45,8 @@ typedef struct _dafka_store_reader_t dafka_store_reader_t;
 typedef struct _dafka_store_writer_t dafka_store_writer_t;
 #define DAFKA_STORE_WRITER_T_DEFINED
 #endif
+
+//  Extra headers
 
 //  Internal API
 

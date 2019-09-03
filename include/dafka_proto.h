@@ -23,8 +23,8 @@ extern "C" {
 //  @interface
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
-#define DAFKA_PROTO_MSG 'M'                  //
-#define DAFKA_PROTO_DIRECT_MSG 'D'           //
+#define DAFKA_PROTO_RECORD 'M'               //
+#define DAFKA_PROTO_DIRECT_RECORD 'D'        //
 #define DAFKA_PROTO_FETCH 'F'                //
 #define DAFKA_PROTO_ACK 'K'                  //
 #define DAFKA_PROTO_HEAD 'H'                 //
@@ -108,14 +108,6 @@ DAFKA_EXPORT void
 DAFKA_EXPORT const char *
     dafka_proto_command (dafka_proto_t *self);
 
-//  Get the subject field
-DAFKA_EXPORT const char *
-    dafka_proto_subject (dafka_proto_t *self);
-
-//  Set the subject field
-DAFKA_EXPORT void
-    dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
-
 //  Get the address field
 DAFKA_EXPORT const char *
     dafka_proto_address (dafka_proto_t *self);
@@ -123,6 +115,14 @@ DAFKA_EXPORT const char *
 //  Set the address field
 DAFKA_EXPORT void
     dafka_proto_set_address (dafka_proto_t *self, const char *address);
+
+//  Get the subject field
+DAFKA_EXPORT const char *
+    dafka_proto_subject (dafka_proto_t *self);
+
+//  Set the subject field
+DAFKA_EXPORT void
+    dafka_proto_set_subject (dafka_proto_t *self, const char *subject);
 
 //  Get the sequence field
 DAFKA_EXPORT uint64_t

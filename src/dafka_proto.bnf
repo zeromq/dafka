@@ -1,71 +1,103 @@
 The following ABNF grammar defines the dafka_proto:
 
-    dafka_proto     = *( MSG | DIRECT-MSG | FETCH | ACK | HEAD | DIRECT-HEAD | GET-HEADS | CONSUMER-HELLO | STORE-HELLO )
+    DAFKA           = join-consumer / publish / offsets
 
-    ;  Message from producer to consumers. The topic is either the subject or
-    ;  recipient address.
+    join-consumer   = S:STORE-HELLO C:CONSUMER-HELLO *( S:DIRECT-HEAD [ consumer-fetch ] )
 
-    MSG             = signature %d'm' subject address sequence content
-    signature       = %xAA %xA0             ; two octets
-    subject         = string                ;
+    consumer-fetch  = C:FETCH 1*( P:DIRECT-RECORD / S:DIRECT-RECORD )
+
+    publish         = P:RECORD [ consumer-fetch / store-fetch S:ACK ]
+
+    store-fetch     = S:FETCH 1*( ( P:DIRECT-RECORD / S:DIRECT-RECORD ) [ S:ACK ] )
+
+    offsets         = P:HEAD [ consumer-fetch / store-fetch ]
+
+    ;  Record from producer to consumers and stores. Topic is the name of the
+    ;  topic. Subject is the name of the topic. Address is the address of the
+    ;  producer (partition).
+
+    RECORD          = signature %d'M' version address subject sequence content
+    signature       = %xAA %xA5             ; two octets
+    version         = number-1              ; Version = 1
     address         = string                ;
+    subject         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
 
-    ;  Direct message from producer to consumer. The topic is the recipient
-    ;  address.
+    ;  Direct record from a producer or a store to a consumer. Topic is the
+    ;  address of the requestor. Subject is the name of the topic. Address is
+    ;  the address of the producer (partition).
 
-    DIRECT-MSG      = signature %d'd' subject address sequence content
-    subject         = string                ;
+    DIRECT-RECORD   = signature %d'D' version address subject sequence content
+    version         = number-1              ; Version = 1
     address         = string                ;
+    subject         = string                ;
     sequence        = number-8              ;
     content         = frame                 ;
 
-    ;  Consumer publish the message when a message is missing. Topic is the
-    ;  address of the producer (partition). Either the producer or a store
-    ;  daemon can answer.
+    ;  Consumer or store publish this message when a record is missing.
+    ;  Either producer or a store can answer. Topic is the address of the
+    ;  producer (partition). Subject is the name of the topic. Address is the
+    ;  address of this message's sender. Count is the number of messages to
+    ;  fetch starting with the record identified by sequence.
 
-    FETCH           = signature %d'f' subject sequence count address
+    FETCH           = signature %d'F' version address subject sequence count
+    version         = number-1              ; Version = 1
+    address         = string                ;
     subject         = string                ;
     sequence        = number-8              ;
     count           = number-4              ;
+
+    ;  Ack from a stores to a producer. Topic is the address of the producer
+    ;  (partition). Subject is the name of the topic.
+
+    ACK             = signature %d'K' version address subject sequence
+    version         = number-1              ; Version = 1
     address         = string                ;
-
-    ;  Ack from a store daemon to a producer. Topic is the address of the
-    ;  producer.
-
-    ACK             = signature %d'k' subject sequence
     subject         = string                ;
     sequence        = number-8              ;
 
-    ;  No description
+    ;  Head from producer to consumers and stores. Topic is the name of the
+    ;  topic. Subject is the name of the topic. Address is the address of the
+    ;  producer (partition).
 
-    HEAD            = signature %d'h' subject address sequence
-    subject         = string                ;
+    HEAD            = signature %d'H' version address subject sequence
+    version         = number-1              ; Version = 1
     address         = string                ;
+    subject         = string                ;
     sequence        = number-8              ;
 
-    ;  No description
+    ;  Head from producer or store to a consumers. Topic is the name of the
+    ;  topic. Subject is the name of the topic. Address is the address of the
+    ;  producer (partition).
 
-    DIRECT-HEAD     = signature %d'e' subject address sequence
-    subject         = string                ;
+    DIRECT-HEAD     = signature %d'E' version address subject sequence
+    version         = number-1              ; Version = 1
     address         = string                ;
+    subject         = string                ;
     sequence        = number-8              ;
 
-    ;  No description
+    ;  Get heads from stores send by a consumer. Topic is the name of the
+    ;  topic. Address is the address of the consumer.
 
-    GET-HEADS       = signature %d'g' address
+    GET-HEADS       = signature %d'G' version address
+    version         = number-1              ; Version = 1
     address         = string                ;
 
-    ;  No description
+    ;  Hello message from a consumer to a store. Topic is the store's
+    ;  address. Address is the address of the consumer. Subjects is a list of
+    ;  all topic the consumer is subscribed to.
 
-    CONSUMER-HELLO  = signature %d'w' address subjects
+    CONSUMER-HELLO  = signature %d'W' version address subjects
+    version         = number-1              ; Version = 1
     address         = string                ;
     subjects        = strings               ;
 
-    ;  No description
+    ;  Hello message from a store to a consumer. Topic is the consumer's
+    ;  address. Address is the address of the store.
 
-    STORE-HELLO     = signature %d'l' address
+    STORE-HELLO     = signature %d'L' version address
+    version         = number-1              ; Version = 1
     address         = string                ;
 
     ; A list of string values
