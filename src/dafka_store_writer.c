@@ -81,11 +81,13 @@ dafka_store_writer_new (zsock_t *pipe, const char* address, leveldb_t *db, zconf
 
     // Create the direct subscriber and subscribe to direct messaging
     self->direct_subscriber = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvtimeo(self->direct_subscriber, 0);
     dafka_proto_subscribe (self->direct_subscriber, DAFKA_PROTO_DIRECT_RECORD, self->address);
     zsock_set_rcvhwm (self->direct_subscriber, 100000); // TODO: should be configurable, now it is the same is fetch max count
 
     //  Create the msg subscriber and subscribe to msg and head
     self->msg_subscriber = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvtimeo(self->msg_subscriber, 0);
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_RECORD, "");
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_HEAD, "");
     zsock_set_rcvhwm (self->msg_subscriber, 100000); // TODO: should be configurable
@@ -247,16 +249,15 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
     zhashx_set_duplicator (fetches, NULL);
     zhashx_set_destructor (fetches, (zhashx_destructor_fn *) dafka_proto_destroy);
 
-    while (batch_size < 100000 && (zsock_has_in (self->direct_subscriber) || zsock_has_in (self->msg_subscriber))) {
-        int rc;
+    // We always check the DIRECT subscriber first, this is how we gave it a priority over the MSG subscriber
+    zsock_t *sock = self->direct_subscriber;
 
-        // We always check the DIRECT subscriber first, this is how we gave it a priority over the MSG subscriber
-        if (zsock_has_in (self->direct_subscriber))
-            rc = dafka_proto_recv (self->incoming_msg, self->direct_subscriber);
-        else
-            rc = dafka_proto_recv (self->incoming_msg, self->msg_subscriber);
-
-        if (rc == -1)
+    while (batch_size < 100000) {
+        int rc = dafka_proto_recv (self->incoming_msg, sock);
+        if (rc == -1 && errno == EAGAIN && sock == self->direct_subscriber) {
+            sock = self->msg_subscriber;
+            continue;
+        } else if (rc == -1)
             break;
 
         switch (dafka_proto_id (self->incoming_msg)) {
