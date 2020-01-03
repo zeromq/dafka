@@ -772,7 +772,8 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
     int size;
     size = zmq_msg_recv (&frame, zsock_resolve (input), 0);
     if (size == -1) {
-        zsys_warning ("dafka_proto: interrupted");
+        if (errno != EAGAIN)
+            zsys_warning ("dafka_proto: interrupted");
         rc = -1;                //  Interrupted
         goto malformed;
     }
