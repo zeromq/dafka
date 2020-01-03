@@ -276,29 +276,36 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (arg);
     dafka_producer_t *self = (dafka_producer_t  *) arg;
 
-    char *command = zstr_recv (pipe);
-    if (!command)
-       return -1;       //  Interrupted
+    int batch_counter = 0;
+    while (batch_counter < 100000) {
+        char *command = zstr_recv_nowait (pipe);
+        if (!command) {
+            if (errno == EAGAIN)
+                break;
+            else
+                return -1;       //  Interrupted
+        }
 
-    int rc = 0;
-    if (streq (command, "PUBLISH")) {
-        zframe_t *content = NULL;
-        zsock_brecv (pipe, "p", &content);
-        s_publish (self, content);
+        batch_counter++;
+
+        if (streq (command, "PUBLISH")) {
+            zframe_t *content = NULL;
+            zsock_brecv(pipe, "p", &content);
+            s_publish(self, content);
+        } else if (streq (command, "GET ADDRESS"))
+            zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
+        else if (streq (command, "$TERM")) {
+            zstr_free(&command);
+            //  The $TERM command is send by zactor_destroy() method
+            return -1;
+        } else {
+            zsys_error("invalid command '%s'", command);
+            assert (false);
+        }
+        zstr_free(&command);
     }
-    else
-    if (streq (command, "GET ADDRESS"))
-        zsock_bsend (self->pipe, "p", dafka_proto_address (self->msg));
-    else
-    if (streq (command, "$TERM"))
-        //  The $TERM command is send by zactor_destroy() method
-        rc = -1;
-    else {
-        zsys_error ("invalid command '%s'", command);
-        assert (false);
-    }
-    zstr_free (&command);
-    return rc;
+
+    return 0;
 }
 
 
