@@ -280,10 +280,15 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
     assert (arg);
     dafka_producer_t *self = (dafka_producer_t  *) arg;
 
+    zmq_msg_t msg;
+    zmq_msg_init (&msg);
+
+    void* sock = zsock_resolve (pipe);
+
     int batch_counter = 0;
     while (batch_counter < 100000) {
-        char *command = zstr_recv_nowait (pipe);
-        if (!command) {
+        int rc = zmq_msg_recv (&msg, sock, ZMQ_DONTWAIT);
+        if (rc == -1) {
             if (errno == EAGAIN)
                 break;
             else
@@ -292,22 +297,30 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
 
         batch_counter++;
 
-        if (streq (command, "PUBLISH")) {
-            zframe_t *content = NULL;
-            zsock_brecv(pipe, "p", &content);
+        const char *data = (const char *) zmq_msg_data (&msg);
+        const size_t size = zmq_msg_size (&msg);
+
+        if (size == sizeof(void*) + 1 && *data == 'P') {
+            zframe_t *content;
+            memcpy (&content, data + 1, sizeof (void*));
             s_publish(self, content);
-        } else if (streq (command, "GET ADDRESS"))
+        } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
             zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
-        else if (streq (command, "$TERM")) {
-            zstr_free(&command);
+        else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {
+            zmq_msg_close (&msg);
             //  The $TERM command is send by zactor_destroy() method
             return -1;
         } else {
+            char *command = (char *) zmalloc (size + 1);
+            memcpy (command, data, size);
             zsys_error("invalid command '%s'", command);
+            zstr_free (&command);
+            zmq_msg_close (&msg);
             assert (false);
         }
-        zstr_free(&command);
     }
+
+    zmq_msg_close (&msg);
 
     return 0;
 }
