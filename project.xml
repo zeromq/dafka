@@ -26,6 +26,7 @@
     <actor name = "dafka_store_writer" private = "1" selftest = "0" />
     <actor name = "dafka_store" state = "stable" />
 
+    <class name = "dafka_fetch_filter" private = "1" selftest = "0" />
     <class name = "dafka_msg_key" private = "1" selftest = "0" />
     <class name = "dafka_head_key" private = "1" selftest = "0" />
 

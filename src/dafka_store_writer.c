@@ -48,6 +48,8 @@ struct _dafka_store_writer_t {
     dafka_msg_key_t *msg_key;
 
     zhashx_t *heads;
+
+    dafka_fetch_filter_t *fetch_filter;
 };
 
 
@@ -111,6 +113,9 @@ dafka_store_writer_new (zsock_t *pipe, const char* address, leveldb_t *db, zconf
     zhashx_set_destructor (self->heads, uint64_destroy);
     zhashx_set_duplicator (self->heads, uint64_dup);
 
+    // Create the fetch filter
+    self->fetch_filter = dafka_fetch_filter_new (self->publisher, self->address, self->verbose);
+
     self->poller = zpoller_new (self->direct_subscriber,
             self->msg_subscriber, self->pipe, self->beacon, self->publisher, NULL);
 
@@ -128,6 +133,7 @@ dafka_store_writer_destroy (dafka_store_writer_t **self_p)
     if (*self_p) {
         dafka_store_writer_t *self = *self_p;
 
+        dafka_fetch_filter_destroy (&self->fetch_filter);
         zhashx_destroy (&self->heads);
         dafka_msg_key_destroy (&self->msg_key);
         dafka_head_key_destroy (&self->head_key);
@@ -197,28 +203,6 @@ dafka_store_writer_recv_api (dafka_store_writer_t *self)
     zmsg_destroy (&request);
 }
 
-static void dafka_store_writer_add_fetch (dafka_store_writer_t *self,
-        zhashx_t *fetches,
-        uint64_t sequence,
-        uint32_t count) {
-    dafka_proto_t *msg = (dafka_proto_t *) zhashx_lookup (fetches, self->head_key);
-
-    if (msg == NULL) {
-        msg = dafka_proto_new ();
-        dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
-        dafka_proto_set_topic (msg, dafka_head_key_address (self->head_key));
-        dafka_proto_set_subject (msg, dafka_head_key_subject (self->head_key));
-        dafka_proto_set_address (msg, self->address);
-        zhashx_insert (fetches, self->head_key, msg);
-    }
-
-    if (count > 100000)
-        count = 100000;
-
-    dafka_proto_set_sequence (msg, sequence);
-    dafka_proto_set_count (msg, count);
-}
-
 static void dafka_store_writer_add_ack (dafka_store_writer_t *self,
                                           zhashx_t *acks,
                                           uint64_t sequence) {
@@ -247,20 +231,14 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
     zhashx_set_duplicator (acks, NULL);
     zhashx_set_destructor (acks, (zhashx_destructor_fn *) dafka_proto_destroy);
 
-    zhashx_t *fetches = zhashx_new ();
-    dafka_head_key_hashx_set (fetches);
-    zhashx_set_duplicator (fetches, NULL);
-    zhashx_set_destructor (fetches, (zhashx_destructor_fn *) dafka_proto_destroy);
-
-    // We always check the DIRECT subscriber first, this is how we gave it a priority over the MSG subscriber
-    zsock_t *sock = self->direct_subscriber;
-
     while (batch_size < 100000) {
-        int rc = dafka_proto_recv (self->incoming_msg, sock);
-        if (rc == -1 && errno == EAGAIN && sock == self->direct_subscriber) {
-            sock = self->msg_subscriber;
-            continue;
-        } else if (rc == -1)
+
+        // We always check the DIRECT subscriber first, this is how we gave it a priority over the MSG subscriber
+        int rc = dafka_proto_recv (self->incoming_msg, self->direct_subscriber);
+        if (rc == -1 && errno == EAGAIN)
+            rc = dafka_proto_recv (self->incoming_msg, self->msg_subscriber);
+
+        if (rc == -1)
             break;
 
         switch (dafka_proto_id (self->incoming_msg)) {
@@ -274,15 +252,11 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                 uint64_t head = dafka_store_write_get_head (self);
 
                 if (head == NULL_SEQUENCE) {
-                    uint32_t count = (uint32_t) (sequence + 1);
-
-                    dafka_store_writer_add_fetch (self, fetches, 0, count);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, 0);
                 }
                 else
                 if (head < sequence) {
-                    uint32_t count = (uint32_t) (sequence - head);
-
-                    dafka_store_writer_add_fetch (self, fetches, head + 1, count);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, head + 1);
                 }
                 break;
             }
@@ -303,13 +277,11 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                 }
                 else
                 if (head == NULL_SEQUENCE && sequence != 0) {
-                    uint32_t count = (uint32_t) sequence + 1;
-                    dafka_store_writer_add_fetch (self, fetches, 0, count);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, 0);
                 }
                 else
                 if (head != NULL_SEQUENCE && head + 1 != sequence) {
-                    uint32_t count = (uint32_t) (sequence - head);
-                    dafka_store_writer_add_fetch (self, fetches, head + 1, count);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, head + 1);
                 }
                 else {
                     // Saving msg to db
@@ -365,46 +337,8 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                        dafka_proto_sequence (ack_msg));
     }
 
-    // Sending the fetches now
-    for (dafka_proto_t *fetch_msg = (dafka_proto_t *) zhashx_first (fetches);
-         fetch_msg != NULL;
-         fetch_msg = (dafka_proto_t *) zhashx_next (fetches)) {
-
-        bool fetch = true;
-
-        // Checking if the fetch is still needed according to the recent head
-        uint64_t *head_p = (uint64_t *) zhashx_lookup (self->heads, (dafka_head_key_t *) zhashx_cursor (fetches));
-        if (head_p) {
-            uint64_t head = *head_p;
-            uint64_t sequence = dafka_proto_sequence (fetch_msg);
-            uint32_t count = dafka_proto_count (fetch_msg);
-
-            if (head >= sequence + count) {
-                fetch = false;
-            }
-            else
-            if (head > sequence) {
-                // We can change the sequence and count
-                dafka_proto_set_sequence (fetch_msg, head);
-                dafka_proto_set_count (fetch_msg, count - ((uint32_t )(head - sequence)));
-            }
-        }
-
-        if (fetch) {
-            dafka_proto_send (fetch_msg, self->publisher);
-
-            if (self->verbose)
-                zsys_info ("Store: Fetching %d from %s %s %" PRIu64,
-                           dafka_proto_count (fetch_msg),
-                           dafka_proto_subject (fetch_msg),
-                           dafka_proto_topic (fetch_msg),
-                           dafka_proto_sequence (fetch_msg));
-        }
-    }
-
     // Batch is done, clearing all the acks and fetches
     zhashx_destroy (&acks);
-    zhashx_destroy (&fetches);
 
     if (self->verbose)
         zsys_info ("Store: Saved batch of %d", batch_size);
