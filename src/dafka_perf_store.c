@@ -81,7 +81,9 @@ void subscriber_actor (zsock_t *pipe, subscriber_args *args) {
 
 int main (int argc, char *argv [])
 {
-    zsys_set_sndhwm (100000);
+    zsys_set_sndhwm (1000000);
+    zsys_set_pipehwm (1000000);
+
 
     zargs_t *args = zargs_new (argc, argv);
 

@@ -41,14 +41,13 @@ struct _dafka_consumer_t {
 
     zsock_t *consumer_pub;              // Publisher to ask for missed messages
     dafka_proto_t *pub_msg;             // Reusable message for receiving xpub subscriptions
-    zhashx_t *sequence_index;           // Index containing the latest sequence for each
-    // known publisher
-    dafka_proto_t *fetch_msg;           // Reusable fetch message
+    zhashx_t *sequence_index;           // Index containing the latest sequence for each known publisher
     dafka_proto_t *get_heads_msg;       // Reusable get heads message
     dafka_proto_t *hello_msg;           // Reusable hello message
     zactor_t *beacon;                   // Beacon actor
     bool reset_latest;                  // Wheather to process records from earliest or latest
     zlist_t *subjects;                  // List of topics the consumer is subscribed for
+    dafka_fetch_filter_t *fetch_filter; // Filter to not repeat fetch requests
 };
 
 //  --------------------------------------------------------------------------
@@ -94,10 +93,6 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     dafka_proto_set_id (self->hello_msg, DAFKA_PROTO_CONSUMER_HELLO);
     dafka_proto_set_address (self->hello_msg, zuuid_str (consumer_address));
 
-    self->fetch_msg = dafka_proto_new ();
-    dafka_proto_set_id (self->fetch_msg, DAFKA_PROTO_FETCH);
-    dafka_proto_set_address (self->fetch_msg, zuuid_str (consumer_address));
-
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_RECORD, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_HEAD, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_STORE_HELLO, zuuid_str (consumer_address));
@@ -105,10 +100,12 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     dafka_beacon_args_t beacon_args = {"Consumer", config};
     self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
-    zuuid_destroy (&consumer_address);
 
     self->subjects = zlist_new ();
     zlist_autofree (self->subjects);
+
+    self->fetch_filter = dafka_fetch_filter_new (self->consumer_pub, zuuid_str (consumer_address), self->verbose);
+    zuuid_destroy (&consumer_address);
 
     self->poller = zpoller_new (self->pipe, self->consumer_sub, self->beacon, self->consumer_pub, NULL);
 
@@ -127,6 +124,7 @@ dafka_consumer_destroy (dafka_consumer_t **self_p) {
 
         //  Free class properties
         zpoller_destroy (&self->poller);
+        dafka_fetch_filter_destroy (&self->fetch_filter);
         zlist_destroy (&self->subjects);
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
@@ -134,7 +132,6 @@ dafka_consumer_destroy (dafka_consumer_t **self_p) {
         dafka_proto_destroy (&self->consumer_msg);
         dafka_proto_destroy (&self->get_heads_msg);
         dafka_proto_destroy (&self->hello_msg);
-        dafka_proto_destroy (&self->fetch_msg);
         dafka_proto_destroy (&self->pub_msg);
         zhashx_destroy (&self->sequence_index);
         zactor_destroy (&self->beacon);
@@ -174,31 +171,6 @@ s_send_consumer_hello_msg (dafka_consumer_t *self, const char *store_address) {
     dafka_proto_set_subjects (self->hello_msg, &subjects);
     dafka_proto_set_topic (self->hello_msg, store_address);
     dafka_proto_send (self->hello_msg, self->consumer_pub);
-}
-
-
-static void
-s_send_fetch (dafka_consumer_t *self,
-              const char *subject,
-              const char *address,
-              uint64_t current_sequence,
-              uint64_t last_known_sequence) {
-    assert (self);
-    assert (subject);
-    assert (address);
-    uint64_t no_of_missed_messages = current_sequence - last_known_sequence;
-    if (self->verbose)
-        zsys_debug ("Consumer: FETCHING %u messages on subject %s from %s starting at sequence %u",
-                    no_of_missed_messages,
-                    subject,
-                    address,
-                    last_known_sequence + 1);
-
-    dafka_proto_set_subject (self->fetch_msg, subject);
-    dafka_proto_set_topic (self->fetch_msg, address);
-    dafka_proto_set_sequence (self->fetch_msg, last_known_sequence + 1);
-    dafka_proto_set_count (self->fetch_msg, no_of_missed_messages);
-    dafka_proto_send (self->fetch_msg, self->consumer_pub);
 }
 
 
@@ -275,7 +247,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
 
             //  Check if we missed some messages
             if (!last_sequence_known || current_sequence > last_known_sequence + 1)
-                s_send_fetch (self, subject, address, current_sequence, last_known_sequence);
+                dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
 
             if (current_sequence == last_known_sequence + 1) {
                 if (self->verbose)
@@ -305,7 +277,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
 
             //  Check if we missed some messages
             if (!last_sequence_known || current_sequence > last_known_sequence)
-                s_send_fetch (self, subject, address, current_sequence, last_known_sequence);
+                dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
 
             break;
         }
