@@ -25,6 +25,10 @@
 #include "../include/dafka.h"
 
 //  Opaque class structures to allow forward references
+#ifndef DAFKA_FETCH_FILTER_T_DEFINED
+typedef struct _dafka_fetch_filter_t dafka_fetch_filter_t;
+#define DAFKA_FETCH_FILTER_T_DEFINED
+#endif
 #ifndef DAFKA_MSG_KEY_T_DEFINED
 typedef struct _dafka_msg_key_t dafka_msg_key_t;
 #define DAFKA_MSG_KEY_T_DEFINED
@@ -50,6 +54,7 @@ typedef struct _dafka_store_writer_t dafka_store_writer_t;
 
 //  Internal API
 
+#include "dafka_fetch_filter.h"
 #include "dafka_msg_key.h"
 #include "dafka_head_key.h"
 #include "dafka_util.h"

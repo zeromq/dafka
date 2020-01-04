@@ -43,6 +43,7 @@ EXTRA_DIST += \
 endif
 
 EXTRA_DIST += \
+    src/dafka_fetch_filter.h \
     src/dafka_msg_key.h \
     src/dafka_head_key.h \
     src/dafka_util.h \
