@@ -76,21 +76,24 @@ dafka_store_writer_new (zsock_t *pipe, const char* address, leveldb_t *db, zconf
     self->publisher = zsock_new_pub (NULL);
     int port = zsock_bind (self->publisher, "tcp://*:*");
 
+    int hwm = atoi (zconfig_get (config, "store/high_watermark", "1000000"));
+
     // We are using different subscribers for DIRECT and MSG in order to
     // give the DIRECT messages an higher priority
 
     // Create the direct subscriber and subscribe to direct messaging
     self->direct_subscriber = zsock_new_sub (NULL, NULL);
     zsock_set_rcvtimeo(self->direct_subscriber, 0);
+    zsock_set_rcvhwm (self->direct_subscriber, hwm);
     dafka_proto_subscribe (self->direct_subscriber, DAFKA_PROTO_DIRECT_RECORD, self->address);
-    zsock_set_rcvhwm (self->direct_subscriber, 100000); // TODO: should be configurable, now it is the same is fetch max count
 
     //  Create the msg subscriber and subscribe to msg and head
     self->msg_subscriber = zsock_new_sub (NULL, NULL);
     zsock_set_rcvtimeo(self->msg_subscriber, 0);
+    zsock_set_rcvhwm (self->msg_subscriber, hwm);
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_RECORD, "");
     dafka_proto_subscribe (self->msg_subscriber, DAFKA_PROTO_HEAD, "");
-    zsock_set_rcvhwm (self->msg_subscriber, 100000); // TODO: should be configurable
+
 
     //  Create and start the beaconing
     dafka_beacon_args_t beacon_args = {"Store Writer", config};

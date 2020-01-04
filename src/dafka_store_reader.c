@@ -61,6 +61,8 @@ dafka_store_reader_new (zsock_t *pipe, const char* writer_address, leveldb_t *db
     if (atoi (zconfig_get (config, "store/verbose", "0")))
         self->verbose = true;
 
+    int hwm = atoi (zconfig_get (config, "store/high_watermark", "1000000"));
+
     self->db = db;
     self->writer_address = writer_address;
 
@@ -69,11 +71,13 @@ dafka_store_reader_new (zsock_t *pipe, const char* writer_address, leveldb_t *db
 
     //  Create and bind publisher
     self->publisher = zsock_new_xpub (NULL);
+    zsock_set_sndhwm (self->publisher, hwm);
     zsock_set_xpub_verbose (self->publisher, 1);
     int port = zsock_bind (self->publisher, "tcp://*:*");
 
     //  Create the subscriber and subscribe for fetch & get heads messages
     self->subscriber = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvhwm (self->subscriber, hwm);
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_FETCH, "");
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_GET_HEADS, "");
     dafka_proto_subscribe (self->subscriber, DAFKA_PROTO_CONSUMER_HELLO, self->address);

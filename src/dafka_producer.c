@@ -77,8 +77,12 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
 
     self->head_interval = atoi (zconfig_get (args->config, "producer/head_interval", "1000"));
 
+    int hwm = atoi (zconfig_get (args->config, "producer/high_watermark", "1000000"));
+
     self->socket = zsock_new_pub (NULL);
+    zsock_set_sndhwm (self->socket, hwm);
     self->producer_sub = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvhwm (self->producer_sub, hwm);
     int port = zsock_bind (self->socket, "tcp://*:*");
     assert (self->socket);
 

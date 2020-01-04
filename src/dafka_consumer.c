@@ -68,7 +68,10 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     if (atoi (zconfig_get (config, "consumer/verbose", "0")))
         self->verbose = true;
 
+    int hwm = atoi (zconfig_get (config, "consumer/high_watermark", "1000000"));
+
     self->consumer_sub = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvhwm (self->consumer_sub, hwm);
     self->consumer_msg = dafka_proto_new ();
 
     self->sequence_index = zhashx_new ();
@@ -76,6 +79,7 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
 
     self->consumer_pub = zsock_new_xpub (NULL);
+    zsock_set_sndhwm (self->consumer_pub, hwm);
     zsock_set_xpub_verbose (self->consumer_pub, 1);
     int port = zsock_bind (self->consumer_pub, "tcp://*:*");
     assert (port != -1);
