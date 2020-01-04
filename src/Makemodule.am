@@ -13,6 +13,7 @@ lib_LTLIBRARIES += src/libdafka.la
 pkgconfig_DATA = src/libdafka.pc
 
 src_libdafka_la_SOURCES = \
+    src/dafka_fetch_filter.c \
     src/dafka_msg_key.c \
     src/dafka_head_key.c \
     src/dafka_consumer_msg.c \

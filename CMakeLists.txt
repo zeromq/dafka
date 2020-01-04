@@ -6,7 +6,7 @@
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 2.8.12)
 project(dafka)
 enable_language(C)
 enable_testing()
@@ -74,7 +74,7 @@ endif()
 
 file(REMOVE "${SOURCE_DIR}/src/platform.h")
 
-file(WRITE "${CMAKE_BINARY_DIR}/platform.h.in" "
+file(WRITE "${PROJECT_BINARY_DIR}/platform.h.in" "
 #cmakedefine HAVE_LINUX_WIRELESS_H
 #cmakedefine HAVE_NET_IF_H
 #cmakedefine HAVE_NET_IF_MEDIA_H
@@ -82,7 +82,7 @@ file(WRITE "${CMAKE_BINARY_DIR}/platform.h.in" "
 #cmakedefine HAVE_FREEIFADDRS
 ")
 
-configure_file("${CMAKE_BINARY_DIR}/platform.h.in" "${CMAKE_BINARY_DIR}/platform.h")
+configure_file("${PROJECT_BINARY_DIR}/platform.h.in" "${PROJECT_BINARY_DIR}/platform.h")
 
 #The MSVC C compiler is too out of date,
 #so the sources have to be compiled as c++
@@ -192,6 +192,7 @@ set (dafka_headers
     include/dafka_beacon.h
     include/dafka_tower.h
     include/dafka_store.h
+    src/dafka_fetch_filter.h
     src/dafka_msg_key.h
     src/dafka_head_key.h
     src/dafka_util.h
@@ -207,8 +208,9 @@ install(FILES ${dafka_headers} DESTINATION include)
 ########################################################################
 
 
-include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}")
+include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_fetch_filter.c
     src/dafka_msg_key.c
     src/dafka_head_key.c
     src/dafka_consumer_msg.c
@@ -248,11 +250,15 @@ ENDIF (NOT MSVC)
 
 # shared
 if (DAFKA_BUILD_SHARED)
-  IF (MSVC)
+  IF (APPLE)
     add_library(dafka SHARED ${dafka_sources})
-  ELSE (MSVC)
-    add_library(dafka SHARED $<TARGET_OBJECTS:dafka_objects>)
-  ENDIF (MSVC)
+  ELSE (APPLE)
+    IF (MSVC)
+      add_library(dafka SHARED ${dafka_sources})
+    ELSE (MSVC)
+      add_library(dafka SHARED $<TARGET_OBJECTS:dafka_objects>)
+    ENDIF (MSVC)
+  ENDIF(APPLE)
 
   set_target_properties (dafka PROPERTIES
     PUBLIC_HEADER "${public_headers}"
@@ -284,11 +290,15 @@ endif()
 
 # static
 if (DAFKA_BUILD_STATIC)
-  IF (MSVC)
+  IF (APPLE)
     add_library(dafka-static STATIC ${dafka_sources})
-  ELSE (MSVC)
-    add_library(dafka-static STATIC $<TARGET_OBJECTS:dafka_objects>)
-  ENDIF (MSVC)
+  ELSE (APPLE)
+    IF (MSVC)
+      add_library(dafka-static STATIC ${dafka_sources})
+    ELSE (MSVC)
+      add_library(dafka-static STATIC $<TARGET_OBJECTS:dafka_objects>)
+    ENDIF (MSVC)
+  ENDIF (APPLE)
 
   set_target_properties(dafka-static PROPERTIES
     PUBLIC_HEADER "${public_headers}"
@@ -571,17 +581,17 @@ ENDIF (ENABLE_DRAFTS)
 
 add_custom_target(
     copy-selftest-ro ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/selftest-ro ${CMAKE_BINARY_DIR}/src/selftest-ro
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/src/selftest-ro ${PROJECT_BINARY_DIR}/src/selftest-ro
 )
 
 add_custom_target(
     make-selftest-rw ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/src/selftest-rw
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/src/selftest-rw
 )
 
 set_directory_properties(
     PROPERTIES
-    ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_BINARY_DIR}/src/selftest-ro;${CMAKE_BINARY_DIR}/src/selftest-rw"
+    ADDITIONAL_MAKE_CLEAN_FILES "${PROJECT_BINARY_DIR}/src/selftest-ro;${PROJECT_BINARY_DIR}/src/selftest-rw"
 )
 
 foreach(TEST_CLASS ${TEST_CLASSES})
@@ -606,24 +616,24 @@ include(CTest)
 ########################################################################
 add_custom_target (distclean @echo Cleaning for source distribution)
 
-set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
-                    ${CMAKE_BINARY_DIR}/cmake_install.cmake
-                    ${CMAKE_BINARY_DIR}/Makefile
-                    ${CMAKE_BINARY_DIR}/CMakeFiles
-                    ${CMAKE_BINARY_DIR}/CTestTestfile.cmake
-                    ${CMAKE_BINARY_DIR}/DartConfiguration.tcl
-                    ${CMAKE_BINARY_DIR}/Testing
-                    ${CMAKE_BINARY_DIR}/compile_commands.json
-                    ${CMAKE_BINARY_DIR}/platform.h
-                    ${CMAKE_BINARY_DIR}/src/libdafka.pc
-                    ${CMAKE_BINARY_DIR}/src/libdafka.so
-                    ${CMAKE_BINARY_DIR}/src/dafka_selftest
-                    ${CMAKE_BINARY_DIR}/src/dafka_console_producer
-                    ${CMAKE_BINARY_DIR}/src/dafka_console_consumer
-                    ${CMAKE_BINARY_DIR}/src/dafka_stored
-                    ${CMAKE_BINARY_DIR}/src/dafka_towerd
-                    ${CMAKE_BINARY_DIR}/src/dafka_perf_store
-                    ${CMAKE_BINARY_DIR}/src/dafka_selftest
+set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
+                    ${PROJECT_BINARY_DIR}/cmake_install.cmake
+                    ${PROJECT_BINARY_DIR}/Makefile
+                    ${PROJECT_BINARY_DIR}/CMakeFiles
+                    ${PROJECT_BINARY_DIR}/CTestTestfile.cmake
+                    ${PROJECT_BINARY_DIR}/DartConfiguration.tcl
+                    ${PROJECT_BINARY_DIR}/Testing
+                    ${PROJECT_BINARY_DIR}/compile_commands.json
+                    ${PROJECT_BINARY_DIR}/platform.h
+                    ${PROJECT_BINARY_DIR}/src/libdafka.pc
+                    ${PROJECT_BINARY_DIR}/src/libdafka.so
+                    ${PROJECT_BINARY_DIR}/src/dafka_selftest
+                    ${PROJECT_BINARY_DIR}/src/dafka_console_producer
+                    ${PROJECT_BINARY_DIR}/src/dafka_console_consumer
+                    ${PROJECT_BINARY_DIR}/src/dafka_stored
+                    ${PROJECT_BINARY_DIR}/src/dafka_towerd
+                    ${PROJECT_BINARY_DIR}/src/dafka_perf_store
+                    ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )
 
 add_custom_command(
