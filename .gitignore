@@ -27,6 +27,7 @@ src/dafka_console_consumer
 src/dafka_stored
 src/dafka_towerd
 src/dafka_perf_store
+src/dafka_perf_consumer
 src/dafka_selftest
 *.exe
 *.out

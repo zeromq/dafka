@@ -82,6 +82,13 @@ src_dafka_towerd_LDADD = ${program_libs}
 src_dafka_towerd_SOURCES = src/dafka_towerd.c
 endif #ENABLE_DAFKA_TOWERD
 
+if ENABLE_DAFKA_PERF_CONSUMER
+noinst_PROGRAMS += src/dafka_perf_consumer
+src_dafka_perf_consumer_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_perf_consumer_LDADD = ${program_libs}
+src_dafka_perf_consumer_SOURCES = src/dafka_perf_consumer.c
+endif #ENABLE_DAFKA_PERF_CONSUMER
+
 if ENABLE_DAFKA_PERF_STORE
 noinst_PROGRAMS += src/dafka_perf_store
 src_dafka_perf_store_CPPFLAGS = ${AM_CPPFLAGS}
@@ -112,6 +119,7 @@ src: \
 		src/dafka_console_consumer \
 		src/dafka_stored \
 		src/dafka_towerd \
+		src/dafka_perf_consumer \
 		src/dafka_perf_store \
 		src/dafka_selftest \
 		src/libdafka.la

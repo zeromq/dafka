@@ -154,7 +154,7 @@ dafka_producer_msg_send (dafka_producer_msg_t *self, zactor_t *producer) {
     int rc = zmq_msg_init_size (&msg,sizeof (void*) + 1);
     assert (rc == 0);
 
-    char *data = zmq_msg_data (&msg);
+    char *data = (char *) zmq_msg_data (&msg);
     *data = 'P';
     memcpy(data + 1, &self->content, sizeof (void *));
 
