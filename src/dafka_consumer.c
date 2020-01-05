@@ -70,6 +70,7 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     int hwm = atoi (zconfig_get (config, "consumer/high_watermark", "1000000"));
 
     self->consumer_sub = zsock_new_sub (NULL, NULL);
+    zsock_set_rcvtimeo (self->consumer_sub, 0);
     zsock_set_rcvhwm (self->consumer_sub, hwm);
     self->consumer_msg = dafka_proto_new ();
 
@@ -197,106 +198,108 @@ s_subscribe (dafka_consumer_t *self, const char *topic) {
 
 static void
 dafka_consumer_recv_sub (dafka_consumer_t *self) {
-    int rc = dafka_proto_recv (self->consumer_msg, self->consumer_sub);
-    if (rc != 0)
-        return;        //  Interrupted or malformed
+    char sequence_key[256 + 1 + 256 + 1];
 
-    char id = dafka_proto_id (self->consumer_msg);
-    zframe_t *content = dafka_proto_content (self->consumer_msg);
-    uint64_t current_sequence = dafka_proto_sequence (self->consumer_msg);
-    const char *address = dafka_proto_address (self->consumer_msg);
-    const char *subject = dafka_proto_subject (self->consumer_msg);
+    for (int i = 0; i < 100000; ++i) {
+        int rc = dafka_proto_recv(self->consumer_msg, self->consumer_sub);
+        if (rc != 0)
+            return;        //  EAGAIN, Interrupted or malformed
 
-    if (self->verbose)
-        zsys_debug ("Consumer: Received message %c from %s on subject %s with sequence %u",
-                    id, address, subject, current_sequence);
+        char id = dafka_proto_id(self->consumer_msg);
+        zframe_t *content = dafka_proto_content(self->consumer_msg);
+        uint64_t current_sequence = dafka_proto_sequence(self->consumer_msg);
+        const char *address = dafka_proto_address(self->consumer_msg);
+        const char *subject = dafka_proto_subject(self->consumer_msg);
 
-    char *sequence_key = zsys_sprintf ("%s/%s", subject, address);
+        if (self->verbose)
+            zsys_debug("Consumer: Received message %c from %s on subject %s with sequence %u",
+                       id, address, subject, current_sequence);
 
-    // TODO: Get partition tail through EARLIEST message
-    uint64_t last_known_sequence = -1;
-    bool last_sequence_known = zhashx_lookup (self->sequence_index, sequence_key) ? true : false;
-    if (last_sequence_known)
-        last_known_sequence = *((uint64_t *) zhashx_lookup (self->sequence_index, sequence_key));
+        snprintf (sequence_key, sizeof (sequence_key), "%s/%s", subject, address);
 
-    switch (dafka_proto_id (self->consumer_msg)) {
-        case DAFKA_PROTO_RECORD:
-        case DAFKA_PROTO_DIRECT_RECORD: {
-            if (!last_sequence_known) {
-                last_sequence_known = true;
-                if (self->reset_latest) {
-                    if (self->verbose)
-                        zsys_debug ("Consumer: Setting offset for topic %s on partition %s to latest %u",
-                                    subject,
-                                    address,
-                                    current_sequence - 1);
+        // TODO: Get partition tail through EARLIEST message
+        uint64_t *last_known_sequence_p = (uint64_t *) zhashx_lookup(self->sequence_index, sequence_key);
+        uint64_t last_known_sequence = -1;
+        bool last_sequence_known = last_known_sequence_p != NULL;
+        if (last_known_sequence_p)
+            last_known_sequence = *last_known_sequence_p;
 
-                    // Set to latest - 1 in order to process the current message
-                    last_known_sequence = current_sequence - 1;
-                    zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
-                } else {
-                    if (self->verbose)
-                        zsys_debug ("Consumer: Setting offset for topic %s on partition %s to earliest %u",
-                                    subject,
-                                    address,
-                                    last_known_sequence);
+        switch (dafka_proto_id(self->consumer_msg)) {
+            case DAFKA_PROTO_RECORD:
+            case DAFKA_PROTO_DIRECT_RECORD: {
+                if (!last_sequence_known) {
+                    if (self->reset_latest) {
+                        if (self->verbose)
+                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to latest %u",
+                                       subject,
+                                       address,
+                                       current_sequence - 1);
 
-                    zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
+                        // Set to latest - 1 in order to process the current message
+                        last_known_sequence = current_sequence - 1;
+                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
+                    } else {
+                        if (self->verbose)
+                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to earliest %u",
+                                       subject,
+                                       address,
+                                       last_known_sequence);
+
+                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
+                    }
                 }
+
+                //  Check if we missed some messages
+                if (current_sequence > last_known_sequence + 1)
+                    dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
+
+                if (current_sequence == last_known_sequence + 1) {
+                    if (self->verbose)
+                        zsys_debug("Consumer: Send message %u to client", current_sequence);
+
+                    zhashx_update(self->sequence_index, sequence_key, &current_sequence);
+                    zsock_bsend(self->pipe, "ssf", subject, address, content);
+                }
+                break;
             }
+            case DAFKA_PROTO_HEAD:
+            case DAFKA_PROTO_DIRECT_HEAD: {
+                if (!last_sequence_known) {
+                    if (self->reset_latest) {
+                        if (self->verbose)
+                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to latest %u",
+                                       subject,
+                                       address,
+                                       current_sequence);
 
-            //  Check if we missed some messages
-            if (!last_sequence_known || current_sequence > last_known_sequence + 1)
-                dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
+                        // Set to latest in order to skip fetching older messages
+                        last_known_sequence = current_sequence;
+                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
+                        last_sequence_known = true;
+                    }
+                }
 
-            if (current_sequence == last_known_sequence + 1) {
+                //  Check if we missed some messages
+                if (!last_sequence_known || current_sequence > last_known_sequence)
+                    dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
+
+                break;
+            }
+            case DAFKA_PROTO_STORE_HELLO: {
+                const char *store_address = dafka_proto_address(self->consumer_msg);
+
                 if (self->verbose)
-                    zsys_debug ("Consumer: Send message %u to client", current_sequence);
+                    zsys_info("Consumer: Consumer is connected to store %s", store_address);
 
-                zhashx_update (self->sequence_index, sequence_key, &current_sequence);
-                zsock_bsend (self->pipe, "ssf", subject, address, content);
+                s_send_consumer_hello_msg(self, store_address);
+
+                break;
             }
-            break;
+            default:
+                return;     // Unexpected message id
+
         }
-        case DAFKA_PROTO_HEAD:
-        case DAFKA_PROTO_DIRECT_HEAD: {
-            if (!last_sequence_known) {
-                if (self->reset_latest) {
-                    if (self->verbose)
-                        zsys_debug ("Consumer: Setting offset for topic %s on partition %s to latest %u",
-                                    subject,
-                                    address,
-                                    current_sequence);
-
-                    // Set to latest in order to skip fetching older messages
-                    last_known_sequence = current_sequence;
-                    zhashx_insert (self->sequence_index, sequence_key, &last_known_sequence);
-                    last_sequence_known = true;
-                }
-            }
-
-            //  Check if we missed some messages
-            if (!last_sequence_known || current_sequence > last_known_sequence)
-                dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
-
-            break;
-        }
-        case DAFKA_PROTO_STORE_HELLO: {
-            const char *store_address = dafka_proto_address (self->consumer_msg);
-
-            if (self->verbose)
-                zsys_info ("Consumer: Consumer is connected to store %s", store_address);
-
-            s_send_consumer_hello_msg (self, store_address);
-
-            break;
-        }
-        default:
-            return;     // Unexpected message id
-
     }
-
-    zstr_free (&sequence_key);
 }
 
 //  Here we handle incoming message from the node
@@ -363,10 +366,10 @@ dafka_consumer (zsock_t *pipe, void *args) {
 
     while (!self->terminated) {
         void *which = (zsock_t *) zpoller_wait (self->poller, -1);
-        if (which == self->pipe)
-            dafka_consumer_recv_api (self);
         if (which == self->consumer_sub)
             dafka_consumer_recv_sub (self);
+        if (which == self->pipe)
+            dafka_consumer_recv_api (self);
         if (which == self->beacon)
             dafka_beacon_recv (self->beacon, self->consumer_sub, self->verbose, "Consumer");
         if (which == self->consumer_pub)
