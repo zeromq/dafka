@@ -498,6 +498,31 @@ install(TARGETS dafka_towerd
     RUNTIME DESTINATION bin
 )
 add_executable(
+    dafka_perf_consumer
+    "${SOURCE_DIR}/src/dafka_perf_consumer.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_perf_consumer
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_perf_consumer
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
     dafka_perf_store
     "${SOURCE_DIR}/src/dafka_perf_store.c"
 )
@@ -632,6 +657,7 @@ set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/src/dafka_console_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_stored
                     ${PROJECT_BINARY_DIR}/src/dafka_towerd
+                    ${PROJECT_BINARY_DIR}/src/dafka_perf_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_store
                     ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )

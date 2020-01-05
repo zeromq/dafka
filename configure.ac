@@ -646,6 +646,16 @@ AC_ARG_ENABLE([dafka_towerd],
 AM_CONDITIONAL([ENABLE_DAFKA_TOWERD], [test x$enable_dafka_towerd != xno])
 AM_COND_IF([ENABLE_DAFKA_TOWERD], [AC_MSG_NOTICE([ENABLE_DAFKA_TOWERD defined])])
 
+# Check for dafka_perf_consumer intent
+AC_ARG_ENABLE([dafka_perf_consumer],
+    AS_HELP_STRING([--enable-dafka_perf_consumer],
+        [Compile 'dafka_perf_consumer' in src [default=yes]]),
+    [enable_dafka_perf_consumer=$enableval],
+    [enable_dafka_perf_consumer=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_PERF_CONSUMER], [test x$enable_dafka_perf_consumer != xno])
+AM_COND_IF([ENABLE_DAFKA_PERF_CONSUMER], [AC_MSG_NOTICE([ENABLE_DAFKA_PERF_CONSUMER defined])])
+
 # Check for dafka_perf_store intent
 AC_ARG_ENABLE([dafka_perf_store],
     AS_HELP_STRING([--enable-dafka_perf_store],
@@ -715,22 +725,32 @@ AS_IF([test "x$enable_Werror" = "xyes" || test "x$enable_Werror" = "xauto"],
     [AS_IF([test -n "$CC"],[AS_IF([$CC --version 2>&1 | grep 'Free Software Foundation' > /dev/null && test "x$GCC" = "xyes"],
         [AC_MSG_NOTICE([Enabling pedantic errors for GNU C])
          CFLAGS="$CFLAGS -pedantic -Wall -Werror -Werror=format-security"],
-        [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU C)])
-         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C: $CC])])
-        ])])
+        [AS_IF([$CC --version 2>&1 | grep 'clang version' > /dev/null],
+            [AC_MSG_NOTICE([Enabling pedantic errors for clang C])
+             CFLAGS="$CFLAGS -pedantic -Wall -Werror -Werror=format-security"],
+            [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU or clang C)])
+             AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C: $CC])])
+        ])])])
      AS_IF([test -n "$CXX"],[AS_IF([$CXX --version 2>&1 | grep 'Free Software Foundation' > /dev/null && test "x$GCC" = "xyes"],
         [AC_MSG_NOTICE([Enabling pedantic errors for GNU C++])
          CXXFLAGS="$CXXFLAGS -pedantic -Wall -Werror -Werror=format-security"],
-        [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU C++)])
-         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C++: $CXX])])
-        ])])
+        [AS_IF([$CXX --version 2>&1 | grep 'clang version' > /dev/null],
+            [AC_MSG_NOTICE([Enabling pedantic errors for clang C++])
+             CXXFLAGS="$CXXFLAGS -pedantic -Wall -Werror -Werror=format-security"],
+            [AC_MSG_NOTICE([Not enabling pedantic errors: compiler not supported by this recipe (not GNU or clang C++)])
+             AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for C++: $CXX])])
+        ])])])
      AS_IF([test -n "$CPP"],[AS_IF([$CPP --version 2>&1 | grep 'Free Software Foundation' > /dev/null && test "x$GCC" = "xyes"],
         [AC_MSG_NOTICE([Enabling pedantic errors for GNU CPP preprocessor])
          CPPFLAGS="$CPPFLAGS -pedantic -Werror -Wall -Wc++-compat"
         ],
-        [AC_MSG_NOTICE([Not enabling pedantic errors: preprocessor not supported by this recipe (not GNU CPP)])
-         AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for CPP: $CPP])])
-        ])])
+        [AS_IF([$CXX --version 2>&1 | grep 'clang version' > /dev/null],
+            [AC_MSG_NOTICE([Enabling pedantic errors for clang CPP preprocessor])
+             CPPFLAGS="$CPPFLAGS -pedantic -Werror -Wall -Wc++-compat"
+            ],
+            [AC_MSG_NOTICE([Not enabling pedantic errors: preprocessor not supported by this recipe (not GNU or clang CPP)])
+             AS_IF([test "x$enable_Werror" = "xyes"], [AC_MSG_ERROR([--enable-Werror=yes was requested and can not be satisfied for CPP: $CPP])])
+        ])])])
 ])
 
 # Specify output files
@@ -738,7 +758,7 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  include/Makefile
                  src/libdafka.pc
-                 ])
+                ])
 
 
 AC_OUTPUT
