@@ -44,5 +44,6 @@
     <main name = "dafka_stored" />
     <main name = "dafka_towerd" />
 
+    <main name = "dafka_perf_consumer" private = "1" />
     <main name = "dafka_perf_store" private = "1" />
 </project>
