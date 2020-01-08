@@ -20,65 +20,6 @@
 
 #include "dafka_classes.h"
 
-typedef struct{
-    zconfig_t *config;
-    bool verbose;
-    int count;
-    const char *producer_address;
-} subscriber_args;
-
-void subscriber_actor (zsock_t *pipe, subscriber_args *args) {
-    dafka_beacon_args_t beacon_args = {"Subscriber", args->config};
-    zactor_t *beacon = zactor_new (dafka_beacon_actor, &beacon_args);
-    zsock_t *subscriber = zsock_new_sub (NULL, NULL);
-    dafka_proto_subscribe (subscriber, DAFKA_PROTO_ACK, args->producer_address);
-
-    zpoller_t *poller = zpoller_new (beacon, subscriber, pipe, NULL);
-    dafka_proto_t *msg = dafka_proto_new ();
-
-    zsock_signal (pipe, 0);
-
-    bool terminated = false;
-    while (!terminated) {
-        void *which = zpoller_wait (poller, -1);
-
-        if (which == beacon)
-            dafka_beacon_recv (beacon, subscriber, false, "");
-
-        if (which == pipe) {
-            char* command = zstr_recv (pipe);
-
-            if (streq (command, "$TERM"))
-                terminated = true;
-
-            zstr_free (&command);
-        }
-
-        if (which == subscriber) {
-            int rc = dafka_proto_recv (msg, subscriber);
-            if (rc == -1)
-                continue;
-
-            assert (DAFKA_PROTO_ACK == dafka_proto_id (msg));
-
-            if (args->verbose)
-                zsys_info ("Subscriber: received ack %" PRIu64, dafka_proto_sequence (msg));
-
-            if (args->count - 1 == dafka_proto_sequence (msg)) {
-                zsock_signal (pipe, 0);
-
-                // we can also exit the actor
-                break;
-            }
-        }
-    }
-
-    dafka_proto_destroy (&msg);
-    zpoller_destroy (&poller);
-    zsock_destroy (&subscriber);
-    zactor_destroy (&beacon);
-}
-
 int main (int argc, char *argv [])
 {
     zsys_set_pipehwm (1000000);
@@ -116,11 +57,6 @@ int main (int argc, char *argv [])
     // Creating the producer
     dafka_producer_args_t producer_args = {"$STORE_PERF", config};
     zactor_t *producer = zactor_new (dafka_producer, &producer_args);
-    const char *producer_address = dafka_producer_address (producer);
-
-    // Creating the subscriber which wait for ACK msg
-    subscriber_args sub_args = {config, verbose, count,  producer_address};
-    zactor_t *subscriber = zactor_new ((zactor_fn *) subscriber_actor, &sub_args);
 
     // Give everyone time to connect
     zclock_sleep (1000);
@@ -137,7 +73,7 @@ int main (int argc, char *argv [])
     printf ("Done publishing\n");
 
     // Now waiting for the subscriber confirmation
-    zsock_wait (subscriber);
+    zactor_destroy (&producer);
 
     unsigned long elapsed = zmq_stopwatch_stop (watch);
     if (elapsed == 0)
@@ -151,9 +87,7 @@ int main (int argc, char *argv [])
     printf ("mean throughput: %d [msg/s]\n", (int) throughput);
     printf ("mean throughput: %.3f [Mb/s]\n", megabits);
 
-    zactor_destroy (&subscriber);
     dafka_producer_msg_destroy (&msg);
-    zactor_destroy (&producer);
     zargs_destroy (&args);
     zconfig_destroy (&config);
 }

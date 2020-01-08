@@ -36,6 +36,7 @@ struct _dafka_producer_t {
     dafka_proto_t *sub_msg;     // Reusable ACK message to receive
     zhashx_t *message_cache;    // Messages are keept in the cache until the ACK is received
     uint64_t last_acked_sequence; // Last sequence no that has been acked by a store
+    bool terminating;           // Indicate if the producer is in the process of termination
 
     size_t head_interval;
 
@@ -69,6 +70,7 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
 
     //  Initialize actor properties
     self->pipe = pipe;
+    self->terminating = false;
     self->loop = zloop_new ();
 
     //  Initialize class properties
@@ -240,6 +242,12 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
             }
             self->last_acked_sequence = ack_sequence;
 
+            if (self->terminating && self->last_acked_sequence == dafka_proto_sequence (self->msg)) {
+                if (self->verbose)
+                    zsys_debug ("Producer: All ACKs received, terminating");
+                return -1;
+            }
+
             break;
         }
         case DAFKA_PROTO_FETCH: {
@@ -307,9 +315,19 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
         } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
             zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
         else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {
-            zmq_msg_close (&msg);
             //  The $TERM command is send by zactor_destroy() method
-            return -1;
+            self->terminating = true;
+            if (self->last_acked_sequence == dafka_proto_sequence (self->msg)) {
+                if (self->verbose)
+                    zsys_debug ("Producer: Termination received. All ACKs received, terminating");
+                zmq_msg_close (&msg);
+                return -1;
+            } else {
+                if (self->verbose)
+                    zsys_debug ("Producer: Termination received. Missing ACKs, delaying termination. %u of %d ",
+                            self->last_acked_sequence,  dafka_proto_sequence (self->msg));
+            }
+
         } else {
             char *command = (char *) zmalloc (size + 1);
             memcpy (command, data, size);
