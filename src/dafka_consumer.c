@@ -526,10 +526,15 @@ dafka_consumer_test (bool verbose) {
     assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
     assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
 
+    // We have to create a store in-order to ack all publisher messages and allow the publisher to terminate
+    store = zactor_new (dafka_store_actor, config);
+    assert (store);
+
     dafka_producer_msg_destroy (&p_msg);
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&tower);
     zactor_destroy (&producer);
+    zactor_destroy (&store);
     zactor_destroy (&consumer);
     zconfig_destroy (&config);
 
