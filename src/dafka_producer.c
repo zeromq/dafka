@@ -158,13 +158,13 @@ dafka_producer_destroy (dafka_producer_t **self_p)
 //  Publish content
 
 static int
-s_publish (dafka_producer_t *self, zframe_t *content)
+s_publish (dafka_producer_t *self, zmq_msg_t *content)
 {
     assert (self);
     assert (content);
 
     uint64_t sequence = dafka_proto_sequence (self->msg) + 1;
-    dafka_proto_set_content (self->msg, &content);
+    dafka_proto_set_content (self->msg, content);
     dafka_proto_set_sequence (self->msg, sequence);
     int rc = dafka_proto_send (self->msg, self->socket);
 
@@ -308,10 +308,12 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
         const char *data = (const char *) zmq_msg_data (&msg);
         const size_t size = zmq_msg_size (&msg);
 
-        if (size == sizeof(void*) + 1 && *data == 'P') {
-            zframe_t *content;
-            memcpy (&content, data + 1, sizeof (void*));
-            s_publish(self, content);
+        if (size ==  1 && *data == 'P') {
+            zmq_msg_t content;
+            zmq_msg_init (&content);
+            zmq_msg_recv (&content, sock, 0);
+            s_publish(self, &content);
+            zmq_msg_close (&content);
         } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
             zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
         else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {

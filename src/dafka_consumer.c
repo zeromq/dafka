@@ -200,13 +200,18 @@ static void
 dafka_consumer_recv_sub (dafka_consumer_t *self) {
     char sequence_key[256 + 1 + 256 + 1];
 
+    zmq_msg_t content;
+    zmq_msg_init (&content);
+
     for (int i = 0; i < 100000; ++i) {
         int rc = dafka_proto_recv(self->consumer_msg, self->consumer_sub);
-        if (rc != 0)
+        if (rc != 0) {
+            zmq_msg_close (&content);
             return;        //  EAGAIN, Interrupted or malformed
+        }
 
         char id = dafka_proto_id(self->consumer_msg);
-        zframe_t *content = dafka_proto_content(self->consumer_msg);
+        dafka_proto_get_content(self->consumer_msg, &content);
         uint64_t current_sequence = dafka_proto_sequence(self->consumer_msg);
         const char *address = dafka_proto_address(self->consumer_msg);
         const char *subject = dafka_proto_subject(self->consumer_msg);
@@ -258,7 +263,9 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
                         zsys_debug("Consumer: Send message %u to client", current_sequence);
 
                     zhashx_update(self->sequence_index, sequence_key, &current_sequence);
-                    zsock_bsend(self->pipe, "ssf", subject, address, content);
+                    zstr_sendm (self->pipe, subject);
+                    zstr_sendm (self->pipe, address);
+                    zmq_msg_send (&content, zsock_resolve (self->pipe), 0);
                 }
                 break;
             }
@@ -300,6 +307,8 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
 
         }
     }
+
+    zmq_msg_close (&content);
 }
 
 //  Here we handle incoming message from the node
