@@ -235,6 +235,7 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
 
         // We always check the DIRECT subscriber first, this is how we gave it a priority over the MSG subscriber
         int rc = dafka_proto_recv (self->incoming_msg, self->direct_subscriber);
+
         if (rc == -1 && errno == EAGAIN)
             rc = dafka_proto_recv (self->incoming_msg, self->msg_subscriber);
 
@@ -265,7 +266,7 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                 const char *subject = dafka_proto_subject (self->incoming_msg);
                 const char *address = dafka_proto_address (self->incoming_msg);
                 uint64_t sequence = dafka_proto_sequence (self->incoming_msg);
-                zframe_t *content = dafka_proto_content (self->incoming_msg);
+                zmq_msg_t *content = dafka_proto_content (self->incoming_msg);
 
                 dafka_head_key_set (self->head_key, subject, address);
                 uint64_t head = dafka_store_write_get_head (self);
@@ -290,7 +291,7 @@ dafka_store_writer_recv_subscriber (dafka_store_writer_t *self) {
                     const char *msg_key_bytes = dafka_msg_key_encode (self->msg_key, &msg_key_size);
                     leveldb_writebatch_put (batch,
                                             msg_key_bytes, msg_key_size,
-                                            (const char *) zframe_data (content), zframe_size (content));
+                                            (const char *) zmq_msg_data (content), zmq_msg_size (content));
 
                     // update the head
                     char sequence_bytes[8];

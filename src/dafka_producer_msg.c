@@ -150,20 +150,11 @@ dafka_producer_msg_send (dafka_producer_msg_t *self, zactor_t *producer) {
     assert (self);
     assert (self->content);
 
-    zmq_msg_t msg;
-    int rc = zmq_msg_init_size (&msg,sizeof (void*) + 1);
-    assert (rc == 0);
-
-    char *data = (char *) zmq_msg_data (&msg);
-    *data = 'P';
-    memcpy(data + 1, &self->content, sizeof (void *));
-
-    rc = zmq_msg_send (&msg, zsock_resolve (producer), 0);
-    zmq_msg_close (&msg);
+    int rc = zstr_sendm (producer, "P");
     if (rc == -1)
         return -1;
 
-    self->content = NULL;
+    zframe_send (&self->content, producer, 0);
 
     return 0;
 }

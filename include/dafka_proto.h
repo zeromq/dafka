@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_proto - Set the content field, transferring ownership from caller
+    dafka_proto - class description
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -133,16 +133,16 @@ DAFKA_EXPORT void
     dafka_proto_set_sequence (dafka_proto_t *self, uint64_t sequence);
 
 //  Get a copy of the content field
-DAFKA_EXPORT zframe_t *
+DAFKA_EXPORT zmq_msg_t *
     dafka_proto_content (dafka_proto_t *self);
 
 //  Get the content field and transfer ownership to caller
-DAFKA_EXPORT zframe_t *
-    dafka_proto_get_content (dafka_proto_t *self);
-
-//
 DAFKA_EXPORT void
-    dafka_proto_set_content (dafka_proto_t *self, zframe_t **content_p);
+    dafka_proto_get_content (dafka_proto_t *self, zmq_msg_t *content);
+
+//  Set the content field, transferring ownership from caller
+DAFKA_EXPORT void
+    dafka_proto_set_content (dafka_proto_t *self, zmq_msg_t *content);
 
 //  Get the count field
 DAFKA_EXPORT uint32_t
