@@ -25,6 +25,10 @@
 #include "../include/dafka.h"
 
 //  Opaque class structures to allow forward references
+#ifndef DAFKA_UNACKED_LIST_T_DEFINED
+typedef struct _dafka_unacked_list_t dafka_unacked_list_t;
+#define DAFKA_UNACKED_LIST_T_DEFINED
+#endif
 #ifndef DAFKA_FETCH_FILTER_T_DEFINED
 typedef struct _dafka_fetch_filter_t dafka_fetch_filter_t;
 #define DAFKA_FETCH_FILTER_T_DEFINED
@@ -54,6 +58,7 @@ typedef struct _dafka_store_writer_t dafka_store_writer_t;
 
 //  Internal API
 
+#include "dafka_unacked_list.h"
 #include "dafka_fetch_filter.h"
 #include "dafka_msg_key.h"
 #include "dafka_head_key.h"
@@ -63,6 +68,11 @@ typedef struct _dafka_store_writer_t dafka_store_writer_t;
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DAFKA_BUILD_DRAFT_API
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DAFKA_PRIVATE void
+    dafka_unacked_list_test (bool verbose);
 
 //  *** Draft method, defined for internal use only ***
 //  Self test of this class.

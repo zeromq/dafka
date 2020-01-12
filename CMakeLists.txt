@@ -192,6 +192,7 @@ set (dafka_headers
     include/dafka_beacon.h
     include/dafka_tower.h
     include/dafka_store.h
+    src/dafka_unacked_list.h
     src/dafka_fetch_filter.h
     src/dafka_msg_key.h
     src/dafka_head_key.h
@@ -210,6 +211,7 @@ install(FILES ${dafka_headers} DESTINATION include)
 
 include_directories("${SOURCE_DIR}/src" "${SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}")
 set (dafka_sources
+    src/dafka_unacked_list.c
     src/dafka_fetch_filter.c
     src/dafka_msg_key.c
     src/dafka_head_key.c
