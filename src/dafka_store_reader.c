@@ -263,13 +263,17 @@ dafka_store_reader_recv_subscriber (dafka_store_reader_t *self) {
             while (dafka_msg_key_cmp (self->iter_key, self->last_key) <= 0) {
                 size_t content_size;
                 const char *content = leveldb_iter_value (iter, &content_size);
-                zframe_t *frame = zframe_new (content, content_size);
+
+                zmq_msg_t frame;
+                zmq_msg_init_size (&frame, content_size);
+                memcpy (zmq_msg_data (&frame), content, content_size);
 
                 uint64_t iter_sequence = dafka_msg_key_sequence (self->iter_key);
 
                 dafka_proto_set_sequence (self->outgoing_msg, iter_sequence);
                 dafka_proto_set_content (self->outgoing_msg, &frame);
                 dafka_proto_send (self->outgoing_msg, self->publisher);
+                zmq_msg_close (&frame);
 
                 if (self->verbose)
                     zsys_info ("Store: found answer for consumer. Subject: %s, Partition: %s, Seq: %lu",

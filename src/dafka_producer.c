@@ -34,8 +34,7 @@ struct _dafka_producer_t {
     dafka_proto_t *msg;         // Reusable MSG message to publish
     dafka_proto_t *head_msg;    // Reusable HEAD message to publish
     dafka_proto_t *sub_msg;     // Reusable ACK message to receive
-    zhashx_t *message_cache;    // Messages are keept in the cache until the ACK is received
-    uint64_t last_acked_sequence; // Last sequence no that has been acked by a store
+    dafka_unacked_list_t *unacked_list; // Messages are kept until the ACK is received
     bool terminating;           // Indicate if the producer is in the process of termination
 
     size_t head_interval;
@@ -95,7 +94,6 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
     zuuid_t *address = zuuid_new ();
     dafka_proto_set_address (self->msg, zuuid_str (address));
     dafka_proto_set_sequence (self->msg, -1);
-    self->last_acked_sequence = -1;
 
     self->head_msg = dafka_proto_new ();
     dafka_proto_set_id (self->head_msg, DAFKA_PROTO_HEAD);
@@ -108,15 +106,8 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
     dafka_beacon_args_t beacon_args = {"Producer", args->config};
     self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (address), port);
-    zuuid_destroy (&address);
 
-    self->message_cache = zhashx_new ();
-    zhashx_set_key_destructor(self->message_cache, uint64_destroy);
-    zhashx_set_key_duplicator (self->message_cache, uint64_dup);
-    zhashx_set_destructor (self->message_cache, (zhashx_destructor_fn *) dafka_proto_destroy);
-    zhashx_set_duplicator (self->message_cache, (zhashx_duplicator_fn *) dafka_proto_dup);
-    zhashx_set_key_comparator (self->message_cache, uint64_cmp);
-    zhashx_set_key_hasher (self->message_cache, uint64_hash);
+    self->unacked_list = dafka_unacked_list_new (self->socket, zuuid_str (address), args->topic);
 
     zloop_reader (self->loop, self->socket, s_recv_socket, self);
     zloop_reader (self->loop, self->producer_sub, s_recv_sub, self);
@@ -125,6 +116,8 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
 
     dafka_proto_subscribe (self->producer_sub, DAFKA_PROTO_ACK, dafka_proto_address (self->msg));
     dafka_proto_subscribe (self->producer_sub, DAFKA_PROTO_FETCH, dafka_proto_address (self->msg));
+
+    zuuid_destroy (&address);
     return self;
 }
 
@@ -147,7 +140,7 @@ dafka_producer_destroy (dafka_producer_t **self_p)
         dafka_proto_destroy (&self->head_msg);
         dafka_proto_destroy (&self->sub_msg);
         zactor_destroy (&self->beacon);
-        zhashx_destroy (&self->message_cache);
+        dafka_unacked_list_destroy (&self->unacked_list);
 
         //  Free actor properties
         free (self);
@@ -158,20 +151,20 @@ dafka_producer_destroy (dafka_producer_t **self_p)
 //  Publish content
 
 static int
-s_publish (dafka_producer_t *self, zframe_t *content)
+s_publish (dafka_producer_t *self, zmq_msg_t *content)
 {
     assert (self);
     assert (content);
 
-    uint64_t sequence = dafka_proto_sequence (self->msg) + 1;
-    dafka_proto_set_content (self->msg, &content);
+    uint64_t sequence = dafka_unacked_list_push (self->unacked_list, content);
+
+    dafka_proto_set_content (self->msg, content);
     dafka_proto_set_sequence (self->msg, sequence);
+    dafka_proto_set_sequence (self->head_msg, sequence);
     int rc = dafka_proto_send (self->msg, self->socket);
 
     if (self->verbose)
         zsys_debug ("Producer: Send MSG message with sequence %u", dafka_proto_sequence (self->msg));
-
-    zhashx_insert (self->message_cache, &sequence, self->msg);
 
     // Starts the HEAD timer once the first message has been send
     if (sequence == 0)
@@ -187,10 +180,8 @@ s_send_head (zloop_t *loop, int timer_id, void *arg)
 {
     assert (arg);
     dafka_producer_t *self = (dafka_producer_t  *) arg;
-    uint64_t sequence = dafka_proto_sequence (self->msg);
-    dafka_proto_set_sequence (self->head_msg, sequence);
     if (self->verbose)
-        zsys_debug ("Producer: Send HEAD message with sequence %u", sequence);
+        zsys_debug ("Producer: Send HEAD message with sequence %" PRIu64 , dafka_proto_sequence (self->head_msg));
 
     return dafka_proto_send (self->head_msg, self->socket);
 }
@@ -237,12 +228,9 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
             if (self->verbose)
                 zsys_debug ("Producer: Received ACK with sequence %u", ack_sequence);
 
-            for (uint64_t index = self->last_acked_sequence + 1; index <= ack_sequence; index++) {
-                zhashx_delete (self->message_cache, &index);
-            }
-            self->last_acked_sequence = ack_sequence;
+            dafka_unacked_list_ack (self->unacked_list, ack_sequence);
 
-            if (self->terminating && self->last_acked_sequence == dafka_proto_sequence (self->msg)) {
+            if (self->terminating && dafka_unacked_list_is_empty (self->unacked_list)) {
                 if (self->verbose)
                     zsys_debug ("Producer: All ACKs received, terminating");
                 return -1;
@@ -251,27 +239,15 @@ s_recv_sub (zloop_t *loop, zsock_t *pipe, void *arg)
             break;
         }
         case DAFKA_PROTO_FETCH: {
-            const char *subject = dafka_proto_subject (self->sub_msg);
-            const char *address = dafka_proto_topic (self->sub_msg);
             uint64_t sequence = dafka_proto_sequence (self->sub_msg);
             uint32_t count = dafka_proto_count (self->sub_msg);
 
-            for (uint32_t index = 0; index < count; index++) {
-                uint64_t lookup_key = sequence + index;
-                dafka_proto_t *cached_msg = (dafka_proto_t *) zhashx_lookup (self->message_cache, &lookup_key);
-                if (cached_msg) {
-                    if (self->verbose)
-                        zsys_info ("Producer: found answer for subscriber. Subject: %s, Partition: %s, Seq: %u",
-                               subject, address, sequence + index);
+            if (self->verbose)
+                zsys_debug ("Producer: Received Fetch request. Sequence: %u Count: %d", sequence, count);
 
-                    dafka_proto_set_id (cached_msg, DAFKA_PROTO_DIRECT_RECORD);
-                    dafka_proto_set_topic (cached_msg, dafka_proto_address (self->sub_msg));
-                    dafka_proto_send (cached_msg, self->socket);
-                }
-                // No answer, exit the for loop
-                else
-                    break;
-            }
+            dafka_unacked_list_send (self->unacked_list, dafka_proto_address (self->sub_msg),
+                    sequence, count);
+
             break;
         }
     }
@@ -308,24 +284,26 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
         const char *data = (const char *) zmq_msg_data (&msg);
         const size_t size = zmq_msg_size (&msg);
 
-        if (size == sizeof(void*) + 1 && *data == 'P') {
-            zframe_t *content;
-            memcpy (&content, data + 1, sizeof (void*));
-            s_publish(self, content);
+        if (size ==  1 && *data == 'P') {
+            zmq_msg_t content;
+            zmq_msg_init (&content);
+            zmq_msg_recv (&content, sock, 0);
+            s_publish(self, &content);
+            zmq_msg_close (&content);
         } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
             zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
         else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {
             //  The $TERM command is send by zactor_destroy() method
             self->terminating = true;
-            if (self->last_acked_sequence == dafka_proto_sequence (self->msg)) {
+            if (dafka_unacked_list_is_empty (self->unacked_list)) {
                 if (self->verbose)
-                    zsys_debug ("Producer: Termination received. All ACKs received, terminating");
+                    zsys_debug ("Producer: Termination received. No unacked messages, terminating");
                 zmq_msg_close (&msg);
                 return -1;
             } else {
                 if (self->verbose)
-                    zsys_debug ("Producer: Termination received. Missing ACKs, delaying termination. %u of %d ",
-                            self->last_acked_sequence,  dafka_proto_sequence (self->msg));
+                    zsys_debug ("Producer: Termination received. Missing ACKs, delaying termination. %" PRIu64 " of %" PRIu64,
+                            dafka_unacked_list_last_acked (self->unacked_list),  dafka_proto_sequence (self->msg));
             }
 
         } else {
