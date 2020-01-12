@@ -2,6 +2,7 @@
     name = "dafka_proto"
     signature = "5"
     pubsub = "1"
+    use_zmq_msg = "1"
     title = "dafka_proto"
     script = "zproto_codec_c"
     package_dir = "../include"

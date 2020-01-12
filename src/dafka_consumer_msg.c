@@ -23,8 +23,8 @@
 //  Structure of our class
 
 struct _dafka_consumer_msg_t {
-    char *subject;
-    char *address;
+    char subject[256];
+    char address[256];
     zframe_t *content;
 };
 
@@ -115,9 +115,24 @@ DAFKA_EXPORT int
 dafka_consumer_msg_recv (dafka_consumer_msg_t *self, zactor_t * consumer) {
     assert (self);
 
-    zframe_destroy (&self->content);
+    zmq_msg_t msg;
+    zmq_msg_init (&msg);
 
-    return zsock_brecv (consumer, "ssf", &self->subject, &self->address, &self->content);
+    int count = zmq_msg_recv (&msg, zsock_resolve (consumer), 0);
+    if (count < 0)
+        return -1;
+
+    memcpy (self->subject, zmq_msg_data (&msg), count);
+    self->subject[count] = '\0';
+
+    count = zmq_msg_recv (&msg, zsock_resolve (consumer), 0);
+    memcpy (self->address, zmq_msg_data (&msg), count);
+    self->address[count] = '\0';
+
+    zframe_destroy (&self->content);
+    self->content = zframe_recv(consumer);
+
+    return 0;
 }
 
 

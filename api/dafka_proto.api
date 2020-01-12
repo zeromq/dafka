@@ -163,15 +163,15 @@
 </method>
 <method name = "content">
     Get a copy of the content field
-    <return type = "zframe" />
+    <return type = "zmq_msg" />
 </method>
 <method name = "get content">
     Get the content field and transfer ownership to caller
-    <return type = "zframe" />
+    <argument name = "content" type = "zmq_msg" />
 </method>
-    Set the content field, transferring ownership from caller
 <method name = "set content">
-    <argument name = "content_p" type = "zframe" by_reference = "1" />
+    Set the content field, transferring ownership from caller
+    <argument name = "content" type = "zmq_msg" />
 </method>
 <method name = "count">
     Get the count field
