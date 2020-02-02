@@ -319,6 +319,7 @@ dafka_test_peer_test (bool verbose) {
     zactor_t *testpeer = zactor_new (dafka_test_peer, config);
     assert (testpeer);
 
+    zconfig_destroy (&config);
     zactor_destroy (&tower);
     zactor_destroy (&testpeer);
 
