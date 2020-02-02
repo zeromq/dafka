@@ -50,6 +50,7 @@ EXTRA_DIST += \
     src/dafka_util.h \
     src/dafka_store_reader.h \
     src/dafka_store_writer.h \
+    src/dafka_test_peer.h \
     LICENSE \
     README.txt \
     README.md \

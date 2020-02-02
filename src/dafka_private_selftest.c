@@ -34,6 +34,8 @@ dafka_private_selftest (bool verbose, const char *subtest)
         dafka_unacked_list_test (verbose);
     if (streq (subtest, "$ALL") || streq (subtest, "dafka_util_test"))
         dafka_util_test (verbose);
+    if (streq (subtest, "$ALL") || streq (subtest, "dafka_test_peer_test"))
+        dafka_test_peer_test (verbose);
 }
 /*
 ################################################################################
