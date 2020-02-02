@@ -4,9 +4,9 @@
     Runs all private classes selftests.
 
     -------------------------------------------------------------------------
-    Copyright (c) the Contributors as noted in the AUTHORS file.
-    This file is part of CZMQ, the high-level C binding for 0MQ:
-    http://czmq.zeromq.org.
+    Copyright (c) the Contributors as noted in the AUTHORS file. This
+    file is part of DAFKA, a decentralized distributed streaming
+    platform: http://zeromq.org.
 
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this

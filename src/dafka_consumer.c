@@ -194,6 +194,34 @@ s_subscribe (dafka_consumer_t *self, const char *topic) {
 }
 
 
+// Sets the initial offset depending on whether the consumer is configured to
+// reset latest or earliest.
+
+static uint64_t
+s_set_inital_offset (dafka_consumer_t *self, char *sequence_key, uint64_t current_sequence) {
+    if (self->reset_latest) {
+        current_sequence -= 1;
+        if (self->verbose)
+            zsys_debug("Consumer: Setting offset for %s to latest %u",
+                       sequence_key,
+                       current_sequence);
+
+        // Set to latest in order to skip fetching older messages
+        zhashx_insert(self->sequence_index, sequence_key, &current_sequence);
+        return current_sequence;
+    } else {
+        uint64_t earliest_sequence = -1;
+        if (self->verbose)
+            zsys_debug("Consumer: Setting offset for %s to earliest %u",
+                       sequence_key,
+                       earliest_sequence);
+
+        zhashx_insert(self->sequence_index, sequence_key, &earliest_sequence);
+        return earliest_sequence;
+    }
+}
+
+
 //  Here we handle incoming message from the subscribtions
 
 static void
@@ -223,41 +251,20 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
         snprintf (sequence_key, sizeof (sequence_key), "%s/%s", subject, address);
 
         // TODO: Get partition tail through EARLIEST message
+        bool last_sequence_known = zhashx_lookup (self->sequence_index, sequence_key) != NULL;
+        if (!last_sequence_known)
+            s_set_inital_offset (self, sequence_key, current_sequence);
+
         uint64_t *last_known_sequence_p = (uint64_t *) zhashx_lookup(self->sequence_index, sequence_key);
-        uint64_t last_known_sequence = -1;
-        bool last_sequence_known = last_known_sequence_p != NULL;
-        if (last_known_sequence_p)
-            last_known_sequence = *last_known_sequence_p;
+        uint64_t last_known_sequence = *last_known_sequence_p;
 
         switch (dafka_proto_id(self->consumer_msg)) {
             case DAFKA_PROTO_RECORD:
             case DAFKA_PROTO_DIRECT_RECORD: {
-                if (!last_sequence_known) {
-                    if (self->reset_latest) {
-                        if (self->verbose)
-                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to latest %u",
-                                       subject,
-                                       address,
-                                       current_sequence - 1);
-
-                        // Set to latest - 1 in order to process the current message
-                        last_known_sequence = current_sequence - 1;
-                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
-                    } else {
-                        if (self->verbose)
-                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to earliest %u",
-                                       subject,
-                                       address,
-                                       last_known_sequence);
-
-                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
-                    }
-                }
-
                 //  Check if we missed some messages
                 if (current_sequence > last_known_sequence + 1)
                     dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
-
+                else
                 if (current_sequence == last_known_sequence + 1) {
                     if (self->verbose)
                         zsys_debug("Consumer: Send message %u to client", current_sequence);
@@ -271,21 +278,6 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
             }
             case DAFKA_PROTO_HEAD:
             case DAFKA_PROTO_DIRECT_HEAD: {
-                if (!last_sequence_known) {
-                    if (self->reset_latest) {
-                        if (self->verbose)
-                            zsys_debug("Consumer: Setting offset for topic %s on partition %s to latest %u",
-                                       subject,
-                                       address,
-                                       current_sequence);
-
-                        // Set to latest in order to skip fetching older messages
-                        last_known_sequence = current_sequence;
-                        zhashx_insert(self->sequence_index, sequence_key, &last_known_sequence);
-                        last_sequence_known = true;
-                    }
-                }
-
                 //  Check if we missed some messages
                 if (!last_sequence_known || current_sequence > last_known_sequence)
                     dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
