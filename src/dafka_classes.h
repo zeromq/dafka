@@ -53,6 +53,10 @@ typedef struct _dafka_store_reader_t dafka_store_reader_t;
 typedef struct _dafka_store_writer_t dafka_store_writer_t;
 #define DAFKA_STORE_WRITER_T_DEFINED
 #endif
+#ifndef DAFKA_TEST_PEER_T_DEFINED
+typedef struct _dafka_test_peer_t dafka_test_peer_t;
+#define DAFKA_TEST_PEER_T_DEFINED
+#endif
 
 //  Extra headers
 
@@ -65,6 +69,7 @@ typedef struct _dafka_store_writer_t dafka_store_writer_t;
 #include "dafka_util.h"
 #include "dafka_store_reader.h"
 #include "dafka_store_writer.h"
+#include "dafka_test_peer.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DAFKA_BUILD_DRAFT_API
