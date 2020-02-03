@@ -129,6 +129,20 @@ dafka_test_peer_recv_sub (dafka_test_peer_t *self) {
 //  Here we handle incoming message from the node
 
 void
+s_send_store_hello (dafka_test_peer_t *self) {
+    char *consumer_address = zstr_recv (self->pipe);
+    dafka_proto_t *shello_msg = dafka_proto_new ();
+    dafka_proto_set_id (shello_msg, DAFKA_PROTO_STORE_HELLO);
+    dafka_proto_set_address (shello_msg, zuuid_str (self->address));
+    dafka_proto_set_topic (shello_msg, consumer_address);
+
+    dafka_proto_send (shello_msg, self->pub);
+    dafka_proto_destroy (&shello_msg);
+    if (self->verbose)
+        zsys_debug ("Test Peer: Send STORE-HELLO");
+}
+
+void
 s_send_head (dafka_test_peer_t *self) {
     char *topic;
     uint64_t sequence;
@@ -187,6 +201,8 @@ dafka_test_peer_recv_api (dafka_test_peer_t *self) {
         s_send_head (self);
     else if (streq (command, "RECORD"))
         s_send_msg (self);
+    else if (streq (command, "STORE-HELLO"))
+        s_send_store_hello (self);
     else if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
@@ -250,6 +266,13 @@ dafka_test_peer_send_head (zactor_t *self, char *topic, uint64_t sequence) {
 }
 
 void
+dafka_test_peer_send_store_hello (zactor_t *self, char *consumer_address) {
+    assert (self);
+    zstr_sendm (self, "STORE-HELLO");
+    zstr_send (self, consumer_address);
+}
+
+void
 dafka_test_peer_send_record (zactor_t *self, char *topic, uint64_t sequence, char *content) {
     assert (self);
     zsock_send (self, "ss8s", "RECORD", topic, sequence, content);
@@ -260,6 +283,13 @@ dafka_test_peer_recv (zactor_t *self) {
     dafka_proto_t *msg = dafka_proto_new ();
     dafka_proto_recv (msg, zactor_sock (self));
     return msg;
+}
+
+void
+assert_consumer_hello_msg (dafka_proto_t *msg, int no_of_subjects) {
+    assert (dafka_proto_id (msg) == DAFKA_PROTO_CONSUMER_HELLO);
+    assert (zlist_size (dafka_proto_subjects (msg)) == no_of_subjects);
+    dafka_proto_destroy (&msg);
 }
 
 void

@@ -317,7 +317,10 @@ dafka_consumer_recv_api (dafka_consumer_t *self) {
         char *topic = zmsg_popstr (request);
         s_subscribe (self, topic);
         zstr_free (&topic);
-    } else if (streq (command, "$TERM"))
+    }
+    else if (streq (command, "GET ADDRESS"))
+        zstr_send (self->pipe, dafka_proto_address (self->get_heads_msg));
+    else if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
     else {
@@ -389,6 +392,16 @@ dafka_consumer (zsock_t *pipe, void *args) {
 int
 dafka_consumer_subscribe (zactor_t *actor, const char *subject) {
     return zsock_send (actor, "ss", "SUBSCRIBE", subject);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get the address of the consumer
+
+char *
+dafka_consumer_address (zactor_t *actor) {
+    zstr_send (actor, "GET ADDRESS");
+    return zstr_recv (actor);
 }
 
 //  --------------------------------------------------------------------------
@@ -517,6 +530,46 @@ dafka_consumer_test (bool verbose) {
     assert_consumer_msg (c_msg, "hello", "CONTENT");
 
     dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+
+    // -------------------------------------------------------------------
+    // Test with 'consumer.offset.reset = earliest' triggered by HEAD msg
+    // -------------------------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "earliest");
+
+    test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+
+    //  GIVEN a dafka consumer
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); // Make sure both peers are connected to each other
+
+    //  WHEN a STORE-HELLO command is send by a store
+    char *consumer_address = dafka_consumer_address (consumer);
+    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+
+    // THEN the consumer responds with CONSUMER-HELLO and 0 topics
+    msg = dafka_test_peer_recv (test_peer);
+    assert_consumer_hello_msg (msg, 0);
+
+    //  WHEN consumer subscribes to topic 'hello'
+    rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+
+    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+    msg = dafka_test_peer_recv (test_peer);
+    assert_get_heads_msg (msg, "hello");
+
+    //  WHEN a STORE-HELLO command is send by a store
+    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+
+    // THEN the consumer responds with CONSUMER-HELLO and 1 topics
+    msg = dafka_test_peer_recv (test_peer);
+    assert_consumer_hello_msg (msg, 1);
+
+    zstr_free (&consumer_address);
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
