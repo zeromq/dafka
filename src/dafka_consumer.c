@@ -421,6 +421,18 @@ dafka_consumer_address (zactor_t *actor) {
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
+t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer)
+{
+    //  WHEN consumer subscribes to topic 'hello'
+    int rc = dafka_consumer_subscribe (consumer, topic);
+    assert (rc == 0);
+
+    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
+    assert_get_heads_msg (msg, topic);
+}
+
+void
 dafka_consumer_test (bool verbose) {
     printf (" * dafka_consumer: ");
     // ----------------------------------------------------
@@ -462,19 +474,13 @@ dafka_consumer_test (bool verbose) {
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
 
-    //  WHEN consumer subscribes to topic 'hello'
-    int rc = dafka_consumer_subscribe (consumer, "hello");
-    assert (rc == 0);
-
-    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
-    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
-    assert_get_heads_msg (msg, "hello");
+    t_subscribe_to_topic (consumer, "hello", test_peer);
 
     //  WHEN a HEAD msg with sequence larger 0 is sent on topic 'hello'
     dafka_test_peer_send_head (test_peer, "hello", 1);
 
     // THEN the consumer will send a FETCH msg for the topic 'hello'
-    msg = dafka_test_peer_recv (test_peer);
+    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
     assert_fetch_msg (msg, "hello", 0);
 
     //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic
@@ -504,13 +510,7 @@ dafka_consumer_test (bool verbose) {
     assert (consumer);
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
-    //  WHEN consumer subscribes to topic 'hello'
-    rc = dafka_consumer_subscribe (consumer, "hello");
-    assert (rc == 0);
-
-    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
-    msg = dafka_test_peer_recv (test_peer);
-    assert_get_heads_msg (msg, "hello");
+    t_subscribe_to_topic (consumer, "hello", test_peer);
 
     //  WHEN a RECORD msg with sequence larger 0 is sent on topic 'hello'
     dafka_test_peer_send_record (test_peer, "hello", 1, "CONTENT");
@@ -554,13 +554,7 @@ dafka_consumer_test (bool verbose) {
     msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 0);
 
-    //  WHEN consumer subscribes to topic 'hello'
-    rc = dafka_consumer_subscribe (consumer, "hello");
-    assert (rc == 0);
-
-    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
-    msg = dafka_test_peer_recv (test_peer);
-    assert_get_heads_msg (msg, "hello");
+    t_subscribe_to_topic (consumer, "hello", test_peer);
 
     //  WHEN a STORE-HELLO command is send by a store
     dafka_test_peer_send_store_hello (test_peer, consumer_address);
@@ -591,7 +585,7 @@ dafka_consumer_test (bool verbose) {
 
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg, "HELLO MATE");
-    rc = dafka_producer_msg_send (p_msg, producer);
+    int rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
     zclock_sleep (100);  // Make sure message is published before consumer subscribes
 
