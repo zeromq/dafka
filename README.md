@@ -21,8 +21,8 @@
 
 **[Design](#design)**
 *  [Producing and Storing](#producing-and-storing)
+*  [Subscribing to topics](#subscribing-to-topics)
 *  [Missed records](#missed-records)
-*  [Dead producer](#dead-producer)
 
 **[Implementation](#implementation)**
 *  [Node types](#node-types)
@@ -193,9 +193,9 @@ the missed one or more records.
 </center>
 
 Because producers publish records directly to consumers the presence of a store
-is not necessarily required. When a new consumer joins producers must supply all
-already published records to that new consumer. Therefore the producer must
-store a all published records that are not stored by a configurable minimum
+is not necessarily required. When a new consumer joins they can request the
+producers to supply all already published records. Therefore the producer must
+store all published records that are not stored by a configurable minimum
 number stores. To inform a producer about the successful storing of a records
 the stores send a ACK message to the producer.
 
@@ -203,27 +203,45 @@ the stores send a ACK message to the producer.
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_4.png" alt="4">
 </center>
 
-### Missed records
+### Subscribing to topics
 
-Consumer can discover missed records by either receiving HEAD messages or
-receiving a RECORD message with a higher offset. In order to fetch missed messages
-consumers send a FETCH message to all connected stores and the producer of that
-message to request the missed messages.
+Consumer will only start listening for HEAD message once they subscribed for
+a topic. Whenever a new subscription created by a consumer it is not enough to
+listen to producers HEAD messages to catch up upon the current offset of their
+partition. For one there's a time penalty until producers HEAD intervals
+triggered and more severe a producer may already have disappeared. Hence
+consumers will send a GET-HEADS message to the stores to request the offset for
+each partition they stored for a topic.
 
 <center>
 <img src="https://github.com/zeromq/dafka/raw/master/images/README_5.png" alt="5">
+</center>
+
+As a response each stores will answer with DIRECT-HEAD messages each containing
+the offset for a partition.
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_6.png" alt="6">
+</center>
+
+### Missed records
+
+Consumer can discover missed records by either receiving HEAD messages or
+receiving a RECORD messages with a higher offset than they currently have for
+a certain partition. In order to fetch missed messages consumers send a FETCH
+message to all connected stores and the producer of that message to request the
+missed messages.
+
+<center>
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_7.png" alt="7">
 </center>
 
 As a response to a FETCH message a store and/or producer may send all missed records
 that the consumer requested directly to the consumer with the DIRECT-RECORD.
 
 <center>
-<img src="https://github.com/zeromq/dafka/raw/master/images/README_6.png" alt="6">
+<img src="https://github.com/zeromq/dafka/raw/master/images/README_8.png" alt="8">
 </center>
-
-### Dead producer
-
-To be continued ... GET-HEADS
 
 ## Implementation
 
@@ -665,19 +683,8 @@ Please add '@interface' section in './../src/dafka_consumer.c'.
 This is the class self test code:
 
 ```c
-    // ----------------------------------------------------
-    //  Cleanup old test artifacts
-    // ----------------------------------------------------
-    if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
-        zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
-        zdir_remove (store_dir, true);
-        zdir_destroy (&store_dir);
-    }
-    
-    // ----------------------------------------------------
-    // Test with consumer.offset.reset = earliest
-    // ----------------------------------------------------
     zconfig_t *config = zconfig_new ("root", NULL);
+    zconfig_put (config, "test/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/interval", "50");
     zconfig_put (config, "beacon/verbose", verbose ? "1" : "0");
     zconfig_put (config, "beacon/sub_address", "inproc://consumer-tower-sub");
@@ -686,12 +693,100 @@ This is the class self test code:
     zconfig_put (config, "tower/sub_address", "inproc://consumer-tower-sub");
     zconfig_put (config, "tower/pub_address", "inproc://consumer-tower-pub");
     zconfig_put (config, "consumer/verbose", verbose ? "1" : "0");
-    zconfig_put (config, "consumer/offset/reset", "earliest");
     zconfig_put (config, "producer/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/verbose", verbose ? "1" : "0");
     zconfig_put (config, "store/db", SELFTEST_DIR_RW "/storedb");
     
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
+    
+    // -------------------------------------------------------------------
+    // Test with 'consumer.offset.reset = earliest' triggered by HEAD msg
+    // -------------------------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "earliest");
+    
+    zactor_t *test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+    
+    //  GIVEN a dafka consumer
+    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); // Make sure both peers are connected to each other
+    
+    //  WHEN consumer subscribes to topic 'hello'
+    int rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+    
+    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
+    assert_get_heads_msg (msg, "hello");
+    
+    //  WHEN a HEAD msg with sequence larger 0 is sent on topic 'hello'
+    dafka_test_peer_send_head (test_peer, "hello", 1);
+    
+    // THEN the consumer will send a FETCH msg for the topic 'hello'
+    msg = dafka_test_peer_recv (test_peer);
+    assert_fetch_msg (msg, "hello", 0);
+    
+    //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic
+    //  'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 0, "CONTENT");
+    
+    //  THEN a consumer msg is sent to the user with topic 'hello' and content
+    //  'CONTENT'
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert_consumer_msg (c_msg, "hello", "CONTENT");
+    
+    dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+    
+    // ---------------------------------------------------------------------
+    // Test with 'consumer.offset.reset = earliest' triggered by RECORD msg
+    // ---------------------------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "earliest");
+    
+    test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+    
+    //  GIVEN a dafka consumer
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); //  Make sure both peers are connected to each other
+    
+    //  WHEN consumer subscribes to topic 'hello'
+    rc = dafka_consumer_subscribe (consumer, "hello");
+    assert (rc == 0);
+    
+    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+    msg = dafka_test_peer_recv (test_peer);
+    assert_get_heads_msg (msg, "hello");
+    
+    //  WHEN a RECORD msg with sequence larger 0 is sent on topic 'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 1, "CONTENT");
+    
+    // THEN the consumer will send a FETCH msg for the topic 'hello'
+    msg = dafka_test_peer_recv (test_peer);
+    assert_fetch_msg (msg, "hello", 0);
+    
+    //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic
+    //  'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 0, "CONTENT");
+    
+    //  THEN a consumer msg is sent to the user with topic 'hello' and content
+    //  'CONTENT'
+    c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert_consumer_msg (c_msg, "hello", "CONTENT");
+    
+    dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+    
+    // ------------------------------------------------------------------
+    // Test with Producer + Store and 'consumer.offset.reset = earliest'
+    // ------------------------------------------------------------------
+    zconfig_put (config, "consumer/offset/reset", "earliest");
     
     dafka_producer_args_t pub_args = {"hello", config};
     zactor_t *producer = zactor_new (dafka_producer, &pub_args);
@@ -700,13 +795,13 @@ This is the class self test code:
     zactor_t *store = zactor_new (dafka_store_actor, config);
     assert (store);
     
-    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
     zclock_sleep (250);
     
     dafka_producer_msg_t *p_msg = dafka_producer_msg_new ();
     dafka_producer_msg_set_content_str (p_msg, "HELLO MATE");
-    int rc = dafka_producer_msg_send (p_msg, producer);
+    rc = dafka_producer_msg_send (p_msg, producer);
     assert (rc == 0);
     zclock_sleep (100);  // Make sure message is published before consumer subscribes
     
@@ -726,20 +821,17 @@ This is the class self test code:
     assert (rc == 0);
     
     // Receive the first message from the STORE
-    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    c_msg = dafka_consumer_msg_new ();
     dafka_consumer_msg_recv (c_msg, consumer);
-    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
-    assert (dafka_consumer_msg_streq (c_msg, "HELLO MATE"));
+    assert_consumer_msg (c_msg, "hello", "HELLO MATE");
     
     // Receive the second message from the STORE as the original has been discarded
     dafka_consumer_msg_recv (c_msg, consumer);
-    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
-    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
+    assert_consumer_msg (c_msg, "hello", "HELLO ATEM");
     
     // Receive the third message from the PUBLISHER
     dafka_consumer_msg_recv (c_msg, consumer);
-    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
-    assert (dafka_consumer_msg_streq (c_msg, "HELLO TEMA"));
+    assert_consumer_msg (c_msg, "hello", "HELLO TEMA");
     
     dafka_producer_msg_destroy (&p_msg);
     dafka_consumer_msg_destroy (&c_msg);
@@ -747,9 +839,9 @@ This is the class self test code:
     zactor_destroy (&store);
     zactor_destroy (&consumer);
     
-    // ----------------------------------------------------
-    // Test with consumer.offset.reset = latest
-    // ----------------------------------------------------
+    // --------------------------------------------------------------
+    // Test with Producer + Store and consumer.offset.reset = latest
+    // --------------------------------------------------------------
     zconfig_put (config, "consumer/offset/reset", "latest");
     
     producer = zactor_new (dafka_producer, &pub_args);
@@ -778,22 +870,19 @@ This is the class self test code:
     // Receive the second message from the PRODUCER
     c_msg = dafka_consumer_msg_new ();
     dafka_consumer_msg_recv (c_msg, consumer);
-    assert (streq (dafka_consumer_msg_subject (c_msg), "hello"));
-    assert (dafka_consumer_msg_streq (c_msg, "HELLO ATEM"));
+    assert_consumer_msg (c_msg, "hello", "HELLO ATEM");
+    
+    // We have to create a store in-order to ack all publisher messages and allow the publisher to terminate
+    store = zactor_new (dafka_store_actor, config);
+    assert (store);
     
     dafka_producer_msg_destroy (&p_msg);
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&tower);
     zactor_destroy (&producer);
+    zactor_destroy (&store);
     zactor_destroy (&consumer);
     zconfig_destroy (&config);
-    
-    // ----------------------------------------------------
-    //  Cleanup test artifacts
-    // ----------------------------------------------------
-    zdir_t *store_dir = zdir_new (SELFTEST_DIR_RW "/storedb", NULL);
-    zdir_remove (store_dir, true);
-    zdir_destroy (&store_dir);
 ```
 
 #### dafka_producer - no title found
