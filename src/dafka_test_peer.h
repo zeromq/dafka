@@ -39,6 +39,9 @@ DAFKA_EXPORT void
     dafka_test_peer_test (bool verbose);
 
 DAFKA_EXPORT void
+    dafka_test_peer_send_store_hello (zactor_t *self, char *consumer_address);
+
+DAFKA_EXPORT void
     dafka_test_peer_send_head (zactor_t *self, char *topic, uint64_t sequence);
 
 DAFKA_EXPORT void
@@ -46,6 +49,9 @@ DAFKA_EXPORT void
 
 DAFKA_EXPORT dafka_proto_t *
     dafka_test_peer_recv (zactor_t *self);
+
+DAFKA_EXPORT void
+    assert_consumer_hello_msg (dafka_proto_t *msg, int no_of_subjects);
 
 DAFKA_EXPORT void
     assert_get_heads_msg (dafka_proto_t *msg, char *topic);
