@@ -204,6 +204,119 @@ check-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_build
 	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
+check-dafka_unacked_list: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+check-dafka_unacked_list-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_fetch_filter: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+check-dafka_fetch_filter-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_msg_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+check-dafka_msg_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_head_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+check-dafka_head_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_consumer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+check-dafka_consumer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_producer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+check-dafka_producer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_producer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+check-dafka_producer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_consumer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+check-dafka_consumer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_util: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+check-dafka_util-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_proto: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+check-dafka_proto-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_beacon: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+check-dafka_beacon-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_tower: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+check-dafka_tower-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_store_reader: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+check-dafka_store_reader-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_store_writer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+check-dafka_store_writer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_store: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+check-dafka_store-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+
+check-dafka_test_peer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+check-dafka_test_peer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest -v -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+
+
 # Run the selftest binary under valgrind to check for memory leaks
 memcheck: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
@@ -221,6 +334,231 @@ memcheck-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_bu
 		$(builddir)/src/dafka_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
+memcheck-dafka_unacked_list: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_unacked_list-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_fetch_filter: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_fetch_filter-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_msg_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_msg_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_head_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_head_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_consumer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_consumer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_producer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_producer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_producer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_producer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_consumer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_consumer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_util: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_util-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_proto: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_proto-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_beacon: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_beacon-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_tower: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_tower-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store_reader: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store_reader-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store_writer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store_writer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_store-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_test_peer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+memcheck-dafka_test_peer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
+		--leak-check=full --show-reachable=yes --error-exitcode=1 \
+		--suppressions=$(srcdir)/src/.valgrind.supp \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+
 # Run the selftest binary under valgrind to check for performance leaks
 callcheck: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
@@ -234,6 +572,167 @@ callcheck-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_b
 		$(builddir)/src/dafka_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
+callcheck-dafka_unacked_list: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_unacked_list-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_fetch_filter: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_fetch_filter-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_msg_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_msg_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_head_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_head_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_consumer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_consumer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_producer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_producer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_producer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_producer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_consumer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_consumer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_util: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_util-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_proto: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_proto-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_beacon: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_beacon-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_tower: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_tower-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store_reader: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store_reader-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store_writer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store_writer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_store-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_test_peer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+callcheck-dafka_test_peer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
+		$(VALGRIND_OPTIONS) \
+		$(builddir)/src/dafka_selftest -v -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+
 # Run the selftest binary under gdb for debugging
 debug: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute gdb -q \
@@ -242,7 +741,136 @@ debug: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(S
 
 debug-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute gdb -q \
-		$(builddir)/src/dafka_selftest -v
+		--args $(builddir)/src/dafka_selftest -v
+	$(MAKE) check-empty-selftest-rw
+
+debug-dafka_unacked_list: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_unacked_list-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_unacked_list
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_fetch_filter: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_fetch_filter-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_fetch_filter
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_msg_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_msg_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_msg_key
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_head_key: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_head_key-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_head_key
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_consumer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_consumer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_consumer_msg
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_producer_msg: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_producer_msg-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_producer_msg
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_producer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_producer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_producer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_consumer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_consumer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_consumer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_util: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_util-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_util
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_proto: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_proto-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_proto
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_beacon: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_beacon-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_beacon
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_tower: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_tower-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_tower
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store_reader: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store_reader-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_store_reader
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store_writer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store_writer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_store_writer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_store-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_store
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_test_peer: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -t dafka_test_peer
+	$(MAKE) check-empty-selftest-rw
+debug-dafka_test_peer-verbose: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
+	$(LIBTOOL) --mode=execute gdb -q \
+		--args $(builddir)/src/dafka_selftest -v -t dafka_test_peer
 	$(MAKE) check-empty-selftest-rw
 
 # Run the selftest binary with verbose switch for tracing
