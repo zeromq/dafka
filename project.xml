@@ -25,6 +25,7 @@
     <actor name = "dafka_store_reader" private = "1" selftest = "0" />
     <actor name = "dafka_store_writer" private = "1" selftest = "0" />
     <actor name = "dafka_store" state = "stable" />
+    <actor name = "dafka_test_peer" state = "stable" private = "1" />
 
     <class name = "dafka_unacked_list" private = "1" />
     <class name = "dafka_fetch_filter" private = "1" selftest = "0" />

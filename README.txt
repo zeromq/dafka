@@ -186,9 +186,9 @@ the missed one or more records.
 [/diagram]
 
 Because producers publish records directly to consumers the presence of a store
-is not necessarily required. When a new consumer joins producers must supply all
-already published records to that new consumer. Therefore the producer must
-store a all published records that are not stored by a configurable minimum
+is not necessarily required. When a new consumer joins they can request the
+producers to supply all already published records. Therefore the producer must
+store all published records that are not stored by a configurable minimum
 number stores. To inform a producer about the successful storing of a records
 the stores send a ACK message to the producer.
 
@@ -212,12 +212,66 @@ the stores send a ACK message to the producer.
   +-----------+     +-----------+
 [/diagram]
 
+### Subscribing to topics
+
+Consumer will only start listening for HEAD message once they subscribed for
+a topic. Whenever a new subscription created by a consumer it is not enough to
+listen to producers HEAD messages to catch up upon the current offset of their
+partition. For one there's a time penalty until producers HEAD intervals
+triggered and more severe a producer may already have disappeared. Hence
+consumers will send a GET-HEADS message to the stores to request the offset for
+each partition they stored for a topic.
+
+[diagram]
+                    +------------+
+                    |  Consumer  |
+                    +------------+
+                    |    PUB     |
+                    \-----+------/
+                          |
+                 GET-HEADS|for all partitions
+                          |
+        +-----------------+---------------+
+        |                 |               |
+        |                 |               |
+        v                 v               v
+  /-----+-----\     /-----+-----\   /-----+-----\
+  |    SUB    |     |    SUB    |   |    SUB    |
+  +-----------+ ... +-----------+   +-----------+
+  |  Store 1  |     |  Store 2  |   |  Store n  |
+  +-----------+     +-----------+   +-----------+
+[/diagram]
+
+As a response each stores will answer with DIRECT-HEAD messages each containing
+the offset for a partition.
+
+[diagram]
+                    +------------+
+                    |  Consumer  |
+                    +------------+
+                    |    SUB     |
+                    \-----+------/
+                          ^
+                          |
+                          |
+        +-----------------+---------------+
+        | Send DIRECT-HEAD|for each stored|partition
+        |                 |               |
+        |                 |               |
+  /-----+-----\     /-----+-----\   /-----+-----\
+  |    PUB    |     |    PUB    |   |    PUB    |
+  +-----------+ ... +-----------+   +-----------+
+  |  Store 1  |     |  Store 2  |   |  Store n  |
+  +-----------+     +-----------+   +-----------+
+[/diagram]
+
 ### Missed records
 
 Consumer can discover missed records by either receiving HEAD messages or
-receiving a RECORD message with a higher offset. In order to fetch missed messages
-consumers send a FETCH message to all connected stores and the producer of that
-message to request the missed messages.
+receiving a RECORD messages with a higher offset than they currently have for
+a certain partition. In order to fetch missed messages consumers send a FETCH
+message to all connected stores and the producer of that message to request the
+missed messages.
 
 [diagram]
                     +------------+
@@ -261,10 +315,6 @@ that the consumer requested directly to the consumer with the DIRECT-RECORD.
   |  Store 1  |     |  Store n  |   | Producer x |
   +-----------+     +-----------+   +------------+
 [/diagram]
-
-### Dead producer
-
-To be continued ... GET-HEADS
 
 ## Implementation
 

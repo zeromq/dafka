@@ -199,6 +199,7 @@ set (dafka_headers
     src/dafka_util.h
     src/dafka_store_reader.h
     src/dafka_store_writer.h
+    src/dafka_test_peer.h
 )
 
 source_group ("Header Files" FILES ${dafka_headers})
@@ -226,6 +227,7 @@ set (dafka_sources
     src/dafka_store_reader.c
     src/dafka_store_writer.c
     src/dafka_store.c
+    src/dafka_test_peer.c
 )
 IF (ENABLE_DRAFTS)
     list (APPEND dafka_sources
