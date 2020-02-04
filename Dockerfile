@@ -12,6 +12,7 @@ RUN adduser zmq sudo
 RUN echo "zmq ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER zmq
+RUN mkdir /home/zmq/tmp-deps
 
 WORKDIR /home/zmq/tmp-deps
 RUN git clone --quiet https://github.com/zeromq/czmq.git czmq
