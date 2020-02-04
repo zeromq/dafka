@@ -8,6 +8,7 @@
     license = "MPL-2.0" >
 
     <target name ="travis" />
+    <target name ="docker" />
 
     <include filename = "license.xml" />
     <version major = "0" minor = "1" />
