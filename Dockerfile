@@ -2,8 +2,8 @@ FROM ubuntu:latest
 MAINTAINER dafka Developers <zeromq-dev@lists.zeromq.org>
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -y -q
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --allow build-essential git-core libtool autotools-dev autoconf automake pkg-config unzip libkrb5-dev cmake
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --allow \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --force-yes build-essential git-core libtool autotools-dev autoconf automake pkg-config unzip libkrb5-dev cmake
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --force-yes \
      libzmq3-dev \
      libleveldb-dev
 
