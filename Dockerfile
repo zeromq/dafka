@@ -8,6 +8,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --force-yes \
      libleveldb-dev
 
 RUN useradd -d /home/zmq -m -s /bin/bash zmq
+RUN adduser zmq sudo
 RUN echo "zmq ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER zmq
