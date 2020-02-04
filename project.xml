@@ -2,11 +2,13 @@
     name = "dafka" description = "ZeroMQ messaging middleware"
     prefix = "dafka"
     script = "zproject.gsl"
+    email = "zeromq-dev@lists.zeromq.org"
     repository = "https://github.com/zeromq/dafka"
     url = "https://github.com/zeromq/dafka"
     license = "MPL-2.0" >
 
     <target name ="travis" />
+    <target name ="docker" />
 
     <include filename = "license.xml" />
     <version major = "0" minor = "1" />

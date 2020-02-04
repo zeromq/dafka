@@ -13,7 +13,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
 #
-AC_INIT([dafka],[0.1.0],[email@hostname.com])
+AC_INIT([dafka],[0.1.0],[zeromq-dev@lists.zeromq.org])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
