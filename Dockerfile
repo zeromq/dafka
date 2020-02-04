@@ -9,7 +9,7 @@ RUN echo "zmq ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER zmq
 
-RUN apt-get update && apt-get -y install \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -q --force-yes \
      libzmq3-dev \
      libleveldb-dev
 
