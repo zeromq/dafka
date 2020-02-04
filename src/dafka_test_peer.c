@@ -137,9 +137,11 @@ s_send_store_hello (dafka_test_peer_t *self) {
     dafka_proto_set_topic (shello_msg, consumer_address);
 
     dafka_proto_send (shello_msg, self->pub);
-    dafka_proto_destroy (&shello_msg);
     if (self->verbose)
         zsys_debug ("Test Peer: Send STORE-HELLO");
+
+    zstr_free (&consumer_address);
+    dafka_proto_destroy (&shello_msg);
 }
 
 void
