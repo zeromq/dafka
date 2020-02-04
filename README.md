@@ -244,21 +244,21 @@ To report an issue, use the [Dafka issue tracker](https://github.com/zeromq/dafk
 
 To start with, you need at least these packages:
 
-* {{git-all}} -- git is how we share code with other people.
+* `git-all` -- git is how we share code with other people.
 
-* {{build-essential}}, {{libtool}}, {{pkg-config}} - the C compiler and related tools.
+* `build-essential`, `libtool`, `pkg-config` - the C compiler and related tools.
 
-* {{autotools-dev}}, {{autoconf}}, {{automake}} - the GNU autoconf makefile generators.
+* `autotools-dev`, `autoconf`, `automake` - the GNU autoconf makefile generators.
 
-* {{cmake}} - the CMake makefile generators (an alternative to autoconf).
+* `cmake` - the CMake makefile generators (an alternative to autoconf).
 
 Plus some others:
 
-* {{uuid-dev}}, {{libpcre3-dev}} - utility libraries.
+* `uuid-dev`, `libpcre3-dev` - utility libraries.
 
-* {{valgrind}} - a useful tool for checking your code.
+* `valgrind` - a useful tool for checking your code.
 
-* {{pkg-config}} - an optional useful tool to make building with dependencies easier.
+* `pkg-config` - an optional useful tool to make building with dependencies easier.
 
 Which we install like this (using the Debian-style apt-get package manager):
 
