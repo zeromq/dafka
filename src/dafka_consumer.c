@@ -421,15 +421,18 @@ dafka_consumer_address (zactor_t *actor) {
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
-t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer)
+t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer, 
+                      zconfig_t *config)
 {
     //  WHEN consumer subscribes to topic 'hello'
     int rc = dafka_consumer_subscribe (consumer, topic);
     assert (rc == 0);
 
-    //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
-    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
-    assert_get_heads_msg (msg, topic);
+    if (streq (zconfig_get (config, "consumer/offset/reset", ""), "earliest")) {
+        //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+        dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
+        assert_get_heads_msg (msg, topic);
+    }
 }
 
 void
@@ -461,88 +464,21 @@ dafka_consumer_test (bool verbose) {
 
     zactor_t *tower = zactor_new (dafka_tower_actor, config);
 
-    // -------------------------------------------------------------------
-    // Test with 'consumer.offset.reset = earliest' triggered by HEAD msg
-    // -------------------------------------------------------------------
+    // --------------
+    // Protocol Tests
+    // --------------
+
+    // Scenario: STORE-HELLO -> CONSUMER-HELLO without subscription
+    //   Given a dafka consumer with no subscriptions
+    //   When a STORE-HELLO command is sent by a store
+    //   Then the consumer responds with CONSUMER-HELLO and 0 topics
     zconfig_put (config, "consumer/offset/reset", "earliest");
 
     zactor_t *test_peer = zactor_new (dafka_test_peer, config);
     assert (test_peer);
 
-    //  GIVEN a dafka consumer
+    //  GIVEN a dafka consumer with no subscription
     zactor_t *consumer = zactor_new (dafka_consumer, config);
-    assert (consumer);
-    zclock_sleep (250); // Make sure both peers are connected to each other
-
-    t_subscribe_to_topic (consumer, "hello", test_peer);
-
-    //  WHEN a HEAD msg with sequence larger 0 is sent on topic 'hello'
-    dafka_test_peer_send_head (test_peer, "hello", 1);
-
-    // THEN the consumer will send a FETCH msg for the topic 'hello'
-    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
-    assert_fetch_msg (msg, "hello", 0);
-
-    //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic
-    //  'hello'
-    dafka_test_peer_send_record (test_peer, "hello", 0, "CONTENT");
-
-    //  THEN a consumer msg is sent to the user with topic 'hello' and content
-    //  'CONTENT'
-    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
-    dafka_consumer_msg_recv (c_msg, consumer);
-    assert_consumer_msg (c_msg, "hello", "CONTENT");
-
-    dafka_consumer_msg_destroy (&c_msg);
-    zactor_destroy (&consumer);
-    zactor_destroy (&test_peer);
-
-    // ---------------------------------------------------------------------
-    // Test with 'consumer.offset.reset = earliest' triggered by RECORD msg
-    // ---------------------------------------------------------------------
-    zconfig_put (config, "consumer/offset/reset", "earliest");
-
-    test_peer = zactor_new (dafka_test_peer, config);
-    assert (test_peer);
-
-    //  GIVEN a dafka consumer
-    consumer = zactor_new (dafka_consumer, config);
-    assert (consumer);
-    zclock_sleep (250); //  Make sure both peers are connected to each other
-
-    t_subscribe_to_topic (consumer, "hello", test_peer);
-
-    //  WHEN a RECORD msg with sequence larger 0 is sent on topic 'hello'
-    dafka_test_peer_send_record (test_peer, "hello", 1, "CONTENT");
-
-    // THEN the consumer will send a FETCH msg for the topic 'hello'
-    msg = dafka_test_peer_recv (test_peer);
-    assert_fetch_msg (msg, "hello", 0);
-
-    //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic
-    //  'hello'
-    dafka_test_peer_send_record (test_peer, "hello", 0, "CONTENT");
-
-    //  THEN a consumer msg is sent to the user with topic 'hello' and content
-    //  'CONTENT'
-    c_msg = dafka_consumer_msg_new ();
-    dafka_consumer_msg_recv (c_msg, consumer);
-    assert_consumer_msg (c_msg, "hello", "CONTENT");
-
-    dafka_consumer_msg_destroy (&c_msg);
-    zactor_destroy (&consumer);
-    zactor_destroy (&test_peer);
-
-    // -------------------------------------------------------------------
-    // Test with 'consumer.offset.reset = earliest' triggered by HEAD msg
-    // -------------------------------------------------------------------
-    zconfig_put (config, "consumer/offset/reset", "earliest");
-
-    test_peer = zactor_new (dafka_test_peer, config);
-    assert (test_peer);
-
-    //  GIVEN a dafka consumer
-    consumer = zactor_new (dafka_consumer, config);
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
 
@@ -551,15 +487,35 @@ dafka_consumer_test (bool verbose) {
     dafka_test_peer_send_store_hello (test_peer, consumer_address);
 
     // THEN the consumer responds with CONSUMER-HELLO and 0 topics
-    msg = dafka_test_peer_recv (test_peer);
+    dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 0);
 
-    t_subscribe_to_topic (consumer, "hello", test_peer);
+    zstr_free (&consumer_address);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+
+    // Scenario: STORE-HELLO -> CONSUMER-HELLO with subscription
+    //   Given a dafka consumer with a subscription to topic "hello"
+    //   When a STORE-HELLO command is sent by a store
+    //   Then the consumer responds with CONSUMER-HELLO and 1 topic
+    zconfig_put (config, "consumer/offset/reset", "earliest");
+
+    test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+
+    //  GIVEN a dafka consumer with a subscription to topic "hello"
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); // Make sure both peers are connected to each other
+
+    t_subscribe_to_topic (consumer, "hello", test_peer, config);
+    zclock_sleep (250);
 
     //  WHEN a STORE-HELLO command is send by a store
+    consumer_address = dafka_consumer_address (consumer);
     dafka_test_peer_send_store_hello (test_peer, consumer_address);
 
-    // THEN the consumer responds with CONSUMER-HELLO and 1 topics
+    // THEN the consumer responds with CONSUMER-HELLO and 1 topic
     msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 1);
 
@@ -567,7 +523,77 @@ dafka_consumer_test (bool verbose) {
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
-    // ------------------------------------------------------------------
+    // Scenario: First record for topic with offset reset earliest 
+    //   Given a dafka consumer subscribed to topic 'hello'
+    //   When a RECORD message with sequence larger 0 is sent on topic 'hello'
+    //   Then the consumer will send a FETCH message for the topic 'hello'
+    //   When a RECORD message with sequence 0 and content 'CONTENT' is send on topic 'hello'
+    //   Then a consumer_msg is sent to the user with topic 'hello' and content 'CONTENT'
+    zconfig_put (config, "consumer/offset/reset", "earliest");
+
+    test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+
+    //  GIVEN a dafka consumer subscribed to topic 'hello'
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); //  Make sure both peers are connected to each other
+
+    t_subscribe_to_topic (consumer, "hello", test_peer, config);
+
+    //  WHEN a RECORD msg with sequence larger 0 is sent on topic 'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 1, "CONTENT");
+
+    // THEN the consumer will send a FETCH msg for the topic 'hello'
+    msg = dafka_test_peer_recv (test_peer);
+    assert_fetch_msg (msg, "hello", 0);
+
+    //  WHEN a RECORD msg with sequence 0 and content 'CONTENT' is send on topic'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 0, "CONTENT");
+
+    //  THEN a consumer msg is sent to the user with topic 'hello' and content CONTENT'
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert_consumer_msg (c_msg, "hello", "CONTENT");
+
+    dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+
+    // Scenario: First record for topic with offset reset latest 
+    //   Given a dafka consumer subscribed to topic 'hello'
+    //   When a RECORD message with sequence 2 is sent on topic 'hello'
+    //   Then a consumer_msg is sent to the user with topic 'hello' and content 'CONTENT'
+    zconfig_put (config, "consumer/offset/reset", "latest");
+
+    test_peer = zactor_new (dafka_test_peer, config);
+    assert (test_peer);
+
+    //  GIVEN a dafka consumer subscribed to topic 'hello'
+    consumer = zactor_new (dafka_consumer, config);
+    assert (consumer);
+    zclock_sleep (250); //  Make sure both peers are connected to each other
+
+    t_subscribe_to_topic (consumer, "hello", test_peer, config);
+    
+    zclock_sleep (250); //  Wait until subscription is active
+
+    //  WHEN a RECORD msg with sequence 2 is sent on topic 'hello'
+    dafka_test_peer_send_record (test_peer, "hello", 2, "CONTENT");
+
+    //  THEN a consumer msg is sent to the user with topic 'hello' and content'CONTENT'
+    c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, consumer);
+    assert_consumer_msg (c_msg, "hello", "CONTENT");
+
+    dafka_consumer_msg_destroy (&c_msg);
+    zactor_destroy (&consumer);
+    zactor_destroy (&test_peer);
+
+    // ---------
+    // API Tests
+    // ---------
+
     // Test with Producer + Store and 'consumer.offset.reset = earliest'
     // ------------------------------------------------------------------
     zconfig_put (config, "consumer/offset/reset", "earliest");
@@ -596,9 +622,10 @@ dafka_consumer_test (bool verbose) {
     // This message is discarded but triggers a FETCH from the store
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
-    assert (rc == 0);
-    zclock_sleep (
-            100);  // Make sure the first two messages have been received from the store and the consumer is now up to date
+    assert (rc == 0); 
+
+    // Make sure the first two messages have been received from the store and the consumer is now up to date
+    zclock_sleep (100); 
 
     dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
     rc = dafka_producer_msg_send (p_msg, producer);
@@ -623,7 +650,6 @@ dafka_consumer_test (bool verbose) {
     zactor_destroy (&store);
     zactor_destroy (&consumer);
 
-    // --------------------------------------------------------------
     // Test with Producer + Store and consumer.offset.reset = latest
     // --------------------------------------------------------------
     zconfig_put (config, "consumer/offset/reset", "latest");
