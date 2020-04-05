@@ -13,9 +13,9 @@ SYNOPSIS
 Project dafka aims to ... (short marketing pitch)
 
 It delivers several programs with their respective man pages:
-
+ dafka_console_producer.1 dafka_console_consumer.1 dafka_stored.1 dafka_towerd.1
 and public classes in a shared library:
-
+ dafka_consumer_msg.3 dafka_producer_msg.3 dafka_producer.3 dafka_consumer.3 dafka_proto.3 dafka_beacon.3 dafka_tower.3 dafka_store.3
 
 Generally you can compile and link against it like this:
 ----
