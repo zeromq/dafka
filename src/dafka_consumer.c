@@ -421,7 +421,7 @@ dafka_consumer_address (zactor_t *actor) {
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
-t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer, 
+t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer,
                       zconfig_t *config)
 {
     //  WHEN consumer subscribes to topic 'hello'
@@ -523,7 +523,7 @@ dafka_consumer_test (bool verbose) {
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
-    // Scenario: First record for topic with offset reset earliest 
+    // Scenario: First record for topic with offset reset earliest
     //   Given a dafka consumer subscribed to topic 'hello'
     //   When a RECORD message with sequence larger 0 is sent on topic 'hello'
     //   Then the consumer will send a FETCH message for the topic 'hello'
@@ -560,7 +560,7 @@ dafka_consumer_test (bool verbose) {
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
-    // Scenario: First record for topic with offset reset latest 
+    // Scenario: First record for topic with offset reset latest
     //   Given a dafka consumer subscribed to topic 'hello'
     //   When a RECORD message with sequence 2 is sent on topic 'hello'
     //   Then a consumer_msg is sent to the user with topic 'hello' and content 'CONTENT'
@@ -575,7 +575,7 @@ dafka_consumer_test (bool verbose) {
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
     t_subscribe_to_topic (consumer, "hello", test_peer, config);
-    
+
     zclock_sleep (250); //  Wait until subscription is active
 
     //  WHEN a RECORD msg with sequence 2 is sent on topic 'hello'
@@ -622,10 +622,10 @@ dafka_consumer_test (bool verbose) {
     // This message is discarded but triggers a FETCH from the store
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
     rc = dafka_producer_msg_send (p_msg, producer);
-    assert (rc == 0); 
+    assert (rc == 0);
 
     // Make sure the first two messages have been received from the store and the consumer is now up to date
-    zclock_sleep (100); 
+    zclock_sleep (100);
 
     dafka_producer_msg_set_content_str (p_msg, "HELLO TEMA");
     rc = dafka_producer_msg_send (p_msg, producer);

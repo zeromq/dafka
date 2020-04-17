@@ -11,6 +11,7 @@ set -ex
 cd "$REPO_DIR/.."
 git clone --quiet --depth 1 https://github.com/zeromq/libzmq.git libzmq
 git clone --quiet --depth 1 https://github.com/zeromq/czmq.git czmq
+git clone --quiet --depth 1 https://github.com/sappo/cucumber-c cucumber
 cd -
 
 if ! ((command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list zproject >/dev/null 2>&1) || \

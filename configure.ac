@@ -411,6 +411,90 @@ dnl END of PKG_CHECK_MODULES and/or direct tests for leveldb
 dnl END of enabled attempts to search for leveldb
 
 
+was_cucumber_check_lib_detected=no
+
+search_cucumber="yes"
+
+AC_ARG_WITH([cucumber],
+    [
+        AS_HELP_STRING([--with-cucumber],
+        [yes or no. Optionally specify cucumber prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
+    ],
+    [
+        search_cucumber="yes"
+    ],
+    [
+        search_cucumber="yes"
+    ])
+AS_CASE([x"${with_cucumber}"],
+    [xyes], [search_cucumber="yes"],
+    [xno],  [search_cucumber="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_cucumber}" = xno],
+    [AC_MSG_WARN([Required dependency on cucumber was explicitly disabled during configuration by '--with-cucumber=no'; subsequent full build of dafka may fail])])
+
+AS_IF([test x"${search_cucumber}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    PKG_CHECK_MODULES([cucumber], [cucumber >= 0.0.0],
+    [
+        was_cucumber_check_lib_detected=pkgcfg
+        found_pkgconfig="cucumber"
+    ],
+    [
+        AC_MSG_NOTICE([Package cucumber not found; falling back to defined compilability tests])
+
+        cucumber_synthetic_cflags=""
+        cucumber_synthetic_libs="-lcucumber"
+
+        if test -n "${with_cucumber}" && test x"${with_cucumber}" != xyes && test x"${with_cucumber}" != xno; then
+            if test -r "${with_cucumber}/include/cucumber_c.h"; then
+                cucumber_synthetic_cflags="-I${with_cucumber}/include"
+                cucumber_synthetic_libs="-L${with_cucumber}/lib -lcucumber"
+            else
+            AC_MSG_ERROR([Header file ${with_cucumber}/include/cucumber_c.h was not found. Please check cucumber prefix])
+            fi
+        else
+            AC_CHECK_HEADER([cucumber_c.h], [],
+            AC_MSG_ERROR([Header file cucumber_c.h was not found in default search paths])
+                )
+        fi
+
+        AC_CHECK_LIB([cucumber], [cucumber_new],
+            [
+                was_cucumber_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lcucumber"
+            ],
+            [AC_MSG_ERROR([cannot link with -lcucumber, install cucumber])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for cucumber
+    AS_CASE(["x${was_cucumber_check_lib_detected}"],
+        [xpkgcfg], [
+                PKGCFG_NAMES_PRIVATE="$PKGCFG_NAMES_PRIVATE ${found_pkgconfig}"
+                CFLAGS="${cucumber_CFLAGS} ${CFLAGS}"
+                LIBS="${cucumber_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                CFLAGS="${cucumber_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${cucumber_synthetic_libs} ${LDFLAGS}"
+                LIBS="${cucumber_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([cucumber_CFLAGS],[${cucumber_synthetic_cflags}])
+                AC_SUBST([cucumber_LIBS],[${cucumber_synthetic_libs}])
+            ],
+        [xno], [
+            AC_MSG_ERROR([Cannot find pkg-config metadata for cucumber 0.0.0 or higher])
+    ])
+])
+dnl END of enabled attempts to search for cucumber
+
+
 CFLAGS="${PREVIOUS_CFLAGS}"
 LIBS="${PREVIOUS_LIBS}"
 
@@ -665,6 +749,16 @@ AC_ARG_ENABLE([dafka_perf_store],
 
 AM_CONDITIONAL([ENABLE_DAFKA_PERF_STORE], [test x$enable_dafka_perf_store != xno])
 AM_COND_IF([ENABLE_DAFKA_PERF_STORE], [AC_MSG_NOTICE([ENABLE_DAFKA_PERF_STORE defined])])
+
+# Check for dafka_consumer_step_defs intent
+AC_ARG_ENABLE([dafka_consumer_step_defs],
+    AS_HELP_STRING([--enable-dafka_consumer_step_defs],
+        [Compile 'dafka_consumer_step_defs' in src [default=yes]]),
+    [enable_dafka_consumer_step_defs=$enableval],
+    [enable_dafka_consumer_step_defs=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [test x$enable_dafka_consumer_step_defs != xno])
+AM_COND_IF([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSUMER_STEP_DEFS defined])])
 
 # Check for dafka_selftest intent
 AC_ARG_ENABLE([dafka_selftest],

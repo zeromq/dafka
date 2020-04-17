@@ -22,6 +22,13 @@
          implied = "1"
     />
 
+    <use project = "cucumber"
+         header = "cucumber_c.h"
+         test = "cucumber_new"
+         repository = "https://github.com/sappo/cucumber-c"
+         implied = "1"
+    />
+
     <actor name = "dafka_beacon" state = "stable" />
     <actor name = "dafka_tower" state = "stable" />
     <actor name = "dafka_store_reader" private = "1" selftest = "0" />
@@ -50,4 +57,6 @@
 
     <main name = "dafka_perf_consumer" private = "1" />
     <main name = "dafka_perf_store" private = "1" />
+
+    <main name = "dafka_consumer_step_defs" private = "1" />
 </project>

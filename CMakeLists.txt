@@ -14,7 +14,11 @@ enable_testing()
 set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Select flags
-SET(CMAKE_C_FLAGS_RELEASE "-O3")
+if(MSVC)
+    SET(CMAKE_C_FLAGS_RELEASE "/O2")
+else()
+    SET(CMAKE_C_FLAGS_RELEASE "-O3")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/builds/cmake/Modules)
 
@@ -84,15 +88,17 @@ file(WRITE "${PROJECT_BINARY_DIR}/platform.h.in" "
 
 configure_file("${PROJECT_BINARY_DIR}/platform.h.in" "${PROJECT_BINARY_DIR}/platform.h")
 
-#The MSVC C compiler is too out of date,
-#so the sources have to be compiled as c++
-if (MSVC)
-    enable_language(CXX)
-    file(GLOB sources "${SOURCE_DIR}/src/*.c")
-    set_source_files_properties(
-        ${sources}
-        PROPERTIES LANGUAGE CXX
-    )
+if (WIN32)
+    #The MSVC C compiler is too out of date,
+    #so the sources have to be compiled as c++
+    if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        enable_language(CXX)
+        file(GLOB sources "${SOURCE_DIR}/src/*.c")
+        set_source_files_properties(
+            ${sources}
+            PROPERTIES LANGUAGE CXX
+        )
+    endif()
     set(MORE_LIBRARIES ws2_32 Rpcrt4 Iphlpapi)
 endif()
 
@@ -167,6 +173,23 @@ IF (LEVELDB_FOUND)
 ELSE (LEVELDB_FOUND)
     message( FATAL_ERROR "leveldb not found." )
 ENDIF (LEVELDB_FOUND)
+
+########################################################################
+# CUCUMBER dependency
+########################################################################
+find_package(cucumber REQUIRED)
+IF (CUCUMBER_FOUND)
+    include_directories(${CUCUMBER_INCLUDE_DIRS})
+    list(APPEND MORE_LIBRARIES ${CUCUMBER_LIBRARIES})
+  IF (PC_CUCUMBER_FOUND)
+      set(pkg_config_names_private "${pkg_config_names_private} cucumber")
+      list(APPEND OPTIONAL_LIBRARIES_STATIC ${PC_CUCUMBER_STATIC_LDFLAGS})
+  ELSE (PC_CUCUMBER_FOUND)
+      set(pkg_config_libs_private "${pkg_config_libs_private} -lcucumber")
+  ENDIF (PC_CUCUMBER_FOUND)
+ELSE (CUCUMBER_FOUND)
+    message( FATAL_ERROR "cucumber not found." )
+ENDIF (CUCUMBER_FOUND)
 
 ########################################################################
 # version
@@ -400,6 +423,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -410,6 +434,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -428,6 +453,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -438,6 +464,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -456,6 +483,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -466,6 +494,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -484,6 +513,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -494,6 +524,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -512,6 +543,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -522,6 +554,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -537,6 +570,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -547,6 +581,34 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
+    dafka_consumer_step_defs
+    "${SOURCE_DIR}/src/dafka_consumer_step_defs.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_consumer_step_defs
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_consumer_step_defs
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -562,6 +624,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -572,6 +635,7 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
+    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -676,6 +740,7 @@ set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/src/dafka_towerd
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_store
+                    ${PROJECT_BINARY_DIR}/src/dafka_consumer_step_defs
                     ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )
 

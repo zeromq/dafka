@@ -20,6 +20,15 @@ RUN make install
 RUN ldconfig
 
 WORKDIR /tmp
+RUN git clone --quiet https://github.com/sappo/cucumber-c cucumber
+WORKDIR /tmp/cucumber
+RUN ./autogen.sh 2> /dev/null
+RUN ./configure --quiet --without-docs
+RUN make
+RUN make install
+RUN ldconfig
+
+WORKDIR /tmp
 RUN git clone --quiet https://github.com/zeromq/dafka dafka
 WORKDIR /tmp/dafka
 RUN ./autogen.sh 2> /dev/null

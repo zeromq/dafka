@@ -10,9 +10,10 @@ AM_CPPFLAGS = \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
     ${leveldb_CFLAGS} \
+    ${cucumber_CFLAGS} \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${leveldb_LIBS}
+project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${leveldb_LIBS} ${cucumber_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -36,6 +37,7 @@ EXTRA_DIST += \
     Findlibzmq.cmake \
     Findczmq.cmake \
     Findleveldb.cmake \
+    Findcucumber.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \

@@ -26,8 +26,9 @@ src/dafka_console_producer
 src/dafka_console_consumer
 src/dafka_stored
 src/dafka_towerd
-src/dafka_perf_store
 src/dafka_perf_consumer
+src/dafka_perf_store
+src/dafka_consumer_step_defs
 src/dafka_selftest
 *.exe
 *.out
@@ -35,9 +36,9 @@ src/dafka_selftest
 core
 
 # Distcheck workspace and archives
-dafka-*/
-dafka-*.tar.gz
-dafka-*.zip
+/dafka-*/
+/dafka-*.tar.gz
+/dafka-*.zip
 
 # Man pages
 doc/*.1

@@ -98,6 +98,13 @@ src_dafka_perf_store_LDADD = ${program_libs}
 src_dafka_perf_store_SOURCES = src/dafka_perf_store.c
 endif #ENABLE_DAFKA_PERF_STORE
 
+if ENABLE_DAFKA_CONSUMER_STEP_DEFS
+noinst_PROGRAMS += src/dafka_consumer_step_defs
+src_dafka_consumer_step_defs_CPPFLAGS = ${AM_CPPFLAGS}
+src_dafka_consumer_step_defs_LDADD = ${program_libs}
+src_dafka_consumer_step_defs_SOURCES = src/dafka_consumer_step_defs.c
+endif #ENABLE_DAFKA_CONSUMER_STEP_DEFS
+
 if ENABLE_DAFKA_SELFTEST
 check_PROGRAMS += src/dafka_selftest
 noinst_PROGRAMS += src/dafka_selftest
@@ -123,6 +130,7 @@ src: \
 		src/dafka_towerd \
 		src/dafka_perf_consumer \
 		src/dafka_perf_store \
+		src/dafka_consumer_step_defs \
 		src/dafka_selftest \
 		src/libdafka.la
 
