@@ -413,7 +413,7 @@ dnl END of enabled attempts to search for leveldb
 
 was_cucumber_check_lib_detected=no
 
-search_cucumber="yes"
+search_cucumber="no"
 
 AC_ARG_WITH([cucumber],
     [
@@ -430,10 +430,6 @@ AS_CASE([x"${with_cucumber}"],
     [xyes], [search_cucumber="yes"],
     [xno],  [search_cucumber="no"])
 
-dnl We do not abort right now, because the maintainer/developer may have
-dnl something particular in mind, e.g. to build just parts of a project.
-AS_IF([test x"${search_cucumber}" = xno],
-    [AC_MSG_WARN([Required dependency on cucumber was explicitly disabled during configuration by '--with-cucumber=no'; subsequent full build of dafka may fail])])
 
 AS_IF([test x"${search_cucumber}" = xyes], [
     # Archive previously detected and supplied flags
@@ -443,6 +439,7 @@ AS_IF([test x"${search_cucumber}" = xyes], [
     found_pkgconfig=""
     PKG_CHECK_MODULES([cucumber], [cucumber >= 0.0.0],
     [
+        AC_DEFINE(HAVE_CUCUMBER, 1, [The optional cucumber library is to be used])
         was_cucumber_check_lib_detected=pkgcfg
         found_pkgconfig="cucumber"
     ],
@@ -457,11 +454,11 @@ AS_IF([test x"${search_cucumber}" = xyes], [
                 cucumber_synthetic_cflags="-I${with_cucumber}/include"
                 cucumber_synthetic_libs="-L${with_cucumber}/lib -lcucumber"
             else
-            AC_MSG_ERROR([Header file ${with_cucumber}/include/cucumber_c.h was not found. Please check cucumber prefix])
+            AC_MSG_WARN([Header file ${with_cucumber}/include/cucumber_c.h was not found. Please check cucumber prefix])
             fi
         else
             AC_CHECK_HEADER([cucumber_c.h], [],
-            AC_MSG_ERROR([Header file cucumber_c.h was not found in default search paths])
+            AC_MSG_WARN([Header file cucumber_c.h was not found in default search paths])
                 )
         fi
 
@@ -469,8 +466,9 @@ AS_IF([test x"${search_cucumber}" = xyes], [
             [
                 was_cucumber_check_lib_detected=yes
                 PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lcucumber"
+                AC_DEFINE(HAVE_CUCUMBER, 1, [The optional cucumber library is to be used (as -lcucumber)])
             ],
-            [AC_MSG_ERROR([cannot link with -lcucumber, install cucumber])])
+            [])
     ])
 
 dnl END of PKG_CHECK_MODULES and/or direct tests for cucumber
@@ -489,7 +487,7 @@ dnl END of PKG_CHECK_MODULES and/or direct tests for cucumber
                 AC_SUBST([cucumber_LIBS],[${cucumber_synthetic_libs}])
             ],
         [xno], [
-            AC_MSG_ERROR([Cannot find pkg-config metadata for cucumber 0.0.0 or higher])
+            AC_MSG_WARN([Cannot find pkg-config metadata for cucumber 0.0.0 or higher])
     ])
 ])
 dnl END of enabled attempts to search for cucumber

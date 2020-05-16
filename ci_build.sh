@@ -66,20 +66,6 @@ windows)
         cd ../../..
     fi
 
-    git clone --quiet --depth 1 https://github.com/sappo/cucumber-c cucumber
-    cd cucumber
-    mkdir build
-    cd build
-    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
-    cmake --build . --config Release --target install
-    cd ../..
-
-    if [ -d "cucumber/bindings/jni" ]; then
-        cd cucumber/bindings/jni
-        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
-        cd ../../..
-    fi
-
     cd dafka
     mkdir build
     cd build
@@ -360,6 +346,9 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         $CI_TIME make -j4
         $CI_TIME make install
         cd "${BASE_PWD}"
+        CONFIG_OPTS+=("--with-cucumber=yes")
+    else
+        CONFIG_OPTS+=("--with-cucumber=yes")
     fi
 
     # Build and check this project; note that zprojects always have an autogen.sh

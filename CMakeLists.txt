@@ -177,8 +177,9 @@ ENDIF (LEVELDB_FOUND)
 ########################################################################
 # CUCUMBER dependency
 ########################################################################
-find_package(cucumber REQUIRED)
-IF (CUCUMBER_FOUND)
+find_package(cucumber)
+option(DAFKA_WITH_CUCUMBER "Build dafka with cucumber" ${CUCUMBER_FOUND})
+IF (DAFKA_WITH_CUCUMBER AND CUCUMBER_FOUND)
     include_directories(${CUCUMBER_INCLUDE_DIRS})
     list(APPEND MORE_LIBRARIES ${CUCUMBER_LIBRARIES})
   IF (PC_CUCUMBER_FOUND)
@@ -187,9 +188,9 @@ IF (CUCUMBER_FOUND)
   ELSE (PC_CUCUMBER_FOUND)
       set(pkg_config_libs_private "${pkg_config_libs_private} -lcucumber")
   ENDIF (PC_CUCUMBER_FOUND)
-ELSE (CUCUMBER_FOUND)
-    message( FATAL_ERROR "cucumber not found." )
-ENDIF (CUCUMBER_FOUND)
+    add_definitions(-DHAVE_CUCUMBER)
+    list(APPEND OPTIONAL_LIBRARIES ${CUCUMBER_LIBRARIES})
+ENDIF (DAFKA_WITH_CUCUMBER AND CUCUMBER_FOUND)
 
 ########################################################################
 # version
@@ -423,7 +424,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -434,7 +434,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -453,7 +452,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -464,7 +462,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -483,7 +480,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -494,7 +490,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -513,7 +508,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -524,7 +518,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -543,7 +536,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -554,7 +546,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -570,7 +561,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -581,7 +571,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -597,7 +586,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -608,7 +596,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )
@@ -624,7 +611,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
 )
 endif()
@@ -635,7 +621,6 @@ target_link_libraries(
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
-    ${CUCUMBER_LIBRARIES}
     ${OPTIONAL_LIBRARIES}
     ${OPTIONAL_LIBRARIES_STATIC}
 )

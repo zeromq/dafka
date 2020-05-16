@@ -26,6 +26,7 @@
          header = "cucumber_c.h"
          test = "cucumber_new"
          repository = "https://github.com/sappo/cucumber-c"
+         optional = "1"
          implied = "1"
     />
 

@@ -11,6 +11,7 @@
 */
 
 #include "dafka_classes.h"
+#if defined (HAVE_CUCUMBER)
 #include <cucumber_c.h>
 
 #define SELFTEST_DIR_RW "src/selftest-rw"
@@ -153,3 +154,11 @@ STEP_DEFS(protocol, consumer_protocol_state_new, consumer_protocol_state_destroy
     THEN("the consumer responds with CONSUMER-HELLO containing (\\d+) topics?",
         then_the_consumer_responds_with_consumer_hello_containing_n_topics)
 }
+#else
+int
+main()
+{
+    printf ("The cucumber_c library to run the step definitions.\n");
+    printf ("Please install cucumber_c then reconfigure and re-compile this project!\n");
+}
+#endif
