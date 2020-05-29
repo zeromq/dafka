@@ -76,21 +76,6 @@ consumer_protocol_state_destroy (consumer_protocol_state_t **self_p)
 }
 
 void
-t_subscribe_to_topic (zactor_t *consumer, const char* topic,
-                      zactor_t *test_peer, zconfig_t *config)
-{
-    //  WHEN consumer subscribes to topic 'hello'
-    int rc = dafka_consumer_subscribe (consumer, topic);
-    assert (rc == 0);
-
-    if (streq (zconfig_get (config, "consumer/offset/reset", ""), "earliest")) {
-        //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
-        dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
-        assert_get_heads_msg (msg, (char *) topic);
-    }
-}
-
-void
 given_a_dafka_consumer_with_offset_reset (cucumber_step_def_t *self, void *state_p)
 {
     consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
@@ -117,7 +102,31 @@ given_a_subscription (cucumber_step_def_t *self, void *state_p)
     const char *topic;
     FETCH_PARAMS (&topic);
 
-    t_subscribe_to_topic (state->consumer, topic, state->test_peer, state->config);
+    //  WHEN consumer subscribes to topic 'hello'
+    int rc = dafka_consumer_subscribe (state->consumer, topic);
+    assert_that_int (rc, int_equals, 0);
+
+    if (streq (zconfig_get (state->config, "consumer/offset/reset", ""), "earliest")) {
+        //  THEN the consumer will send a GET_HEADS msg for the topic 'hello'
+        dafka_proto_t *msg = dafka_test_peer_recv (state->test_peer);
+
+        assert_that_char (dafka_proto_id (msg), char_equals, DAFKA_PROTO_GET_HEADS);
+        assert_that_str (dafka_proto_topic (msg), streq, topic);
+
+        dafka_proto_destroy (&msg);
+    }
+    zclock_sleep (250); // Make sure subscription is active
+}
+
+void
+when_the_consumer_subscribes(cucumber_step_def_t *self, void *state_p)
+{
+    consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *topic;
+    FETCH_PARAMS (&topic);
+
+    int rc = dafka_consumer_subscribe (state->consumer, topic);
+    assert_that_int (rc, int_equals, 0);
     zclock_sleep (250); // Make sure subscription is active
 }
 
@@ -137,6 +146,21 @@ void when_a_record_is_sent (cucumber_step_def_t *self, void *state_p)
     FETCH_PARAMS (&sequence, &content, &topic);
 
     dafka_test_peer_send_record (state->test_peer, topic, atoi (sequence), content);
+}
+
+void
+then_the_consumer_will_send_get_heads (cucumber_step_def_t *self, void *state_p)
+{
+    consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *topic;
+    FETCH_PARAMS (&topic);
+
+    dafka_proto_t *msg = dafka_test_peer_recv (state->test_peer);
+
+    assert_that_char (dafka_proto_id (msg), char_equals, DAFKA_PROTO_GET_HEADS);
+    assert_that_str (dafka_proto_topic (msg), streq, topic);
+
+    dafka_proto_destroy (&msg);
 }
 
 void
@@ -164,9 +188,9 @@ then_the_consumer_will_send_a_fetch_message (cucumber_step_def_t *self, void *st
 
     dafka_proto_t *msg = dafka_test_peer_recv (state->test_peer);
 
-    assert (dafka_proto_id (msg) == DAFKA_PROTO_FETCH);
-    assert (streq (dafka_proto_subject (msg), topic));
-    assert (dafka_proto_sequence (msg) == atoi (sequence));
+    assert_that_char (dafka_proto_id (msg), char_equals, DAFKA_PROTO_FETCH);
+    assert_that_str (dafka_proto_subject (msg), streq, topic);
+    assert_that_uint64_t (dafka_proto_sequence (msg), uint64_t_equals, (uint64_t) atoi (sequence));
 
     dafka_proto_destroy (&msg);
 }
@@ -180,7 +204,11 @@ then_a_consumer_msg_is_sent (cucumber_step_def_t *self, void *state_p)
 
     dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
     dafka_consumer_msg_recv (c_msg, state->consumer);
-    assert_consumer_msg (c_msg, topic, content);
+
+    assert_that_str (dafka_consumer_msg_subject (c_msg), streq, topic);
+
+    const byte *msg_content = dafka_consumer_msg_content (c_msg);
+    assert_that_str ((const char *) msg_content, streq, content);
 
     dafka_consumer_msg_destroy (&c_msg);
 }
@@ -195,11 +223,17 @@ STEP_DEFS(dafka_consumer, consumer_protocol_state_new, consumer_protocol_state_d
     GIVEN("a subscription to topic (\\w+)",
           given_a_subscription)
 
+    WHEN("the consumer subscribes to topic (\\w+)",
+         when_the_consumer_subscribes)
+
     WHEN("a STORE-HELLO command is send by a store",
          when_a_store_hello_is_sent)
 
     WHEN("a RECORD message with sequence (\\d+) and content '([^']+)' is send on topic (\\w+)",
          when_a_record_is_sent)
+
+    THEN("the consumer will send a GET_HEADS message for topic (\\w+)",
+         then_the_consumer_will_send_get_heads)
 
     THEN("the consumer responds with CONSUMER-HELLO containing (\\d+) topics?",
         then_the_consumer_responds_with_consumer_hello_containing_n_topics)

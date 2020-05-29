@@ -12,6 +12,11 @@ Feature: Dafka consumer protocol
     When a STORE-HELLO command is send by a store
     Then the consumer responds with CONSUMER-HELLO containing 1 topic
 
+  Scenario: Consumer requests partition heads when joining
+    Given a dafka consumer with offset reset earliest
+    When the consumer subscribes to topic hello
+    Then the consumer will send a GET_HEADS message for topic hello
+
   Scenario: First record for topic with offset reset earliest
     Given a dafka consumer with offset reset earliest
     And a subscription to topic hello
