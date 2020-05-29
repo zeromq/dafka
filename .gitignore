@@ -135,3 +135,6 @@ nbproject/
 
 # editor backups
 *~
+
+# ccls cache
+.ccls-cache/

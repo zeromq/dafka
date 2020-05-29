@@ -24,7 +24,7 @@ typedef struct _consumer_protocol_state {
 } consumer_protocol_state_t;
 
 consumer_protocol_state_t *
-consumer_protocol_state_new ()
+consumer_protocol_state_new (bool verbose)
 {
     consumer_protocol_state_t *self = (consumer_protocol_state_t *) zmalloc (sizeof (consumer_protocol_state_t));
     if (zsys_file_exists (SELFTEST_DIR_RW "/storedb")) {
@@ -32,8 +32,6 @@ consumer_protocol_state_new ()
         zdir_remove (store_dir, true);
         zdir_destroy (&store_dir);
     }
-
-    bool verbose = false;   //  TODO Add as parameter
 
     self->config = zconfig_new ("root", NULL);
     zconfig_put (self->config, "test/verbose", verbose ? "1" : "0");
@@ -93,9 +91,13 @@ t_subscribe_to_topic (zactor_t *consumer, const char* topic,
 }
 
 void
-given_a_dafka_consumer_with_no_subscription (cucumber_step_def_t *self, void *state_p)
+given_a_dafka_consumer_with_offset_reset (cucumber_step_def_t *self, void *state_p)
 {
     consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *offset_reset;
+    FETCH_PARAMS (&offset_reset);
+
+    zconfig_put (state->config, "consumer/offset/reset", offset_reset);
 
     state->consumer = zactor_new (dafka_consumer, state->config);
     assert (state->consumer);
@@ -103,16 +105,20 @@ given_a_dafka_consumer_with_no_subscription (cucumber_step_def_t *self, void *st
 }
 
 void
-given_a_dafka_consumer_with_a_subscription (cucumber_step_def_t *self, void *state_p)
+given_no_subscription (cucumber_step_def_t *self, void *state_p)
+{
+    // Nothing to do
+}
+
+void
+given_a_subscription (cucumber_step_def_t *self, void *state_p)
 {
     consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
     const char *topic;
     FETCH_PARAMS (&topic);
 
-    given_a_dafka_consumer_with_no_subscription (self, state_p);
-
     t_subscribe_to_topic (state->consumer, topic, state->test_peer, state->config);
-    zclock_sleep (250);
+    zclock_sleep (250); // Make sure subscription is active
 }
 
 void
@@ -122,6 +128,15 @@ when_a_store_hello_is_sent (cucumber_step_def_t *self, void *state_p)
 
     char *consumer_address = dafka_consumer_address (state->consumer);
     dafka_test_peer_send_store_hello (state->test_peer, consumer_address);
+}
+
+void when_a_record_is_sent (cucumber_step_def_t *self, void *state_p)
+{
+    consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *sequence, *content, *topic;
+    FETCH_PARAMS (&sequence, &content, &topic);
+
+    dafka_test_peer_send_record (state->test_peer, topic, atoi (sequence), content);
 }
 
 void
@@ -140,19 +155,60 @@ then_the_consumer_responds_with_consumer_hello_containing_n_topics (cucumber_ste
     dafka_proto_destroy (&msg);
 }
 
+void
+then_the_consumer_will_send_a_fetch_message (cucumber_step_def_t *self, void *state_p)
+{
+    consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *topic, *sequence;
+    FETCH_PARAMS (&topic, &sequence);
 
-STEP_DEFS(protocol, consumer_protocol_state_new, consumer_protocol_state_destroy) {
-    GIVEN("a dafka consumer with no subscriptions",
-          given_a_dafka_consumer_with_no_subscription)
+    dafka_proto_t *msg = dafka_test_peer_recv (state->test_peer);
 
-    GIVEN("a dafka consumer with a subscription to topic (\\w+)",
-          given_a_dafka_consumer_with_a_subscription)
+    assert (dafka_proto_id (msg) == DAFKA_PROTO_FETCH);
+    assert (streq (dafka_proto_subject (msg), topic));
+    assert (dafka_proto_sequence (msg) == atoi (sequence));
 
-    WHEN("a STORE-HELLO command is sent by a store",
+    dafka_proto_destroy (&msg);
+}
+
+void
+then_a_consumer_msg_is_sent (cucumber_step_def_t *self, void *state_p)
+{
+    consumer_protocol_state_t *state = (consumer_protocol_state_t *) state_p;
+    const char *topic, *content;
+    FETCH_PARAMS (&topic, &content);
+
+    dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
+    dafka_consumer_msg_recv (c_msg, state->consumer);
+    assert_consumer_msg (c_msg, topic, content);
+
+    dafka_consumer_msg_destroy (&c_msg);
+}
+
+STEP_DEFS(dafka_consumer, consumer_protocol_state_new, consumer_protocol_state_destroy) {
+    GIVEN("a dafka consumer with offset reset (\\w+)",
+          given_a_dafka_consumer_with_offset_reset)
+
+    GIVEN("no subscriptions",
+          given_no_subscription)
+
+    GIVEN("a subscription to topic (\\w+)",
+          given_a_subscription)
+
+    WHEN("a STORE-HELLO command is send by a store",
          when_a_store_hello_is_sent)
+
+    WHEN("a RECORD message with sequence (\\d+) and content '([^']+)' is send on topic (\\w+)",
+         when_a_record_is_sent)
 
     THEN("the consumer responds with CONSUMER-HELLO containing (\\d+) topics?",
         then_the_consumer_responds_with_consumer_hello_containing_n_topics)
+
+    THEN("the consumer will send a FETCH message for topic (\\w+) with sequence (\\d+)",
+        then_the_consumer_will_send_a_fetch_message);
+
+    THEN("a consumer_msg is send to the user with topic (\\w+) and content '([^']+)'",
+        then_a_consumer_msg_is_sent);
 }
 #else
 int

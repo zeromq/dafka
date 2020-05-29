@@ -39,13 +39,13 @@ DAFKA_EXPORT void
     dafka_test_peer_test (bool verbose);
 
 DAFKA_EXPORT void
-    dafka_test_peer_send_store_hello (zactor_t *self, char *consumer_address);
+    dafka_test_peer_send_store_hello (zactor_t *self, const char *consumer_address);
 
 DAFKA_EXPORT void
-    dafka_test_peer_send_head (zactor_t *self, char *topic, uint64_t sequence);
+    dafka_test_peer_send_head (zactor_t *self, const char *topic, uint64_t sequence);
 
 DAFKA_EXPORT void
-    dafka_test_peer_send_record (zactor_t *self, char *topic, uint64_t sequence, char *content);
+    dafka_test_peer_send_record (zactor_t *self, const char *topic, uint64_t sequence,  const char *content);
 
 DAFKA_EXPORT dafka_proto_t *
     dafka_test_peer_recv (zactor_t *self);
@@ -54,13 +54,13 @@ DAFKA_EXPORT void
     assert_consumer_hello_msg (dafka_proto_t *msg, int no_of_subjects);
 
 DAFKA_EXPORT void
-    assert_get_heads_msg (dafka_proto_t *msg, char *topic);
+    assert_get_heads_msg (dafka_proto_t *msg, const char *topic);
 
 DAFKA_EXPORT void
-    assert_fetch_msg (dafka_proto_t *msg, char *topic, uint64_t sequence);
+    assert_fetch_msg (dafka_proto_t *msg, const char *topic, uint64_t sequence);
 
 DAFKA_EXPORT void
-    assert_consumer_msg (dafka_consumer_msg_t *msg, char *topic, char *content);
+    assert_consumer_msg (dafka_consumer_msg_t *msg, const char *topic, const char *content);
 //  @end
 
 #ifdef __cplusplus
