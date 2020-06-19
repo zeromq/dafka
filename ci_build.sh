@@ -66,6 +66,34 @@ windows)
         cd ../../..
     fi
 
+    git clone --quiet --depth 1 https://github.com/cucumber/gherkin-c gherkin
+    cd gherkin
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "gherkin/bindings/jni" ]; then
+        cd gherkin/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
+    git clone --quiet --depth 1 https://github.com/davegamble/cjson cjson
+    cd cjson
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "cjson/bindings/jni" ]; then
+        cd cjson/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
     cd dafka
     mkdir build
     cd build
@@ -315,6 +343,86 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         echo "and it was not installed as a package; this may cause the test to fail!" >&2
     fi
 
+    # Start of recipe for dependency: gherkin
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list gherkin-dev >/dev/null 2>&1) || \
+           (command -v brew >/dev/null 2>&1 && brew ls --versions gherkin >/dev/null 2>&1) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'gherkin' from Git repository..." >&2
+        cd ./tmp-deps
+        $CI_TIME git clone --quiet --depth 1 https://github.com/sappo/cucumber gherkin
+        cd ./gherkin/gherkin/c
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            mkdir build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+            cmake --build . --config Release --target install
+        fi
+        cd "${BASE_PWD}"
+    fi
+
+    # Start of recipe for dependency: cjson
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list cjson-dev >/dev/null 2>&1) || \
+           (command -v brew >/dev/null 2>&1 && brew ls --versions cjson >/dev/null 2>&1) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'cjson' from Git repository..." >&2
+        cd ./tmp-deps
+        $CI_TIME git clone --quiet --depth 1 https://github.com/davegamble/cjson cjson
+        cd ./cjson
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            mkdir build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+            cmake --build . --config Release --target install
+        fi
+        cd "${BASE_PWD}"
+    fi
+
     # Start of recipe for dependency: cucumber
     if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list cucumber-dev >/dev/null 2>&1) || \
            (command -v brew >/dev/null 2>&1 && brew ls --versions cucumber >/dev/null 2>&1) \
@@ -413,7 +521,6 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         $CI_TIME make VERBOSE=1 all || exit $?
         if [ "$CI_TEST_DISTCHECK" = false ]; then
             make check
-            make check-cucumber
         else
         (
             export DISTCHECK_CONFIGURE_FLAGS="--enable-drafts=no ${CONFIG_OPTS[@]}" && \
