@@ -36,11 +36,15 @@ int main (int argc, char *argv [])
     const char *filename = zargs_first (args);
     cucumber_feature_runner_t *feature_runner = cucumber_feature_runner_new (filename);
     bool rc = cucumber_feature_runner_run (feature_runner, client);
+
     zactor_t *step_runner = (zactor_t *) zlist_first (step_runners);
     while (step_runner != NULL) {
         zstr_send (step_runner, "$TERM");
         zactor_destroy (&step_runner);
     }
+
+    zargs_destroy (&args);
+    zlist_destroy (&step_runners);;
     zsock_destroy (&client);
     cucumber_feature_runner_destroy (&feature_runner);
     return rc ? 0 : 1;
