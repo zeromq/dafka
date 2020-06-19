@@ -758,6 +758,16 @@ AC_ARG_ENABLE([dafka_consumer_step_defs],
 AM_CONDITIONAL([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [test x$enable_dafka_consumer_step_defs != xno])
 AM_COND_IF([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSUMER_STEP_DEFS defined])])
 
+# Check for dafka_cucumber_runner intent
+AC_ARG_ENABLE([dafka_cucumber_runner],
+    AS_HELP_STRING([--enable-dafka_cucumber_runner],
+        [Compile 'dafka_cucumber_runner' in src [default=yes]]),
+    [enable_dafka_cucumber_runner=$enableval],
+    [enable_dafka_cucumber_runner=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_CUCUMBER_RUNNER], [test x$enable_dafka_cucumber_runner != xno])
+AM_COND_IF([ENABLE_DAFKA_CUCUMBER_RUNNER], [AC_MSG_NOTICE([ENABLE_DAFKA_CUCUMBER_RUNNER defined])])
+
 # Check for dafka_selftest intent
 AC_ARG_ENABLE([dafka_selftest],
     AS_HELP_STRING([--enable-dafka_selftest],

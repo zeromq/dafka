@@ -30,7 +30,7 @@ compiler:
 env:
   global:
     - CI_TIME=false
-    - CI_TRACE=false
+    - CI_TRACE=true
     - CI_CONFIG_QUIET=true
     - CI_REQUIRE_GOOD_GITIGNORE=false
     - CI_REQUIRE_GOOD_CLANG_FORMAT=false

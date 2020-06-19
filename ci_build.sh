@@ -413,6 +413,7 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         $CI_TIME make VERBOSE=1 all || exit $?
         if [ "$CI_TEST_DISTCHECK" = false ]; then
             make check
+            make check-cucumber
         else
         (
             export DISTCHECK_CONFIGURE_FLAGS="--enable-drafts=no ${CONFIG_OPTS[@]}" && \

@@ -252,3 +252,8 @@ main()
     printf ("Please install cucumber_c then reconfigure and re-compile this project!\n");
 }
 #endif
+
+void
+dafka_consumer_step_defs_test (bool verbose)
+{
+}
