@@ -495,6 +495,7 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
     make check-gitignore
     echo "==="
 
+    $CI_TIME make check-cucumber
     if [ "$CI_TEST_DISTCHECK" = false ]; then
         make check
     else
