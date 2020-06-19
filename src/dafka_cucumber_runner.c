@@ -25,10 +25,6 @@
 int main (int argc, char *argv [])
 {
     zargs_t *args = zargs_new (argc, argv);
-    bool verbose = false;
-    if (zargs_has (args, "--verbose")) {
-        verbose = true;
-    }
     zsock_t *client = zsock_new_dealer (">tcp://127.0.0.1:8888");
     assert (client);
     zclock_sleep (250);
