@@ -39,7 +39,7 @@ int main (int argc, char *argv [])
 
     const char *filename = zargs_first (args);
     cucumber_feature_runner_t *feature_runner = cucumber_feature_runner_new (filename);
-    cucumber_feature_runner_run (feature_runner, client);
+    bool rc = cucumber_feature_runner_run (feature_runner, client);
     zactor_t *step_runner = (zactor_t *) zlist_first (step_runners);
     while (step_runner != NULL) {
         zstr_send (step_runner, "$TERM");
@@ -47,6 +47,6 @@ int main (int argc, char *argv [])
     }
     zsock_destroy (&client);
     cucumber_feature_runner_destroy (&feature_runner);
-    return 0;
+    return rc ? 0 : 1;
 }
 #endif
