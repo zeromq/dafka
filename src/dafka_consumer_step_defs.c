@@ -137,6 +137,7 @@ when_a_store_hello_is_sent (cucumber_step_def_t *self, void *state_p)
 
     char *consumer_address = dafka_consumer_address (state->consumer);
     dafka_test_peer_send_store_hello (state->test_peer, consumer_address);
+    zstr_free (&consumer_address);
 }
 
 void when_a_record_is_sent (cucumber_step_def_t *self, void *state_p)
