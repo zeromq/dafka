@@ -16,7 +16,6 @@
 
 #if defined (HAVE_CUCUMBER)
 #include <cucumber_c.h>
-#endif
 
 typedef struct _consumer_protocol_state consumer_protocol_state_t;
 
@@ -28,6 +27,8 @@ DAFKA_EXPORT void
 
 DAFKA_EXPORT void
     register_dafka_consumer_step_defs (cucumber_t *cucumber);
+
+#endif
 
 DAFKA_PRIVATE void
     dafka_consumer_step_defs_test (bool verbose);

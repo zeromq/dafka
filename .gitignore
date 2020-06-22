@@ -30,6 +30,7 @@ src/dafka_perf_consumer
 src/dafka_perf_store
 src/dafka_consumer_step_defs
 src/dafka_selftest
+src/dafka_cucumber_runner
 *.exe
 *.out
 *.app

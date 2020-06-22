@@ -27,8 +27,19 @@
          test = "cucumber_new"
          repository = "https://github.com/sappo/cucumber-c"
          optional = "1"
-         implied = "1"
-    />
+         implied = "1">
+
+        <use project = "gherkin" private = "1"
+             header = "compiler.h"
+             repository = "https://github.com/cucumber/gherkin-c"
+             test = "Compiler_new" />
+
+        <use project = "cJson" private = "1"
+             debian_name = "libcjson-dev"
+             header = "cjson/cJSON.h"
+             repository = "https://github.com/DaveGamble/cJSON"
+             test = "cJSON_Parse" />
+    </use>
 
     <actor name = "dafka_beacon" state = "stable" />
     <actor name = "dafka_tower" state = "stable" />

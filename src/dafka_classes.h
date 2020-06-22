@@ -34,6 +34,8 @@
 //  External API
 #include "../include/dafka.h"
 
+//  Private external dependencies
+
 //  Opaque class structures to allow forward references
 #ifndef DAFKA_UNACKED_LIST_T_DEFINED
 typedef struct _dafka_unacked_list_t dafka_unacked_list_t;

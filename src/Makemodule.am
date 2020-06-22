@@ -213,9 +213,6 @@ check-empty-selftest-rw:
 		else true ; fi; \
 	else true ; fi
 
-check-cucumber: src/dafka_cucumber_runner
-	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_cucumber_runner $(top_builddir)/features/dafka_consumer_protocol.feature
-
 check-local: src/dafka_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_selftest
 	$(MAKE) check-empty-selftest-rw
