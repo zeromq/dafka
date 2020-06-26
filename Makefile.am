@@ -10,9 +10,10 @@ AM_CPPFLAGS = \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
     ${leveldb_CFLAGS} \
+    ${cucumber_CFLAGS} \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${leveldb_LIBS}
+project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${leveldb_LIBS} ${cucumber_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -36,6 +37,7 @@ EXTRA_DIST += \
     Findlibzmq.cmake \
     Findczmq.cmake \
     Findleveldb.cmake \
+    Findcucumber.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \
@@ -48,6 +50,7 @@ EXTRA_DIST += \
     src/dafka_msg_key.h \
     src/dafka_head_key.h \
     src/dafka_util.h \
+    src/dafka_consumer_step_defs.h \
     src/dafka_store_reader.h \
     src/dafka_store_writer.h \
     src/dafka_test_peer.h \

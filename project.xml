@@ -7,8 +7,11 @@
     url = "https://github.com/zeromq/dafka"
     license = "MPL-2.0" >
 
-    <target name ="travis" />
-    <target name ="docker" />
+    <target name = "travis" />
+    <target name = "docker" />
+    <target name = "cucumber">
+        <step_defs name = "dafka_consumer" />
+    </target>
 
     <include filename = "license.xml" />
     <version major = "0" minor = "1" />

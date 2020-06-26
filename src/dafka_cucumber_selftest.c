@@ -1,7 +1,7 @@
 /*  =========================================================================
-    dafka_private_selftest.c - run private classes selftests
+    dafka_cucumber_selftest.c - run cucumber selftests
 
-    Runs all private classes selftests.
+    Runs cucumber steps servers and cucumber feature runner in one process
 
     -------------------------------------------------------------------------
     Copyright (c) the Contributors as noted in the AUTHORS file. This
@@ -20,24 +20,36 @@
 */
 
 #include "dafka_classes.h"
+#if defined (HAVE_CUCUMBER)
+#include <cucumber_c.h>
 
-
-//  -------------------------------------------------------------------------
-//  Run all private classes tests.
-//
-
-void
-dafka_private_selftest (bool verbose, const char *subtest)
+int main (int argc, char *argv [])
 {
-// Tests for stable private classes:
-    if (streq (subtest, "$ALL") || streq (subtest, "dafka_unacked_list_test"))
-        dafka_unacked_list_test (verbose);
-    if (streq (subtest, "$ALL") || streq (subtest, "dafka_util_test"))
-        dafka_util_test (verbose);
-    if (streq (subtest, "$ALL") || streq (subtest, "dafka_consumer_step_defs_test"))
-        dafka_consumer_step_defs_test (verbose);
-    if (streq (subtest, "$ALL") || streq (subtest, "dafka_test_peer_test"))
-        dafka_test_peer_test (verbose);
+    zargs_t *args = zargs_new (argc, argv);
+    zsock_t *client = zsock_new_dealer (">tcp://127.0.0.1:8888");
+    assert (client);
+    zclock_sleep (250);
+    zlist_t *step_runners = zlist_new ();
+
+    CREATE_STEP_RUNNER_ACTOR(dafka_consumer, consumer_protocol_state_new, consumer_protocol_state_destroy)
+    zlist_append (step_runners, dafka_consumer_steps_runner);
+
+
+    const char *filename = zargs_first (args);
+    cucumber_feature_runner_t *feature_runner = cucumber_feature_runner_new (filename);
+    bool rc = cucumber_feature_runner_run (feature_runner, client);
+
+    zactor_t *step_runner = (zactor_t *) zlist_first (step_runners);
+    while (step_runner != NULL) {
+        zstr_send (step_runner, "$TERM");
+        zactor_destroy (&step_runner);
+    }
+
+    zargs_destroy (&args);
+    zlist_destroy (&step_runners);;
+    zsock_destroy (&client);
+    cucumber_feature_runner_destroy (&feature_runner);
+    return rc ? 0 : 1;
 }
 /*
 ################################################################################
@@ -45,3 +57,4 @@ dafka_private_selftest (bool verbose, const char *subtest)
 #  Read the zproject/README.md for information about making permanent changes. #
 ################################################################################
 */
+#endif

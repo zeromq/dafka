@@ -34,7 +34,7 @@ env:
     - CI_CONFIG_QUIET=true
     - CI_REQUIRE_GOOD_GITIGNORE=false
     - CI_REQUIRE_GOOD_CLANG_FORMAT=false
-    - CI_TEST_DISTCHECK=true
+    - CI_TEST_DISTCHECK=false
     # tokens to deploy releases on OBS and create/delete temporary branch on Github.
     # 1) Create a token on https://github.com/settings/tokens/new with "public_repo"
     #    capability and encrypt it with travis encrypt --org -r <org>/<repo> GH_TOKEN="<token>"
@@ -86,6 +86,10 @@ addons:
     packages: &pkg_deps_common
     - *pkg_deps_devtools
     - *pkg_deps_prereqs
+  homebrew:
+    packages:
+    - leveldb
+    - cjson
 
 matrix:
   include:
@@ -135,7 +139,7 @@ matrix:
 before_install:
 - if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "android" ] ; then brew install binutils ; fi
 - if [ "$TRAVIS_OS_NAME" == "osx" -a "$BUILD_TYPE" == "valgrind" ] ; then brew install valgrind ; fi
-- if [ "$TRAVIS_OS_NAME" == "osx" ] ; then brew install leveldb ; fi
+- if [ "$TRAVIS_OS_NAME" == "osx" ] ; then brew install leveldb cjson ; fi
 
 # Hand off to generated script for each BUILD_TYPE
 script: ./ci_build.sh

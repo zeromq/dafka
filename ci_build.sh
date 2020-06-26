@@ -16,13 +16,119 @@ case "$CI_TIME" in
         CI_TIME="" ;;
 esac
 
-# Set this to enable verbose tracing
-[ -n "${CI_TRACE-}" ] || CI_TRACE="no"
-case "$CI_TRACE" in
-    [Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee])
-        set +x ;;
-    [Yy][Ee][Ss]|[Oo][Nn]|[Tt][Rr][Uu][Ee])
-        set -x ;;
+configure_tracing() {
+	# Set this to enable verbose tracing
+	[ -n "${CI_TRACE-}" ] || CI_TRACE="no"
+	case "$CI_TRACE" in
+		[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee])
+			set +x ;;
+		[Yy][Ee][Ss]|[Oo][Nn]|[Tt][Rr][Uu][Ee])
+			set -x ;;
+	esac
+}
+configure_tracing
+
+fold_start() {
+  set +x
+  echo -e "travis_fold:start:$1\033[33;1m$2\033[0m"
+  configure_tracing
+}
+
+fold_start_plain() {
+  set +x
+  echo -e "travis_fold:start:$1"
+  configure_tracing
+}
+
+fold_end() {
+  set +x
+  echo -e "\ntravis_fold:end:$1\r"
+  configure_tracing
+}
+
+case $TRAVIS_OS_NAME in
+windows)
+    export
+    choco install openjdk
+    export JAVA_HOME="C:\Program Files\OpenJDK\jdk-13.0.2"
+    export BUILD_PREFIX=$TEMP/ci_build
+    # Build will fail if processes are still running at the end of the script.
+    # Gradle by default starts a daemon so consequtive builds are faster.
+    # Therefore instruct gradle not to use its daemon.
+    export GRADLE_OPTS=-Dorg.gradle.daemon=false
+
+    cd ..
+
+    git clone --quiet --depth 1 https://github.com/zeromq/libzmq.git libzmq
+    cd libzmq
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "libzmq/bindings/jni" ]; then
+        cd libzmq/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
+    git clone --quiet --depth 1 https://github.com/zeromq/czmq.git czmq
+    cd czmq
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "czmq/bindings/jni" ]; then
+        cd czmq/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
+    git clone --quiet --depth 1 https://github.com/cucumber/gherkin-c gherkin
+    cd gherkin
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "gherkin/bindings/jni" ]; then
+        cd gherkin/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
+    git clone --quiet --depth 1 https://github.com/davegamble/cjson cjson
+    cd cjson
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    cd ../..
+
+    if [ -d "cjson/bindings/jni" ]; then
+        cd cjson/bindings/jni
+        ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+        cd ../../..
+    fi
+
+    cd dafka
+    mkdir build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+    cmake --build . --config Release --target install
+    ctest --build-config Release
+    cd ../..
+
+    cd dafka
+    cd bindings/jni
+    ./gradlew build jar -PbuildPrefix=$BUILD_PREFIX -x test --info
+    ./gradlew publishToMavenLocal -PbuildPrefix=$BUILD_PREFIX --info
+
+    exit 0
 esac
 
 case "$BUILD_TYPE" in
@@ -56,8 +162,10 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
     mkdir -p "${CCACHE_DIR}" || HAVE_CCACHE=no
 
     if [ "$HAVE_CCACHE" = yes ] && [ -d "$CCACHE_DIR" ]; then
+        fold_start_plain ccache.before
         echo "CCache stats before build:"
         ccache -s || true
+        fold_end ccache.before
     fi
 
     CONFIG_OPTS=()
@@ -181,10 +289,10 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
     # Clone and build dependencies, if not yet installed to Travis env as DEBs
     # or MacOS packages; other OSes are not currently supported by Travis cloud
     [ -z "$CI_TIME" ] || echo "`date`: Starting build of dependencies (if any)..."
-
     # Start of recipe for dependency: libzmq
-    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list libzmq3-dev >/dev/null 2>&1) || \
-           (command -v brew >/dev/null 2>&1 && brew ls --versions libzmq >/dev/null 2>&1) \
+	fold_start dependency.libzmq "Install dependency libzmq"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s libzmq3-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions libzmq >/dev/null 2>&1)) \
     ; then
         echo ""
         BASE_PWD=${PWD}
@@ -209,15 +317,27 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
             $CI_TIME autoconf || \
             $CI_TIME autoreconf -fiv
         fi
-        $CI_TIME ./configure "${CONFIG_OPTS[@]}"
-        $CI_TIME make -j4
-        $CI_TIME make install
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        else
+            mkdir build
+            cd build
+            $CI_TIME cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            $CI_TIME cmake --build . --config Release --target install
+        fi
         cd "${BASE_PWD}"
     fi
+	fold_end dependency.libzmq
 
     # Start of recipe for dependency: czmq
-    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list libczmq-dev >/dev/null 2>&1) || \
-           (command -v brew >/dev/null 2>&1 && brew ls --versions czmq >/dev/null 2>&1) \
+	fold_start dependency.czmq "Install dependency czmq"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s libczmq-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions czmq >/dev/null 2>&1)) \
     ; then
         echo ""
         BASE_PWD=${PWD}
@@ -242,23 +362,176 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
             $CI_TIME autoconf || \
             $CI_TIME autoreconf -fiv
         fi
-        $CI_TIME ./configure "${CONFIG_OPTS[@]}"
-        $CI_TIME make -j4
-        $CI_TIME make install
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        else
+            mkdir build
+            cd build
+            $CI_TIME cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            $CI_TIME cmake --build . --config Release --target install
+        fi
         cd "${BASE_PWD}"
     fi
+	fold_end dependency.czmq
 
     # Start of recipe for dependency: leveldb
-    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list libleveldb-dev >/dev/null 2>&1) || \
-           (command -v brew >/dev/null 2>&1 && brew ls --versions leveldb >/dev/null 2>&1) \
+	fold_start dependency.leveldb "Install dependency leveldb"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s libleveldb-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions leveldb >/dev/null 2>&1)) \
     ; then
         echo ""
         echo "WARNING: Can not build prerequisite 'leveldb'" >&2
         echo "because neither tarball nor repository sources are known for it," >&2
         echo "and it was not installed as a package; this may cause the test to fail!" >&2
     fi
+	fold_end dependency.leveldb
+
+    # Start of recipe for dependency: gherkin
+	fold_start dependency.gherkin "Install dependency gherkin"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s gherkin-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions gherkin >/dev/null 2>&1)) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'gherkin' from Git repository..." >&2
+        cd ./tmp-deps
+        $CI_TIME git clone --quiet --depth 1 https://github.com/cucumber/gherkin-c gherkin
+        cd ./gherkin
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        else
+            mkdir build
+            cd build
+            $CI_TIME cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            $CI_TIME cmake --build . --config Release --target install
+        fi
+        cd "${BASE_PWD}"
+    fi
+	fold_end dependency.gherkin
+
+    # Start of recipe for dependency: cjson
+	fold_start dependency.cjson "Install dependency cjson"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s libcjson-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions cjson >/dev/null 2>&1)) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'cjson' from Git repository..." >&2
+        cd ./tmp-deps
+        $CI_TIME git clone --quiet --depth 1 https://github.com/davegamble/cjson cjson
+        cd ./cjson
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        else
+            mkdir build
+            cd build
+            $CI_TIME cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            $CI_TIME cmake --build . --config Release --target install
+        fi
+        cd "${BASE_PWD}"
+    fi
+	fold_end dependency.cjson
+
+    # Start of recipe for dependency: cucumber
+	fold_start dependency.cucumber "Install dependency cucumber"
+    if ! ((command -v dpkg >/dev/null 2>&1 && dpkg -s cucumber-dev >/dev/null 2>&1) || \
+          (command -v brew >/dev/null 2>&1 && brew ls --versions cucumber >/dev/null 2>&1)) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'cucumber' from Git repository..." >&2
+        cd ./tmp-deps
+        $CI_TIME git clone --quiet --depth 1 https://github.com/sappo/cucumber-c cucumber
+        cd ./cucumber
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        else
+            mkdir build
+            cd build
+            $CI_TIME cmake .. -DCMAKE_INSTALL_PREFIX=$BUILD_PREFIX -DCMAKE_PREFIX_PATH=$BUILD_PREFIX
+        fi
+        if [ -e ./configure ]; then
+            $CI_TIME make -j4
+            $CI_TIME make install
+        else
+            $CI_TIME cmake --build . --config Release --target install
+        fi
+        cd "${BASE_PWD}"
+        CONFIG_OPTS+=("--with-cucumber=yes")
+    else
+        CONFIG_OPTS+=("--with-cucumber=yes")
+    fi
+	fold_end dependency.cucumber
+
 
     # Build and check this project; note that zprojects always have an autogen.sh
+	fold_start build.draft "Build and check this project with DRAFT APIs"
     echo ""
     echo "`date`: INFO: Starting build of currently tested project with DRAFT APIs..."
     CCACHE_BASEDIR=${PWD}
@@ -302,12 +575,15 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         $CI_TIME make VERBOSE=1 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS" distcheck || exit $?
     )
     fi
+    make check-cucumber
 
     echo "=== Are GitIgnores good after 'make (dist)check' with drafts?"
     make check-gitignore
     echo "==="
+	fold_end build.draft
 
     # Build and check this project without DRAFT APIs
+	fold_start build.stable "Build and check this project with STABLE APIs"
     echo ""
     echo "`date`: INFO: Starting build of currently tested project without DRAFT APIs..."
     make distclean
@@ -332,10 +608,13 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
     echo "=== Are GitIgnores good after 'make (dist)check' without drafts?"
     make check-gitignore
     echo "==="
+	fold_end build.stable
 
     if [ "$HAVE_CCACHE" = yes ]; then
+        fold_start_plain ccache.after
         echo "CCache stats after build:"
         ccache -s
+        fold_end ccache.after
     fi
     ;;
 bindings)

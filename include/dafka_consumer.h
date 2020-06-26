@@ -31,6 +31,11 @@ DAFKA_EXPORT void
 DAFKA_EXPORT int
     dafka_consumer_subscribe (zactor_t *self, const char *subject);
 
+//
+//  Caller owns return value and must destroy it when done.
+DAFKA_EXPORT char *
+    dafka_consumer_address (zactor_t *self);
+
 //  Self test of this class.
 DAFKA_EXPORT void
     dafka_consumer_test (bool verbose);

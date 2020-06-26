@@ -14,7 +14,11 @@ enable_testing()
 set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Select flags
-SET(CMAKE_C_FLAGS_RELEASE "-O3")
+if(MSVC)
+    SET(CMAKE_C_FLAGS_RELEASE "/O2")
+else()
+    SET(CMAKE_C_FLAGS_RELEASE "-O3")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/builds/cmake/Modules)
 
@@ -84,15 +88,17 @@ file(WRITE "${PROJECT_BINARY_DIR}/platform.h.in" "
 
 configure_file("${PROJECT_BINARY_DIR}/platform.h.in" "${PROJECT_BINARY_DIR}/platform.h")
 
-#The MSVC C compiler is too out of date,
-#so the sources have to be compiled as c++
-if (MSVC)
-    enable_language(CXX)
-    file(GLOB sources "${SOURCE_DIR}/src/*.c")
-    set_source_files_properties(
-        ${sources}
-        PROPERTIES LANGUAGE CXX
-    )
+if (WIN32)
+    #The MSVC C compiler is too out of date,
+    #so the sources have to be compiled as c++
+    if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        enable_language(CXX)
+        file(GLOB sources "${SOURCE_DIR}/src/*.c")
+        set_source_files_properties(
+            ${sources}
+            PROPERTIES LANGUAGE CXX
+        )
+    endif()
     set(MORE_LIBRARIES ws2_32 Rpcrt4 Iphlpapi)
 endif()
 
@@ -169,6 +175,24 @@ ELSE (LEVELDB_FOUND)
 ENDIF (LEVELDB_FOUND)
 
 ########################################################################
+# CUCUMBER dependency
+########################################################################
+find_package(cucumber)
+option(DAFKA_WITH_CUCUMBER "Build dafka with cucumber" ${CUCUMBER_FOUND})
+IF (DAFKA_WITH_CUCUMBER AND CUCUMBER_FOUND)
+    include_directories(${CUCUMBER_INCLUDE_DIRS})
+    list(APPEND MORE_LIBRARIES ${CUCUMBER_LIBRARIES})
+  IF (PC_CUCUMBER_FOUND)
+      set(pkg_config_names_private "${pkg_config_names_private} cucumber")
+      list(APPEND OPTIONAL_LIBRARIES_STATIC ${PC_CUCUMBER_STATIC_LDFLAGS})
+  ELSE (PC_CUCUMBER_FOUND)
+      set(pkg_config_libs_private "${pkg_config_libs_private} -lcucumber")
+  ENDIF (PC_CUCUMBER_FOUND)
+    add_definitions(-DHAVE_CUCUMBER)
+    list(APPEND OPTIONAL_LIBRARIES ${CUCUMBER_LIBRARIES})
+ENDIF (DAFKA_WITH_CUCUMBER AND CUCUMBER_FOUND)
+
+########################################################################
 # version
 ########################################################################
 set(DAFKA_VERSION_MAJOR 0)
@@ -197,6 +221,7 @@ set (dafka_headers
     src/dafka_msg_key.h
     src/dafka_head_key.h
     src/dafka_util.h
+    src/dafka_consumer_step_defs.h
     src/dafka_store_reader.h
     src/dafka_store_writer.h
     src/dafka_test_peer.h
@@ -222,6 +247,7 @@ set (dafka_sources
     src/dafka_consumer.c
     src/dafka_util.c
     src/dafka_proto.c
+    src/dafka_consumer_step_defs.c
     src/dafka_beacon.c
     src/dafka_tower.c
     src/dafka_store_reader.c
@@ -552,6 +578,56 @@ target_link_libraries(
 )
 endif()
 add_executable(
+    dafka_consumer_step_defs
+    "${SOURCE_DIR}/src/dafka_consumer_step_defs.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_consumer_step_defs
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_consumer_step_defs
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
+    dafka_cucumber_selftest
+    "${SOURCE_DIR}/src/dafka_cucumber_selftest.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_cucumber_selftest
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_cucumber_selftest
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
     dafka_selftest
     "${SOURCE_DIR}/src/dafka_selftest.c"
 )
@@ -608,15 +684,26 @@ IF (ENABLE_DRAFTS)
 ENDIF (ENABLE_DRAFTS)
 
 
-add_custom_target(
-    copy-selftest-ro ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/src/selftest-ro ${PROJECT_BINARY_DIR}/src/selftest-ro
-)
+if (NOT TARGET copy-selftest-ro)
+    add_custom_target(
+        copy-selftest-ro ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/src/selftest-ro ${PROJECT_BINARY_DIR}/src/selftest-ro
+    )
+endif()
 
-add_custom_target(
-    make-selftest-rw ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/src/selftest-rw
-)
+if (NOT TARGET make-selftest-rw)
+    add_custom_target(
+        make-selftest-rw ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/src/selftest-rw
+    )
+endif()
+
+if (NOT TARGET test-cucumber)
+    add_custom_target (
+       test-cucumber
+       COMMAND ${PROJECT_BINARY_DIR}/dafka_cucumber_selftest ${PROJECT_SOURCE_DIR}/features
+    )
+endif ()
 
 set_directory_properties(
     PROPERTIES
@@ -628,6 +715,13 @@ foreach(TEST_CLASS ${TEST_CLASSES})
         NAME ${TEST_CLASS}
         COMMAND dafka_selftest --continue --verbose --test ${TEST_CLASS}
     )
+    IF (WIN32 AND CMAKE_PREFIX_PATH)
+        file(TO_NATIVE_PATH "${CMAKE_PREFIX_PATH}" CMAKE_PREFIX_PATH_WIN)
+        set_tests_properties(
+            ${TEST_CLASS}
+            PROPERTIES ENVIRONMENT "PATH=%PATH%\;${CMAKE_PREFIX_PATH_WIN}\\bin"
+        )
+    ENDIF (WIN32 AND CMAKE_PREFIX_PATH)
     set_tests_properties(
         ${TEST_CLASS}
         PROPERTIES TIMEOUT ${CLASSTEST_TIMEOUT}
@@ -643,7 +737,9 @@ include(CTest)
 ########################################################################
 # cleanup
 ########################################################################
-add_custom_target (distclean @echo Cleaning for source distribution)
+if (NOT TARGET distclean)
+    add_custom_target (distclean @echo Cleaning for source distribution)
+endif()
 
 set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/cmake_install.cmake
@@ -663,6 +759,8 @@ set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/src/dafka_towerd
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_store
+                    ${PROJECT_BINARY_DIR}/src/dafka_consumer_step_defs
+                    ${PROJECT_BINARY_DIR}/src/dafka_cucumber_selftest
                     ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )
 

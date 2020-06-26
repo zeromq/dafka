@@ -262,20 +262,20 @@ dafka_test_peer (zsock_t *pipe, void *args) {
 }
 
 void
-dafka_test_peer_send_head (zactor_t *self, char *topic, uint64_t sequence) {
+dafka_test_peer_send_head (zactor_t *self, const char *topic, uint64_t sequence) {
     assert (self);
     zsock_send (self, "ss8", "HEAD", topic, sequence);
 }
 
 void
-dafka_test_peer_send_store_hello (zactor_t *self, char *consumer_address) {
+dafka_test_peer_send_store_hello (zactor_t *self, const char *consumer_address) {
     assert (self);
     zstr_sendm (self, "STORE-HELLO");
     zstr_send (self, consumer_address);
 }
 
 void
-dafka_test_peer_send_record (zactor_t *self, char *topic, uint64_t sequence, char *content) {
+dafka_test_peer_send_record (zactor_t *self, const char *topic, uint64_t sequence, const char *content) {
     assert (self);
     zsock_send (self, "ss8s", "RECORD", topic, sequence, content);
 }
@@ -295,14 +295,14 @@ assert_consumer_hello_msg (dafka_proto_t *msg, int no_of_subjects) {
 }
 
 void
-assert_get_heads_msg (dafka_proto_t *msg, char *topic) {
+assert_get_heads_msg (dafka_proto_t *msg, const char *topic) {
     assert (dafka_proto_id (msg) == DAFKA_PROTO_GET_HEADS);
     assert (streq (dafka_proto_topic (msg), topic));
     dafka_proto_destroy (&msg);
 }
 
 void
-assert_fetch_msg (dafka_proto_t *msg, char *topic, uint64_t sequence) {
+assert_fetch_msg (dafka_proto_t *msg, const char *topic, uint64_t sequence) {
     assert (dafka_proto_id (msg) == DAFKA_PROTO_FETCH);
     assert (streq (dafka_proto_subject (msg), topic));
     assert (dafka_proto_sequence (msg) == sequence);
@@ -310,7 +310,7 @@ assert_fetch_msg (dafka_proto_t *msg, char *topic, uint64_t sequence) {
 }
 
 void
-assert_consumer_msg (dafka_consumer_msg_t *msg, char *topic, char *content) {
+assert_consumer_msg (dafka_consumer_msg_t *msg, const char *topic, const char *content) {
     assert (streq (dafka_consumer_msg_subject (msg), topic));
     assert (dafka_consumer_msg_streq (msg, content));
 }

@@ -21,8 +21,20 @@
 //  Platform definitions, must come first
 #include "platform.h"
 
+//  Asserts check the invariants of methods. If they're not
+//  fulfilled the program should fail fast. Therefore enforce them!
+#ifdef NDEBUG
+  #undef NDEBUG
+  #include <assert.h>
+  #define NDEBUG
+#else
+  #include <assert.h>
+#endif
+
 //  External API
 #include "../include/dafka.h"
+
+//  Private external dependencies
 
 //  Opaque class structures to allow forward references
 #ifndef DAFKA_UNACKED_LIST_T_DEFINED
@@ -44,6 +56,10 @@ typedef struct _dafka_head_key_t dafka_head_key_t;
 #ifndef DAFKA_UTIL_T_DEFINED
 typedef struct _dafka_util_t dafka_util_t;
 #define DAFKA_UTIL_T_DEFINED
+#endif
+#ifndef DAFKA_CONSUMER_STEP_DEFS_T_DEFINED
+typedef struct _dafka_consumer_step_defs_t dafka_consumer_step_defs_t;
+#define DAFKA_CONSUMER_STEP_DEFS_T_DEFINED
 #endif
 #ifndef DAFKA_STORE_READER_T_DEFINED
 typedef struct _dafka_store_reader_t dafka_store_reader_t;
@@ -67,6 +83,7 @@ typedef struct _dafka_test_peer_t dafka_test_peer_t;
 #include "dafka_msg_key.h"
 #include "dafka_head_key.h"
 #include "dafka_util.h"
+#include "dafka_consumer_step_defs.h"
 #include "dafka_store_reader.h"
 #include "dafka_store_writer.h"
 #include "dafka_test_peer.h"
@@ -83,6 +100,11 @@ DAFKA_PRIVATE void
 //  Self test of this class.
 DAFKA_PRIVATE void
     dafka_util_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DAFKA_PRIVATE void
+    dafka_consumer_step_defs_test (bool verbose);
 
 //  Self test for private classes
 DAFKA_PRIVATE void
