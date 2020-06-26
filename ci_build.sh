@@ -575,6 +575,7 @@ default|default-Werror|default-with-docs|valgrind|clang-format-check)
         $CI_TIME make VERBOSE=1 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS" distcheck || exit $?
     )
     fi
+    make check-cucumber
 
     echo "=== Are GitIgnores good after 'make (dist)check' with drafts?"
     make check-gitignore

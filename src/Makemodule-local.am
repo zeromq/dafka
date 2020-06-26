@@ -1,2 +1,0 @@
-check-cucumber: src/dafka_cucumber_runner
-	$(LIBTOOL) --mode=execute $(builddir)/src/dafka_cucumber_runner features

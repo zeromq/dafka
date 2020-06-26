@@ -603,12 +603,12 @@ target_link_libraries(
 )
 endif()
 add_executable(
-    dafka_cucumber_runner
-    "${SOURCE_DIR}/src/dafka_cucumber_runner.c"
+    dafka_cucumber_selftest
+    "${SOURCE_DIR}/src/dafka_cucumber_selftest.c"
 )
 if (TARGET dafka)
 target_link_libraries(
-    dafka_cucumber_runner
+    dafka_cucumber_selftest
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
@@ -618,7 +618,7 @@ target_link_libraries(
 endif()
 if (NOT TARGET dafka AND TARGET dafka-static)
 target_link_libraries(
-    dafka_cucumber_runner
+    dafka_cucumber_selftest
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
@@ -698,6 +698,13 @@ if (NOT TARGET make-selftest-rw)
     )
 endif()
 
+if (NOT TARGET test-cucumber)
+    add_custom_target (
+       test-cucumber
+       COMMAND ${PROJECT_BINARY_DIR}/dafka_cucumber_selftest ${PROJECT_SOURCE_DIR}/features
+    )
+endif ()
+
 set_directory_properties(
     PROPERTIES
     ADDITIONAL_MAKE_CLEAN_FILES "${PROJECT_BINARY_DIR}/src/selftest-ro;${PROJECT_BINARY_DIR}/src/selftest-rw"
@@ -753,7 +760,7 @@ set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_store
                     ${PROJECT_BINARY_DIR}/src/dafka_consumer_step_defs
-                    ${PROJECT_BINARY_DIR}/src/dafka_cucumber_runner
+                    ${PROJECT_BINARY_DIR}/src/dafka_cucumber_selftest
                     ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )
 

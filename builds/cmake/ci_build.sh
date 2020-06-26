@@ -317,6 +317,7 @@ else
     PKG_CONFIG_PATH=${BUILD_PREFIX}/lib/pkgconfig $CI_TIME cmake "${CMAKE_OPTS[@]}" .
     $CI_TIME make all VERBOSE=1 -j4
     $CI_TIME ctest -V
+    make test-cucumber
     $CI_TIME make install
 fi
 [ -z "$CI_TIME" ] || echo "`date`: Builds completed without fatal errors!"
