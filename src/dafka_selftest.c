@@ -36,7 +36,6 @@ all_tests [] = {
 // Now built only with --enable-drafts, so even stable builds are hidden behind the flag
     { "dafka_unacked_list", NULL, true, false, "dafka_unacked_list_test" },
     { "dafka_util", NULL, true, false, "dafka_util_test" },
-    { "dafka_consumer_step_defs", NULL, true, false, "dafka_consumer_step_defs_test" },
     { "dafka_test_peer", NULL, true, false, "dafka_test_peer_test" },
     { "private_classes", NULL, false, false, "$ALL" }, // compat option for older projects
 #endif // DAFKA_BUILD_DRAFT_API

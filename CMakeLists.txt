@@ -222,6 +222,7 @@ set (dafka_headers
     src/dafka_head_key.h
     src/dafka_util.h
     src/dafka_consumer_step_defs.h
+    src/dafka_producer_step_defs.h
     src/dafka_store_reader.h
     src/dafka_store_writer.h
     src/dafka_test_peer.h
@@ -248,6 +249,7 @@ set (dafka_sources
     src/dafka_util.c
     src/dafka_proto.c
     src/dafka_consumer_step_defs.c
+    src/dafka_producer_step_defs.c
     src/dafka_beacon.c
     src/dafka_tower.c
     src/dafka_store_reader.c
@@ -578,12 +580,12 @@ target_link_libraries(
 )
 endif()
 add_executable(
-    dafka_consumer_step_defs
-    "${SOURCE_DIR}/src/dafka_consumer_step_defs.c"
+    dafka_consumer_step_runner
+    "${SOURCE_DIR}/src/dafka_consumer_step_runner.c"
 )
 if (TARGET dafka)
 target_link_libraries(
-    dafka_consumer_step_defs
+    dafka_consumer_step_runner
     dafka
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
@@ -593,7 +595,32 @@ target_link_libraries(
 endif()
 if (NOT TARGET dafka AND TARGET dafka-static)
 target_link_libraries(
-    dafka_consumer_step_defs
+    dafka_consumer_step_runner
+    dafka-static
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+    ${OPTIONAL_LIBRARIES_STATIC}
+)
+endif()
+add_executable(
+    dafka_producer_step_runner
+    "${SOURCE_DIR}/src/dafka_producer_step_runner.c"
+)
+if (TARGET dafka)
+target_link_libraries(
+    dafka_producer_step_runner
+    dafka
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LEVELDB_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+endif()
+if (NOT TARGET dafka AND TARGET dafka-static)
+target_link_libraries(
+    dafka_producer_step_runner
     dafka-static
     ${LIBZMQ_LIBRARIES}
     ${CZMQ_LIBRARIES}
@@ -759,7 +786,8 @@ set(cmake_generated ${PROJECT_BINARY_DIR}/CMakeCache.txt
                     ${PROJECT_BINARY_DIR}/src/dafka_towerd
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_consumer
                     ${PROJECT_BINARY_DIR}/src/dafka_perf_store
-                    ${PROJECT_BINARY_DIR}/src/dafka_consumer_step_defs
+                    ${PROJECT_BINARY_DIR}/src/dafka_consumer_step_runner
+                    ${PROJECT_BINARY_DIR}/src/dafka_producer_step_runner
                     ${PROJECT_BINARY_DIR}/src/dafka_cucumber_selftest
                     ${PROJECT_BINARY_DIR}/src/dafka_selftest
 )

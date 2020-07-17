@@ -166,6 +166,31 @@ s_send_head (dafka_test_peer_t *self) {
 }
 
 void
+s_send_fetch (dafka_test_peer_t *self) {
+    char *address, *topic;
+    uint64_t sequence, count;
+    zsock_recv (self->pipe, "ss88", &address, &topic, &sequence, &count);
+
+    dafka_proto_t *msg = dafka_proto_new ();
+    dafka_proto_set_id (msg, DAFKA_PROTO_FETCH);
+
+    dafka_proto_set_address (msg, zuuid_str (self->address));
+
+    dafka_proto_set_topic (msg, address);
+    dafka_proto_set_subject (msg, topic);
+    dafka_proto_set_sequence (msg, sequence);
+    dafka_proto_set_count (msg, count);
+
+    dafka_proto_send (msg, self->pub);
+    dafka_proto_destroy (&msg);
+    zstr_free (&address);
+    zstr_free (&topic);
+
+    if (self->verbose)
+        zsys_debug ("Test Peer: Send FETCH");
+}
+
+void
 s_send_msg (dafka_test_peer_t *self) {
     char *topic, *content;
     uint64_t sequence;
@@ -201,10 +226,14 @@ dafka_test_peer_recv_api (dafka_test_peer_t *self) {
 
     if (streq (command, "HEAD"))
         s_send_head (self);
+    else if (streq (command, "FETCH"))
+        s_send_fetch (self);
     else if (streq (command, "RECORD"))
         s_send_msg (self);
     else if (streq (command, "STORE-HELLO"))
         s_send_store_hello (self);
+    else if (streq (command, "GET ADDRESS"))
+        zsock_bsend(self->pipe, "p", zuuid_str (self->address));
     else if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
@@ -280,11 +309,25 @@ dafka_test_peer_send_record (zactor_t *self, const char *topic, uint64_t sequenc
     zsock_send (self, "ss8s", "RECORD", topic, sequence, content);
 }
 
+void
+dafka_test_peer_send_fetch (zactor_t *self, const char *address, const char *topic, uint64_t sequence, uint64_t count ) {
+    assert (self);
+    zsock_send (self, "sss88", "FETCH", address, topic, sequence, count);
+}
+
 dafka_proto_t *
 dafka_test_peer_recv (zactor_t *self) {
     dafka_proto_t *msg = dafka_proto_new ();
     dafka_proto_recv (msg, zactor_sock (self));
     return msg;
+}
+
+const char *
+dafka_test_peer_address (zactor_t *self) {
+    zstr_send (self, "GET ADDRESS");
+    const char *address;
+    zsock_brecv (self, "p", &address);
+    return address;
 }
 
 void

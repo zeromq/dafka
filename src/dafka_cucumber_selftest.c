@@ -26,27 +26,46 @@
 int main (int argc, char *argv [])
 {
     zargs_t *args = zargs_new (argc, argv);
-    zsock_t *client = zsock_new_dealer (">tcp://127.0.0.1:8888");
+    zsock_t *client = zsock_new_router ("@tcp://127.0.0.1:8888");
     assert (client);
-    zclock_sleep (250);
-    zlist_t *step_runners = zlist_new ();
 
-    CREATE_STEP_RUNNER_ACTOR(dafka_consumer, consumer_protocol_state_new, consumer_protocol_state_destroy)
+    zlist_t *step_runners = zlist_new ();
+    CREATE_STEP_RUNNER_ACTOR(dafka_consumer, dafka_consumer_state_new, dafka_consumer_state_destroy)
     zlist_append (step_runners, dafka_consumer_steps_runner);
 
+    CREATE_STEP_RUNNER_ACTOR(dafka_producer, dafka_producer_state_new, dafka_producer_state_destroy)
+    zlist_append (step_runners, dafka_producer_steps_runner);
+
+    zlist_t *step_runner_identities = zlist_new ();
+    while (zlist_size (step_runner_identities) < zlist_size (step_runners)) {
+        zframe_t *identity;
+        char *command;
+        zsock_recv (client, "fs", &identity, &command);
+        if (streq (command, "HELLO")) {
+            zlist_append (step_runner_identities, identity);
+        }
+        zstr_free (&command);
+    }
 
     const char *filename = zargs_first (args);
     cucumber_feature_runner_t *feature_runner = cucumber_feature_runner_new (filename);
-    bool rc = cucumber_feature_runner_run (feature_runner, client);
+    bool rc = cucumber_feature_runner_run (feature_runner, client, step_runner_identities);
 
     zactor_t *step_runner = (zactor_t *) zlist_first (step_runners);
     while (step_runner != NULL) {
         zstr_send (step_runner, "$TERM");
         zactor_destroy (&step_runner);
+        step_runner = (zactor_t *) zlist_next (step_runners);
     }
 
     zargs_destroy (&args);
     zlist_destroy (&step_runners);;
+    zframe_t *identity = (zframe_t *) zlist_first (step_runner_identities);
+    while (identity) {
+        zframe_destroy (&identity);
+        identity = (zframe_t *) zlist_next (step_runner_identities);
+    }
+    zlist_destroy (&step_runner_identities);
     zsock_destroy (&client);
     cucumber_feature_runner_destroy (&feature_runner);
     return rc ? 0 : 1;

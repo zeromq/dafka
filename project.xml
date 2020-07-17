@@ -11,6 +11,7 @@
     <target name = "docker" />
     <target name = "cucumber">
         <step_defs name = "dafka_consumer" />
+        <step_defs name = "dafka_producer" />
     </target>
 
     <include filename = "license.xml" />
