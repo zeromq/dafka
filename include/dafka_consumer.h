@@ -33,7 +33,7 @@ DAFKA_EXPORT int
 
 //
 //  Caller owns return value and must destroy it when done.
-DAFKA_EXPORT char *
+DAFKA_EXPORT const char *
     dafka_consumer_address (zactor_t *self);
 
 //  Self test of this class.

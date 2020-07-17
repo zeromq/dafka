@@ -319,7 +319,7 @@ dafka_consumer_recv_api (dafka_consumer_t *self) {
         zstr_free (&topic);
     }
     else if (streq (command, "GET ADDRESS"))
-        zstr_send (self->pipe, dafka_proto_address (self->get_heads_msg));
+        zsock_bsend (self->pipe, "p", dafka_proto_address(self->get_heads_msg));
     else if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
@@ -398,10 +398,12 @@ dafka_consumer_subscribe (zactor_t *actor, const char *subject) {
 //  --------------------------------------------------------------------------
 //  Get the address of the consumer
 
-char *
+const char *
 dafka_consumer_address (zactor_t *actor) {
     zstr_send (actor, "GET ADDRESS");
-    return zstr_recv (actor);
+    const char *address;
+    zsock_brecv (actor, "p", &address);
+    return address;
 }
 
 //  --------------------------------------------------------------------------
@@ -483,14 +485,12 @@ dafka_consumer_test (bool verbose) {
     zclock_sleep (250); // Make sure both peers are connected to each other
 
     //  WHEN a STORE-HELLO command is send by a store
-    char *consumer_address = dafka_consumer_address (consumer);
-    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+    dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
 
     // THEN the consumer responds with CONSUMER-HELLO and 0 topics
     dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 0);
 
-    zstr_free (&consumer_address);
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
@@ -512,14 +512,12 @@ dafka_consumer_test (bool verbose) {
     zclock_sleep (250);
 
     //  WHEN a STORE-HELLO command is send by a store
-    consumer_address = dafka_consumer_address (consumer);
-    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+    dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
 
     // THEN the consumer responds with CONSUMER-HELLO and 1 topic
     msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 1);
 
-    zstr_free (&consumer_address);
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
 
