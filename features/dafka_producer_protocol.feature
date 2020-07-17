@@ -7,3 +7,6 @@ Feature: Dafka producer protocol
     Then the producer will send a DIRECT_RECORD message with content 'CONTENT'
 
   Scenario: Producer sends HEAD messages at interval after first message was produced
+    Given a dafka producer for topic hello
+    When the producer sends a RECORD message with content 'CONTENT'
+    Then the producer will send HEAD messages at regular intervals
