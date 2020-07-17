@@ -47,8 +47,14 @@ DAFKA_EXPORT void
 DAFKA_EXPORT void
     dafka_test_peer_send_record (zactor_t *self, const char *topic, uint64_t sequence,  const char *content);
 
+DAFKA_EXPORT void
+dafka_test_peer_send_fetch (zactor_t *self, const char *address, const char *topic, uint64_t sequence, uint64_t count );
+
 DAFKA_EXPORT dafka_proto_t *
     dafka_test_peer_recv (zactor_t *self);
+
+DAFKA_EXPORT const char *
+    dafka_test_peer_address (zactor_t *self);
 
 DAFKA_EXPORT void
     assert_consumer_hello_msg (dafka_proto_t *msg, int no_of_subjects);

@@ -36,6 +36,7 @@ struct _dafka_producer_t {
     dafka_proto_t *sub_msg;     // Reusable ACK message to receive
     dafka_unacked_list_t *unacked_list; // Messages are kept until the ACK is received
     bool terminating;           // Indicate if the producer is in the process of termination
+    bool terminate_unacked;    // Wheather to terminate if there are still unacked messages
 
     size_t head_interval;
 
@@ -75,6 +76,9 @@ dafka_producer_new (zsock_t *pipe, dafka_producer_args_t *args)
     //  Initialize class properties
     if (atoi (zconfig_get (args->config, "producer/verbose", "0")))
         self->verbose = true;
+
+    if (atoi (zconfig_get (args->config, "producer/terminate_unacked", "0")))
+        self->terminate_unacked = true;
 
     self->head_interval = atoi (zconfig_get (args->config, "producer/head_interval", "1000"));
 
@@ -288,10 +292,11 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
             zmq_msg_t content;
             zmq_msg_init (&content);
             zmq_msg_recv (&content, sock, 0);
-            s_publish(self, &content);
+            s_publish (self, &content);
             zmq_msg_close (&content);
-        } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
-            zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
+        }
+        else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
+            zsock_bsend (self->pipe, "p", dafka_proto_address(self->msg));
         else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {
             //  The $TERM command is send by zactor_destroy() method
             self->terminating = true;
@@ -301,11 +306,19 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
                 zmq_msg_close (&msg);
                 return -1;
             } else {
-                if (self->verbose)
-                    zsys_debug ("Producer: Termination received. Missing ACKs, delaying termination. %" PRIu64 " of %" PRIu64,
-                            dafka_unacked_list_last_acked (self->unacked_list),  dafka_proto_sequence (self->msg));
-            }
+                if (self->terminate_unacked) {
+                    if (self->verbose)
+                        zsys_debug ("Producer: Termination received. Missing ACKs, terminating anyway. %" PRIu64 " of %" PRIu64,
+                                dafka_unacked_list_last_acked (self->unacked_list),  dafka_proto_sequence (self->msg));
 
+                    return -1;
+                }
+                else {
+                    if (self->verbose)
+                        zsys_debug ("Producer: Termination received. Missing ACKs, delaying termination. %" PRIu64 " of %" PRIu64,
+                                dafka_unacked_list_last_acked (self->unacked_list),  dafka_proto_sequence (self->msg));
+                }
+            }
         } else {
             char *command = (char *) zmalloc (size + 1);
             memcpy (command, data, size);

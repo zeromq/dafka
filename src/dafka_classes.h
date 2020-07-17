@@ -61,6 +61,10 @@ typedef struct _dafka_util_t dafka_util_t;
 typedef struct _dafka_consumer_step_defs_t dafka_consumer_step_defs_t;
 #define DAFKA_CONSUMER_STEP_DEFS_T_DEFINED
 #endif
+#ifndef DAFKA_PRODUCER_STEP_DEFS_T_DEFINED
+typedef struct _dafka_producer_step_defs_t dafka_producer_step_defs_t;
+#define DAFKA_PRODUCER_STEP_DEFS_T_DEFINED
+#endif
 #ifndef DAFKA_STORE_READER_T_DEFINED
 typedef struct _dafka_store_reader_t dafka_store_reader_t;
 #define DAFKA_STORE_READER_T_DEFINED
@@ -84,6 +88,7 @@ typedef struct _dafka_test_peer_t dafka_test_peer_t;
 #include "dafka_head_key.h"
 #include "dafka_util.h"
 #include "dafka_consumer_step_defs.h"
+#include "dafka_producer_step_defs.h"
 #include "dafka_store_reader.h"
 #include "dafka_store_writer.h"
 #include "dafka_test_peer.h"
@@ -105,6 +110,11 @@ DAFKA_PRIVATE void
 //  Self test of this class.
 DAFKA_PRIVATE void
     dafka_consumer_step_defs_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DAFKA_PRIVATE void
+    dafka_producer_step_defs_test (bool verbose);
 
 //  Self test for private classes
 DAFKA_PRIVATE void

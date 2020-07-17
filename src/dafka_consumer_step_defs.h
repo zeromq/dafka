@@ -17,20 +17,17 @@
 #if defined (HAVE_CUCUMBER)
 #include <cucumber_c.h>
 
-typedef struct _consumer_protocol_state consumer_protocol_state_t;
+typedef struct _dafka_consumer_state dafka_consumer_state_t;
 
-DAFKA_EXPORT consumer_protocol_state_t *
-    consumer_protocol_state_new (bool verbose);
+DAFKA_EXPORT dafka_consumer_state_t *
+    dafka_consumer_state_new (bool verbose);
 
 DAFKA_EXPORT void
-    consumer_protocol_state_destroy (consumer_protocol_state_t **self_p);
+    dafka_consumer_state_destroy (dafka_consumer_state_t **self_p);
 
 DAFKA_EXPORT void
     register_dafka_consumer_step_defs (cucumber_t *cucumber);
 
 #endif
-
-DAFKA_PRIVATE void
-    dafka_consumer_step_defs_test (bool verbose);
 
 #endif

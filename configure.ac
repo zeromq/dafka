@@ -748,15 +748,25 @@ AC_ARG_ENABLE([dafka_perf_store],
 AM_CONDITIONAL([ENABLE_DAFKA_PERF_STORE], [test x$enable_dafka_perf_store != xno])
 AM_COND_IF([ENABLE_DAFKA_PERF_STORE], [AC_MSG_NOTICE([ENABLE_DAFKA_PERF_STORE defined])])
 
-# Check for dafka_consumer_step_defs intent
-AC_ARG_ENABLE([dafka_consumer_step_defs],
-    AS_HELP_STRING([--enable-dafka_consumer_step_defs],
-        [Compile 'dafka_consumer_step_defs' in src [default=yes]]),
-    [enable_dafka_consumer_step_defs=$enableval],
-    [enable_dafka_consumer_step_defs=yes])
+# Check for dafka_consumer_step_runner intent
+AC_ARG_ENABLE([dafka_consumer_step_runner],
+    AS_HELP_STRING([--enable-dafka_consumer_step_runner],
+        [Compile 'dafka_consumer_step_runner' in src [default=yes]]),
+    [enable_dafka_consumer_step_runner=$enableval],
+    [enable_dafka_consumer_step_runner=yes])
 
-AM_CONDITIONAL([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [test x$enable_dafka_consumer_step_defs != xno])
-AM_COND_IF([ENABLE_DAFKA_CONSUMER_STEP_DEFS], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSUMER_STEP_DEFS defined])])
+AM_CONDITIONAL([ENABLE_DAFKA_CONSUMER_STEP_RUNNER], [test x$enable_dafka_consumer_step_runner != xno])
+AM_COND_IF([ENABLE_DAFKA_CONSUMER_STEP_RUNNER], [AC_MSG_NOTICE([ENABLE_DAFKA_CONSUMER_STEP_RUNNER defined])])
+
+# Check for dafka_producer_step_runner intent
+AC_ARG_ENABLE([dafka_producer_step_runner],
+    AS_HELP_STRING([--enable-dafka_producer_step_runner],
+        [Compile 'dafka_producer_step_runner' in src [default=yes]]),
+    [enable_dafka_producer_step_runner=$enableval],
+    [enable_dafka_producer_step_runner=yes])
+
+AM_CONDITIONAL([ENABLE_DAFKA_PRODUCER_STEP_RUNNER], [test x$enable_dafka_producer_step_runner != xno])
+AM_COND_IF([ENABLE_DAFKA_PRODUCER_STEP_RUNNER], [AC_MSG_NOTICE([ENABLE_DAFKA_PRODUCER_STEP_RUNNER defined])])
 
 # Check for dafka_cucumber_selftest intent
 AC_ARG_ENABLE([dafka_cucumber_selftest],

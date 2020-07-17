@@ -115,7 +115,7 @@ dafka_unacked_list_destroy (dafka_unacked_list_t **self_p)
 uint64_t
 dafka_unacked_list_push (dafka_unacked_list_t *self, zmq_msg_t *msg)
 {
-    zmq_msg_copy(&self->end_chunk->values[self->end_chunk->count], msg);
+    zmq_msg_copy (&self->end_chunk->values[self->end_chunk->count], msg);
     uint64_t sequence = self->end_chunk->begin_seq + self->end_chunk->count;
     self->end_chunk->count++;
 
