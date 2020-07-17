@@ -288,10 +288,11 @@ s_recv_api (zloop_t *loop, zsock_t *pipe, void *arg)
             zmq_msg_t content;
             zmq_msg_init (&content);
             zmq_msg_recv (&content, sock, 0);
-            s_publish(self, &content);
+            s_publish (self, &content);
             zmq_msg_close (&content);
-        } else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
-            zsock_bsend(self->pipe, "p", dafka_proto_address(self->msg));
+        }
+        else if (size == 11 && memcmp (data, "GET ADDRESS", 11) == 0)
+            zsock_bsend (self->pipe, "p", dafka_proto_address(self->msg));
         else if (size == 5 && memcmp (data, "$TERM", 5) == 0) {
             //  The $TERM command is send by zactor_destroy() method
             self->terminating = true;

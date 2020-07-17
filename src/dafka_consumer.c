@@ -263,7 +263,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
             case DAFKA_PROTO_DIRECT_RECORD: {
                 //  Check if we missed some messages
                 if (current_sequence > last_known_sequence + 1)
-                    dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
                 else
                 if (current_sequence == last_known_sequence + 1) {
                     if (self->verbose)
@@ -280,7 +280,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
             case DAFKA_PROTO_DIRECT_HEAD: {
                 //  Check if we missed some messages
                 if (!last_sequence_known || current_sequence > last_known_sequence)
-                    dafka_fetch_filter_send(self->fetch_filter, subject, address, last_known_sequence + 1);
+                    dafka_fetch_filter_send (self->fetch_filter, subject, address, last_known_sequence + 1);
 
                 break;
             }
