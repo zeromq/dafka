@@ -32,8 +32,8 @@
 *  [Building and Installing](#building-and-installing)
 *  [Linking with an Application](#linking-with-an-application)
 *  [API v1 Summary](#api-v1-summary)
-&emsp;[dafka_consumer - no title found](#dafka_consumer---no-title-found)
-&emsp;[dafka_producer - no title found](#dafka_producer---no-title-found)
+&emsp;[dafka_consumer - Implements the dafka consumer protocol](#dafka_consumer---implements-the-dafka-consumer-protocol)
+&emsp;[dafka_producer - Implements the dafka producer protocol](#dafka_producer---implements-the-dafka-producer-protocol)
 &emsp;[dafka_store - no title found](#dafka_store---no-title-found)
 &emsp;[dafka_tower - no title found](#dafka_tower---no-title-found)
 *  [Documentation](#documentation)
@@ -283,16 +283,12 @@ Include `dafka.h` in your application and link with libdafka. Here is a typical 
 
 This is the API provided by Dafka v1.x, in alphabetical order.
 
-#### dafka_consumer - no title found
+#### dafka_consumer - Implements the dafka consumer protocol
 
-dafka_consumer -
+dafka_consumer - Consumes message either directly from producers or from stores
 
 TODO:
-  - Send earliest message when a store connects
-  - We must not send FETCH on every message, the problem is, that if you
-    missed something, and there is high rate, you will end up sending a
-    lot of fetch messages for same address
-  - Prioritize DIRECT_MSG messages over MSG this will avoid discrding MSGs
+  - Prioritize DIRECT_RECORD messages over RECORD this will avoid discarding MSGs
     when catching up
 
 This is the class interface:
@@ -309,8 +305,7 @@ This is the class interface:
         dafka_consumer_subscribe (zactor_t *self, const char *subject);
     
     //
-    //  Caller owns return value and must destroy it when done.
-    DAFKA_EXPORT char *
+    DAFKA_EXPORT const char *
         dafka_consumer_address (zactor_t *self);
     
     //  Self test of this class.
@@ -358,14 +353,12 @@ This is the class self test code:
     zclock_sleep (250); // Make sure both peers are connected to each other
     
     //  WHEN a STORE-HELLO command is send by a store
-    char *consumer_address = dafka_consumer_address (consumer);
-    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+    dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
     
     // THEN the consumer responds with CONSUMER-HELLO and 0 topics
     dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 0);
     
-    zstr_free (&consumer_address);
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
     
@@ -387,14 +380,12 @@ This is the class self test code:
     zclock_sleep (250);
     
     //  WHEN a STORE-HELLO command is send by a store
-    consumer_address = dafka_consumer_address (consumer);
-    dafka_test_peer_send_store_hello (test_peer, consumer_address);
+    dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
     
     // THEN the consumer responds with CONSUMER-HELLO and 1 topic
     msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 1);
     
-    zstr_free (&consumer_address);
     zactor_destroy (&consumer);
     zactor_destroy (&test_peer);
     
@@ -570,9 +561,9 @@ This is the class self test code:
     zconfig_destroy (&config);
 ```
 
-#### dafka_producer - no title found
+#### dafka_producer - Implements the dafka producer protocol
 
-dafka_publisher -
+dafka_producer - Publishes messages to one partion of one topic
 
 Please add '@discuss' section in './../src/dafka_producer.c'.
 

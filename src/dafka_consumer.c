@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_consumer -
+    dafka_consumer - Implements the dafka consumer protocol
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -13,14 +13,10 @@
 
 /*
 @header
-    dafka_consumer -
+    dafka_consumer - Consumes message either directly from producers or from stores
 @discuss
     TODO:
-      - Send earliest message when a store connects
-      - We must not send FETCH on every message, the problem is, that if you
-        missed something, and there is high rate, you will end up sending a
-        lot of fetch messages for same address
-      - Prioritize DIRECT_MSG messages over MSG this will avoid discrding MSGs
+      - Prioritize DIRECT_RECORD messages over RECORD this will avoid discarding MSGs
         when catching up
 @end
 */
@@ -258,7 +254,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
         uint64_t *last_known_sequence_p = (uint64_t *) zhashx_lookup(self->sequence_index, sequence_key);
         uint64_t last_known_sequence = *last_known_sequence_p;
 
-        switch (dafka_proto_id(self->consumer_msg)) {
+        switch (dafka_proto_id (self->consumer_msg)) {
             case DAFKA_PROTO_RECORD:
             case DAFKA_PROTO_DIRECT_RECORD: {
                 //  Check if we missed some messages
