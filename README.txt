@@ -537,8 +537,22 @@ Dafka is developed through a test-driven process that guarantees no memory viola
 
 * Modify a class or method.
 * Update the test method for that class.
-* Run the 'selftest' script, which uses the Valgrind memcheck tool.
+* Run the 'selftest' script, which uses the Valgrind memcheck tool or AdressSanatizer.
 * Repeat until perfect.
+
+To run the 'selftest' script with autotools:
+
+```sh
+make check
+make memcheck
+```
+
+To run the 'selftest' script with cmake:
+
+```sh
+make test or ctest
+ctest -T memcheck
+```
 
 ### Hints to Contributors
 
@@ -550,6 +564,28 @@ Before opening a pull request read our [contribution guidelines](https://github.
 
 ### Code Generation
 
-TODO
+We generate scripts for build systems like autotools, cmake and others as well as class skeletons, class headers, the selftest runner, bindings to higher level languages and more using zproject. Generated files will have a header and footer telling you that this file was generated. To re-generate those files it is recommended to use the latest `zeromqorg/zproject` docker image.
+
+#### Docker
+
+* Clone [libzmq](https://github.com/zeromq/libzmq) into the same directory as dafka.
+* Clone [czmq](https://github.com/zeromq/czmq) into the same directory as dafka.
+
+Next always download the latest image:
+
+```sh
+# Make sure
+docker pull zeromqorg/zproject:latest
+```
+
+Then run the following command:
+
+```sh
+# Shell and Powershell
+docker run -v ${PWD}/..:/workspace -e BUILD_DIR=/workspace/czmq zeromqorg/zproject
+
+# Windows CMD
+docker run -v %cd%/..:/workspace -e BUILD_DIR=/workspace/czmq zeromqorg/zproject
+```
 
 ### This Document
