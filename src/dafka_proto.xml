@@ -27,7 +27,6 @@
      <!-- Header for all messages -->
     <header>
         <field name = "version" type = "number" size = "1" value = "1">Version = 1</field>
-        <field name = "address" type = "string" />
     </header>
 
     <message name = "RECORD" id="'M'">
@@ -37,6 +36,7 @@
         Subject is the name of the topic.
         Address is the address of the producer (partition).
 
+        <field name = "address" type = "string" />
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
@@ -49,6 +49,7 @@
         Subject is the name of the topic.
         Address is the address of the producer (partition).
 
+        <field name = "address" type = "string" />
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "content" type = "frame" />
@@ -65,6 +66,7 @@
         Count is the number of messages to fetch starting with the record
         identified by sequence.
 
+        <field name = "address" type = "string" />
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
         <field name = "count" type = "number" size = "4" />
@@ -87,6 +89,7 @@
         Subject is the name of the topic.
         Address is the address of the producer (partition).
 
+        <field name = "address" type = "string" />
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
@@ -98,6 +101,7 @@
         Subject is the name of the topic.
         Address is the address of the producer (partition).
 
+        <field name = "address" type = "string" />
         <field name = "subject" type = "string" />
         <field name = "sequence" type = "number" size = "8" />
     </message>
@@ -107,6 +111,8 @@
 
         Topic is the name of the topic.
         Address is the address of the consumer.
+
+        <field name = "address" type = "string" />
     </message>
 
     <message name = "CONSUMER HELLO" id = "'W'">
@@ -116,6 +122,7 @@
         Address is the address of the consumer.
         Subjects is a list of all topic the consumer is subscribed to.
 
+        <field name = "address" type = "string" />
         <field name = "subjects" type = "strings" />
     </message>
 
@@ -124,6 +131,8 @@
 
         Topic is the consumer's address.
         Address is the address of the store.
+
+        <field name = "address" type = "string" />
     </message>
 
 </class>

@@ -16,7 +16,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  topic. Subject is the name of the topic. Address is the address of the
     ;  producer (partition).
 
-    RECORD          = signature %d'M' version address subject sequence content
+    RECORD          = signature %d'm' version address subject sequence content
     signature       = %xAA %xA5             ; two octets
     version         = number-1              ; Version = 1
     address         = string                ;
@@ -28,7 +28,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  address of the requestor. Subject is the name of the topic. Address is
     ;  the address of the producer (partition).
 
-    DIRECT-RECORD   = signature %d'D' version address subject sequence content
+    DIRECT-RECORD   = signature %d'd' version address subject sequence content
     version         = number-1              ; Version = 1
     address         = string                ;
     subject         = string                ;
@@ -41,7 +41,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  address of this message's sender. Count is the number of messages to
     ;  fetch starting with the record identified by sequence.
 
-    FETCH           = signature %d'F' version address subject sequence count
+    FETCH           = signature %d'f' version address subject sequence count
     version         = number-1              ; Version = 1
     address         = string                ;
     subject         = string                ;
@@ -51,9 +51,8 @@ The following ABNF grammar defines the dafka_proto:
     ;  Ack from a stores to a producer. Topic is the address of the producer
     ;  (partition). Subject is the name of the topic.
 
-    ACK             = signature %d'K' version address subject sequence
+    ACK             = signature %d'k' version subject sequence
     version         = number-1              ; Version = 1
-    address         = string                ;
     subject         = string                ;
     sequence        = number-8              ;
 
@@ -61,7 +60,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  topic. Subject is the name of the topic. Address is the address of the
     ;  producer (partition).
 
-    HEAD            = signature %d'H' version address subject sequence
+    HEAD            = signature %d'h' version address subject sequence
     version         = number-1              ; Version = 1
     address         = string                ;
     subject         = string                ;
@@ -71,7 +70,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  topic. Subject is the name of the topic. Address is the address of the
     ;  producer (partition).
 
-    DIRECT-HEAD     = signature %d'E' version address subject sequence
+    DIRECT-HEAD     = signature %d'e' version address subject sequence
     version         = number-1              ; Version = 1
     address         = string                ;
     subject         = string                ;
@@ -80,7 +79,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  Get heads from stores send by a consumer. Topic is the name of the
     ;  topic. Address is the address of the consumer.
 
-    GET-HEADS       = signature %d'G' version address
+    GET-HEADS       = signature %d'g' version address
     version         = number-1              ; Version = 1
     address         = string                ;
 
@@ -88,7 +87,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  address. Address is the address of the consumer. Subjects is a list of
     ;  all topic the consumer is subscribed to.
 
-    CONSUMER-HELLO  = signature %d'W' version address subjects
+    CONSUMER-HELLO  = signature %d'w' version address subjects
     version         = number-1              ; Version = 1
     address         = string                ;
     subjects        = strings               ;
@@ -96,7 +95,7 @@ The following ABNF grammar defines the dafka_proto:
     ;  Hello message from a store to a consumer. Topic is the consumer's
     ;  address. Address is the address of the store.
 
-    STORE-HELLO     = signature %d'L' version address
+    STORE-HELLO     = signature %d'l' version address
     version         = number-1              ; Version = 1
     address         = string                ;
 

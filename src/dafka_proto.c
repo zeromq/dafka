@@ -515,14 +515,6 @@ dafka_proto_t *
                 return NULL;
             }
             {
-            char *s = zconfig_get (content, "address", NULL);
-            if (!s) {
-                dafka_proto_destroy (&self);
-                return NULL;
-            }
-            strncpy (self->address, s, 255);
-            }
-            {
             char *s = zconfig_get (content, "subject", NULL);
             if (!s) {
                 dafka_proto_destroy (&self);
@@ -754,6 +746,7 @@ dafka_proto_dup (dafka_proto_t *other)
     return copy;
 }
 
+
 //  --------------------------------------------------------------------------
 //  Receive a dafka_proto from the socket. Returns 0 if OK, -1 if
 //  the recv was interrupted, or -2 if the message is malformed.
@@ -879,7 +872,6 @@ dafka_proto_recv (dafka_proto_t *self, zsock_t *input)
                     goto malformed;
                 }
             }
-            GET_STRING (self->address);
             GET_STRING (self->subject);
             GET_NUMBER8 (self->sequence);
             break;
@@ -1019,7 +1011,6 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             break;
         case DAFKA_PROTO_ACK:
             frame_size += 1;            //  version
-            frame_size += 1 + strlen (self->address);
             frame_size += 1 + strlen (self->subject);
             frame_size += 8;            //  sequence
             break;
@@ -1056,10 +1047,12 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             frame_size += 1 + strlen (self->address);
             break;
     }
-    //  Now serialize message into the frame
+
     zmq_msg_t frame;
     zmq_msg_init_size (&frame, frame_size);
     self->needle = (byte *) zmq_msg_data (&frame);
+
+    //  Now serialize message into the frame
     PUT_NUMBER1 (self->id);
     size_t topic_size = strlen (self->topic);
     memcpy(self->needle, self->topic, topic_size + 1);
@@ -1093,7 +1086,6 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
 
         case DAFKA_PROTO_ACK:
             PUT_NUMBER1 (1);
-            PUT_STRING (self->address);
             PUT_STRING (self->subject);
             PUT_NUMBER8 (self->sequence);
             break;
@@ -1138,6 +1130,7 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
             break;
 
     }
+
     //  Now send the data frame
     zmq_msg_send (&frame, zsock_resolve (output), --nbr_frames? ZMQ_SNDMORE: 0);
 
@@ -1158,6 +1151,161 @@ dafka_proto_send (dafka_proto_t *self, zsock_t *output)
         // Optimize by not calling zmq_msg_close, as the copy is an empty one
     }
     return 0;
+}
+
+//  --------------------------------------------------------------------------
+//  Encode the first frame of dafka_proto. Does not destroy it. Returns the frame if
+//  OK, else NULL.
+
+zframe_t *
+dafka_proto_encode (dafka_proto_t *self)
+{
+    assert (self);
+
+    size_t frame_size = 1 + strlen(self->topic) + 1; //  Message ID, topic and NULL
+
+    switch (self->id) {
+        case DAFKA_PROTO_RECORD:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            break;
+        case DAFKA_PROTO_DIRECT_RECORD:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            break;
+        case DAFKA_PROTO_FETCH:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            frame_size += 4;            //  count
+            break;
+        case DAFKA_PROTO_ACK:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            break;
+        case DAFKA_PROTO_HEAD:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            break;
+        case DAFKA_PROTO_DIRECT_HEAD:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 1 + strlen (self->subject);
+            frame_size += 8;            //  sequence
+            break;
+        case DAFKA_PROTO_GET_HEADS:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            break;
+        case DAFKA_PROTO_CONSUMER_HELLO:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            frame_size += 4;            //  Size is 4 octets
+            if (self->subjects) {
+                char *subjects = (char *) zlist_first (self->subjects);
+                while (subjects) {
+                    frame_size += 4 + strlen (subjects);
+                    subjects = (char *) zlist_next (self->subjects);
+                }
+            }
+            break;
+        case DAFKA_PROTO_STORE_HELLO:
+            frame_size += 1;            //  version
+            frame_size += 1 + strlen (self->address);
+            break;
+    }
+
+    zframe_t *frame = zframe_new (NULL, frame_size);
+    self->needle = (byte *) zframe_data (frame);
+
+    //  Now serialize message into the frame
+    PUT_NUMBER1 (self->id);
+    size_t topic_size = strlen (self->topic);
+    memcpy(self->needle, self->topic, topic_size + 1);
+    self->needle += topic_size + 1;
+    size_t nbr_frames = 1;              //  Total number of frames to send
+
+    switch (self->id) {
+        case DAFKA_PROTO_RECORD:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            nbr_frames++;
+            break;
+
+        case DAFKA_PROTO_DIRECT_RECORD:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            nbr_frames++;
+            break;
+
+        case DAFKA_PROTO_FETCH:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            PUT_NUMBER4 (self->count);
+            break;
+
+        case DAFKA_PROTO_ACK:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            break;
+
+        case DAFKA_PROTO_HEAD:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            break;
+
+        case DAFKA_PROTO_DIRECT_HEAD:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            PUT_STRING (self->subject);
+            PUT_NUMBER8 (self->sequence);
+            break;
+
+        case DAFKA_PROTO_GET_HEADS:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            break;
+
+        case DAFKA_PROTO_CONSUMER_HELLO:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            if (self->subjects) {
+                PUT_NUMBER4 (zlist_size (self->subjects));
+                char *subjects = (char *) zlist_first (self->subjects);
+                while (subjects) {
+                    PUT_LONGSTR (subjects);
+                    subjects = (char *) zlist_next (self->subjects);
+                }
+            }
+            else
+                PUT_NUMBER4 (0);    //  Empty string array
+            break;
+
+        case DAFKA_PROTO_STORE_HELLO:
+            PUT_NUMBER1 (1);
+            PUT_STRING (self->address);
+            break;
+
+    }
+
+    return frame;
 }
 
 
@@ -1213,7 +1361,6 @@ dafka_proto_print (dafka_proto_t *self)
             zsys_debug ("DAFKA_PROTO_ACK:");
             zsys_debug ("    topic='%s'", self->topic);
             zsys_debug ("    version=1");
-            zsys_debug ("    address='%s'", self->address);
             zsys_debug ("    subject='%s'", self->subject);
             zsys_debug ("    sequence=%ld", (long) self->sequence);
             break;
@@ -1367,7 +1514,6 @@ dafka_proto_zpl (dafka_proto_t *self, zconfig_t *parent)
 
             zconfig_t *config = zconfig_new ("content", root);
             zconfig_putf (config, "version", "%s", "1");
-            zconfig_putf (config, "address", "%s", self->address);
             zconfig_putf (config, "subject", "%s", self->subject);
             zconfig_putf (config, "sequence", "%ld", (long) self->sequence);
             break;
@@ -1766,6 +1912,7 @@ dafka_proto_test (bool verbose)
     dafka_proto_t *self = dafka_proto_new ();
     assert (self);
     dafka_proto_destroy (&self);
+	static const int MAX_INSTANCE = 3;
     //  Create pair of sockets we can send through
     //  We must bind before connect if we wish to remain compatible with ZeroMQ < v4
     zsock_t *output = zsock_new (ZMQ_DEALER);
@@ -1795,27 +1942,28 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
         assert (memcmp (zmq_msg_data (dafka_proto_content (self)), "Captcha Diem", 12) == 0);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -1833,27 +1981,28 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
         assert (memcmp (zmq_msg_data (dafka_proto_content (self)), "Captcha Diem", 12) == 0);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -1868,60 +2017,60 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
         assert (dafka_proto_count (self) == 123);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
     }
     dafka_proto_set_id (self, DAFKA_PROTO_ACK);
     dafka_proto_set_topic (self, "Hello");
-    dafka_proto_set_address (self, "Life is short but Now lasts for ever");
     dafka_proto_set_subject (self, "Life is short but Now lasts for ever");
     dafka_proto_set_sequence (self, 123);
     // convert to zpl
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
-        assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -1935,26 +2084,27 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -1968,26 +2118,27 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
         assert (streq (dafka_proto_subject (self), "Life is short but Now lasts for ever"));
         assert (dafka_proto_sequence (self) == 123);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -1999,24 +2150,25 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -2032,20 +2184,21 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
@@ -2056,7 +2209,7 @@ dafka_proto_test (bool verbose)
         assert (streq ((char *) zlist_next (subjects), "Age: 43"));
         zlist_destroy (&subjects);
         zlist_destroy (&consumer_hello_subjects);
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
@@ -2068,24 +2221,25 @@ dafka_proto_test (bool verbose)
     config = dafka_proto_zpl (self, NULL);
     if (verbose)
         zconfig_print (config);
+
     //  Send twice
     dafka_proto_send (self, output);
     dafka_proto_send (self, output);
 
-    for (instance = 0; instance < 3; instance++) {
+    for (instance = 0; instance < MAX_INSTANCE; instance++) {
         dafka_proto_t *self_temp = self;
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             dafka_proto_recv (self, input);
         else {
             self = dafka_proto_new_zpl (config);
             assert (self);
             zconfig_destroy (&config);
         }
-        if (instance < 2)
+        if (instance < MAX_INSTANCE - 1)
             assert (dafka_proto_routing_id (self));
         assert (streq (dafka_proto_topic (self), "Hello"));
         assert (streq (dafka_proto_address (self), "Life is short but Now lasts for ever"));
-        if (instance == 2) {
+        if (instance == MAX_INSTANCE - 1) {
             dafka_proto_destroy (&self);
             self = self_temp;
         }
