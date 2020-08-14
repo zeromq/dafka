@@ -29,13 +29,20 @@
 **[Ownership and License](#ownership-and-license)**
 
 **[Using Dafka](#using-dafka)**
-*  [Building and Installing](#building-and-installing)
+*  [Building and Installing on Linux and macOS](#building-and-installing-on-linux-and-macos)
+*  [Quickstart](#quickstart)
+&emsp;[Step 1: Start the Dafka Tower Deamon](#step-1-start-the-dafka-tower-deamon)
+&emsp;[Step 2: Write some events into a topic](#step-2-write-some-events-into-a-topic)
+&emsp;[Step 3: Read the events](#step-3-read-the-events)
+*  [Getting started](#getting-started)
 *  [Linking with an Application](#linking-with-an-application)
 *  [API v1 Summary](#api-v1-summary)
 &emsp;[dafka_consumer - Implements the dafka consumer protocol](#dafka_consumer---implements-the-dafka-consumer-protocol)
 &emsp;[dafka_producer - Implements the dafka producer protocol](#dafka_producer---implements-the-dafka-producer-protocol)
 &emsp;[dafka_store - no title found](#dafka_store---no-title-found)
 &emsp;[dafka_tower - no title found](#dafka_tower---no-title-found)
+
+**[Contributing](#contributing)**
 *  [Documentation](#documentation)
 *  [Development](#development)
 *  [Hints to Contributors](#hints-to-contributors)
@@ -240,24 +247,17 @@ To report an issue, use the [Dafka issue tracker](https://github.com/zeromq/dafk
 
 ## Using Dafka
 
-### Building and Installing
+### Building and Installing on Linux and macOS
 
 To start with, you need at least these packages:
-
 * `git-all` -- git is how we share code with other people.
-
 * `build-essential`, `libtool`, `pkg-config` - the C compiler and related tools.
-
 * `autotools-dev`, `autoconf`, `automake` - the GNU autoconf makefile generators.
-
 * `cmake` - the CMake makefile generators (an alternative to autoconf).
 
 Plus some others:
-
 * `uuid-dev`, `libpcre3-dev` - utility libraries.
-
 * `valgrind` - a useful tool for checking your code.
-
 * `pkg-config` - an optional useful tool to make building with dependencies easier.
 
 Which we install like this (using the Debian-style apt-get package manager):
@@ -271,7 +271,124 @@ Which we install like this (using the Debian-style apt-get package manager):
     # only execute this next line if interested in updating the man pages as well (adds to build time):
     sudo apt-get install -y asciidoc
 
-TODO...
+Here's how to build DAFKA from GitHub (building from packages is very similar, you don't clone a repo but unpack a tarball), including the libzmq (ZeroMQ core) library (NOTE: skip ldconfig on OSX):
+
+    git clone git://github.com/zeromq/libzmq.git
+    cd libzmq
+    ./autogen.sh
+    # do not specify "--with-libsodium" if you prefer to use internal tweetnacl security implementation (recommended for development)
+    ./configure --with-libsodium
+    make check
+    sudo make install
+    sudo ldconfig
+    cd ..
+
+    git clone git://github.com/zeromq/czmq.git
+    cd czmq
+    ./autogen.sh && ./configure && make check
+    sudo make install
+    sudo ldconfig
+    cd ..
+
+    git clone git://github.com/zeromq/dafka.git
+    cd dafka
+    ./autogen.sh && ./configure && make check
+    sudo make install
+    sudo ldconfig
+    cd ..
+
+To verify everything got installed correctly run:
+
+    make check
+
+### Quickstart
+
+If you are interested in getting started with Dafka follow the instructions below.
+
+#### Step 1: Start the Dafka Tower Deamon
+
+We'll start to use dafka in a simple single producer/single consumer scenario using the `dafka_console_producer` and `dafka_console_consumer` commandline utilities.
+
+```sh
+$ dafka_towerd
+```
+
+Note: The tower will open two sockets. One on port 5556 to get notified by joining peers and one on port 5557 to notify joined peers about joining peers.
+
+#### Step 2: Write some events into a topic
+
+Run the console producer to write a few events into the `hello` topic. Each line you enter will result in a separate event being written to the topic.
+
+```sh
+$ dafka_console_producer hello
+A first event
+A second event
+```
+
+You can stop the producer client with Ctrl-C at any time.
+
+Note: If no configuration is provided the producer tries to connect to a tower on localhost.
+
+#### Step 3: Read the events
+
+Open another terminal session and run the console consumer to read the events you just created:
+
+```sh
+$ dafka_console_consumer hello
+```
+
+You can stop the consumer client with Ctrl-C at any time.
+
+Because events are kept by the producer until at least one store acknowledges they're stored, they can be read as many times and by as many consumers as you want. You can easily verify this by opening yet another terminal session and re-running the previous command again.
+
+Note: If no configuration is provided the consumer tries to connect to a tower on localhost.
+
+### Getting started
+
+The following getting started will show you how to use the producer and consumer API.
+
+First we construct a dafka producer with default configuration and then publish the message `HELLO WORLD` to the topic `hello`.
+
+```c
+zconfig_t *config = zconfig_new ("root", NULL);
+const char *topic = "hello";
+
+dafka_producer_args_t producer_args =  { topic, config };
+zactor_t *producer = zactor_new (dafka_producer, &producer_args);
+
+dafka_producer_msg_t *msg = dafka_producer_msg_new ();
+dafka_producer_msg_set_content (msg, "HELLO WORLD");
+dafka_producer_msg_send (msg, producer);
+
+dafka_producer_msg_destroy (&msg);
+zactor_destroy (&producer);
+zconfig_destroy (&config);
+```
+
+To consume this message we constuct a dafka consumer, let it subscribe to topic `hello`, receive the message and then print the content of received message.
+
+```c
+zconfig_t *config = zconfig_new ("root", NULL);
+const char *topic = "hello";
+
+zactor_t *consumer = zactor_new (dafka_consumer, config);
+dafka_consumer_subscribe (consumer, topic);
+
+dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
+while (true) {
+    rc = dafka_consumer_msg_recv (msg, consumer);
+    if (rc == -1)
+        break;      // Interrupted
+
+    char *content_str = dafka_consumer_msg_strdup (msg);
+    printf ("%s\n", content_str);
+    zstr_free (&content_str);
+}
+
+dafka_consumer_msg_destroy (&msg);
+zactor_destroy (&consumer);
+zconfig_destroy (&config);
+```
 
 ### Linking with an Application
 
@@ -779,6 +896,8 @@ This is the class self test code:
     */
 ```
 
+
+## Contributing
 
 ### Documentation
 
