@@ -73,6 +73,11 @@
     <return type = "integer" />
 </method>
 
+<method name = "encode">
+    Encode the first frame of dafka_proto. Does not destroy it. Returns the frame if OK, else NULL.
+    <return type = "zframe" />
+</method>
+
 <method name = "print">
     Print contents of message to stdout
 </method>

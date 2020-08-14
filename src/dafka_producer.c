@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dafka_publisher -
+    dafka_producer - Implements the dafka producer protocol
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of CZMQ, the high-level C binding for 0MQ:
@@ -13,7 +13,7 @@
 
 /*
 @header
-    dafka_publisher -
+    dafka_producer - Publishes messages to one partion of one topic
 @discuss
 @end
 */

@@ -32,7 +32,6 @@ DAFKA_EXPORT int
     dafka_consumer_subscribe (zactor_t *self, const char *subject);
 
 //
-//  Caller owns return value and must destroy it when done.
 DAFKA_EXPORT const char *
     dafka_consumer_address (zactor_t *self);
 

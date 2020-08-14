@@ -1,9 +1,9 @@
 /*  =========================================================================
     dafka_proto - class description
 
-    Copyright (c) the Contributors as noted in the AUTHORS file.
-    This file is part of CZMQ, the high-level C binding for 0MQ:
-    http://czmq.zeromq.org.
+    Copyright (c) the Contributors as noted in the AUTHORS file. This
+    file is part of DAFKA, a decentralized distributed streaming
+    platform: http://zeromq.org.
 
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -58,6 +58,10 @@ DAFKA_EXPORT int
 //  Send the dafka_proto to the output socket, does not destroy it
 DAFKA_EXPORT int
     dafka_proto_send (dafka_proto_t *self, zsock_t *output);
+
+//  Encode the first frame of dafka_proto. Does not destroy it. Returns the frame if OK, else NULL.
+DAFKA_EXPORT zframe_t *
+    dafka_proto_encode (dafka_proto_t *self);
 
 //  Print contents of message to stdout
 DAFKA_EXPORT void
