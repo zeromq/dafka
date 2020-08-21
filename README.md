@@ -372,7 +372,7 @@ To consume this message we constuct a dafka consumer, let it subscribe to topic 
 zconfig_t *config = zconfig_new ("root", NULL);
 const char *topic = "hello";
 
-zactor_t *consumer = zactor_new (dafka_consumer, config);
+dafka_consumer_t *consumer = dafka_consumer_new (config);
 dafka_consumer_subscribe (consumer, topic);
 
 dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
@@ -387,7 +387,7 @@ while (true) {
 }
 
 dafka_consumer_msg_destroy (&msg);
-zactor_destroy (&consumer);
+dafka_consumer_destroy (&consumer);
 zconfig_destroy (&config);
 ```
 

@@ -1,17 +1,40 @@
 <class name = "dafka_consumer">
 
-<actor>
-</actor>
+<constructor>
+    Creates a new dafka consumer client that runs in its own background thread.
+    <argument name = "config" type = "zconfig" />
+</constructor>
 
-<method name = "subscribe" singleton = "1">
-    <argument name = "self" type = "zactor" />
+<destructor>
+    Destroys an instance of dafka consumer client by gracefully stopping its
+    background thread.
+</destructor>
+
+<method name = "subscribe">
+    Subscribe to a given topic.
     <argument name = "subject" type = "string" />
     <return type = "integer" />
 </method>
 
-<method name = "address" singleton = "1">
-    <argument name = "self" type = "zactor" />
+<method name = "unsubscribe">
+    Unsubscribe from a topic currently subscribed to.
+    <argument name = "subject" type = "string" />
+    <return type = "integer" />
+</method>
+
+<method name = "address">
+    Returns the address of the consumer instance.
     <return type = "string" />
+</method>
+
+<method name = "subscription">
+    Get the current subscription as list of strings.
+    <return type = "zlist" />
+</method>
+
+<method name = "record_source">
+    Returns the internal record source socket.
+    <return type = "zsock" />
 </method>
 
 </class>

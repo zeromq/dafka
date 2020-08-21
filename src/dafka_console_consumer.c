@@ -54,7 +54,7 @@ int main (int argc, char *argv [])
 
     const char *topic = zargs_first (args);
 
-    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_t *consumer = dafka_consumer_new (config);
     assert (consumer);
 
     // Give time until connected to pubs and stores
@@ -77,7 +77,7 @@ int main (int argc, char *argv [])
     }
 
     dafka_consumer_msg_destroy (&msg);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zconfig_destroy (&config);
     zargs_destroy (&args);
 

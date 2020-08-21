@@ -26,6 +26,11 @@
 //  Structure of our actor
 
 struct _dafka_consumer_t {
+    zactor_t *actor;
+    zsock_t *record_pipe;
+};
+
+typedef struct _dafka_consumer_actor_t {
     //  Actor properties
     zsock_t *pipe;                      //  Actor command pipe
     zpoller_t *poller;                  //  Socket poller
@@ -33,6 +38,7 @@ struct _dafka_consumer_t {
     bool verbose;                       //  Verbose logging enabled?
     //  Class properties
     zsock_t *consumer_sub;              // Subscriber to get messages from topics
+    zsock_t *consumer_msg_sink;         // Consumer message sink
     dafka_proto_t *consumer_msg;        // Reusable consumer message
 
     zsock_t *consumer_pub;              // Publisher to ask for missed messages
@@ -44,26 +50,53 @@ struct _dafka_consumer_t {
     bool reset_latest;                  // Wheather to process records from earliest or latest
     zlist_t *subjects;                  // List of topics the consumer is subscribed for
     dafka_fetch_filter_t *fetch_filter; // Filter to not repeat fetch requests
-};
+} dafka_consumer_actor_t;
+
+//  --------------------------------------------------------------------------
+//  Forward declaration of internal functions
+
+void dafka_consumer_actor (zsock_t *pipe, void *args);
 
 //  --------------------------------------------------------------------------
 //  Create a new dafka_consumer instance
 
-static dafka_consumer_t *
-dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
+dafka_consumer_t *
+dafka_consumer_new (zconfig_t *config) {
     dafka_consumer_t *self = (dafka_consumer_t *) zmalloc (sizeof (dafka_consumer_t));
     assert (self);
+    assert (config);
+
+    dafka_consumer_args_t args = { zsys_create_pipe (&self->record_pipe), config };
+    self->actor = zactor_new (dafka_consumer_actor, &args);
+
+    assert (self->record_pipe);
+    assert (self->actor);
+
+    zsock_wait (self->record_pipe);
+
+    return self;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Create a new dafka_consumer_actor instance
+
+static dafka_consumer_actor_t *
+dafka_consumer_actor_new (zsock_t *pipe, dafka_consumer_args_t *args) {
+    dafka_consumer_actor_t *self = (dafka_consumer_actor_t *) zmalloc (sizeof (dafka_consumer_actor_t));
+    assert (self);
+    assert (args);
 
     //  Initialize actor properties
     self->pipe = pipe;
     self->terminated = false;
-    self->reset_latest = streq (zconfig_get (config, "consumer/offset/reset", "latest"), "latest");
+    self->reset_latest = streq (zconfig_get (args->config, "consumer/offset/reset", "latest"), "latest");
 
     //  Initialize class properties
-    if (atoi (zconfig_get (config, "consumer/verbose", "0")))
+    if (atoi (zconfig_get (args->config, "consumer/verbose", "0")))
         self->verbose = true;
 
-    int hwm = atoi (zconfig_get (config, "consumer/high_watermark", "1000000"));
+    int hwm = atoi (zconfig_get (args->config, "consumer/high_watermark", "1000000"));
 
     self->consumer_sub = zsock_new_sub (NULL, NULL);
     zsock_set_rcvtimeo (self->consumer_sub, 0);
@@ -73,6 +106,10 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     self->sequence_index = zhashx_new ();
     zhashx_set_destructor (self->sequence_index, uint64_destroy);
     zhashx_set_duplicator (self->sequence_index, uint64_dup);
+
+    self->consumer_msg_sink = args->record_sink;
+    assert (self->consumer_msg_sink);
+    zsock_signal (self->consumer_msg_sink, 0);
 
     self->consumer_pub = zsock_new_xpub (NULL);
     zsock_set_sndhwm (self->consumer_pub, hwm);
@@ -94,12 +131,13 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_DIRECT_HEAD, zuuid_str (consumer_address));
     dafka_proto_subscribe (self->consumer_sub, DAFKA_PROTO_STORE_HELLO, zuuid_str (consumer_address));
 
-    dafka_beacon_args_t beacon_args = {"Consumer", config};
+    dafka_beacon_args_t beacon_args = {"Consumer", args->config};
     self->beacon = zactor_new (dafka_beacon_actor, &beacon_args);
     zsock_send (self->beacon, "ssi", "START", zuuid_str (consumer_address), port);
 
     self->subjects = zlist_new ();
     zlist_autofree (self->subjects);
+    zlist_comparefn (self->subjects, (zlist_compare_fn *) strcmp);
 
     self->fetch_filter = dafka_fetch_filter_new (self->consumer_pub, zuuid_str (consumer_address), self->verbose);
     zuuid_destroy (&consumer_address);
@@ -113,11 +151,30 @@ dafka_consumer_new (zsock_t *pipe, zconfig_t *config) {
 //  --------------------------------------------------------------------------
 //  Destroy the dafka_consumer instance
 
-static void
+void
 dafka_consumer_destroy (dafka_consumer_t **self_p) {
     assert (self_p);
     if (*self_p) {
         dafka_consumer_t *self = *self_p;
+
+        //  Free class properties
+        zactor_destroy (&self->actor);
+        zsock_destroy (&self->record_pipe);
+
+        free (self);
+        *self_p = NULL;
+    }
+}
+
+
+//  --------------------------------------------------------------------------
+//  Destroy the dafka_consumer_actor instance
+
+static void
+dafka_consumer_actor_destroy (dafka_consumer_actor_t **self_p) {
+    assert (self_p);
+    if (*self_p) {
+        dafka_consumer_actor_t *self = *self_p;
 
         //  Free class properties
         zpoller_destroy (&self->poller);
@@ -125,6 +182,7 @@ dafka_consumer_destroy (dafka_consumer_t **self_p) {
         zlist_destroy (&self->subjects);
         zsock_destroy (&self->consumer_sub);
         zsock_destroy (&self->consumer_pub);
+        zsock_destroy (&self->consumer_msg_sink);
 
         dafka_proto_destroy (&self->consumer_msg);
         dafka_proto_destroy (&self->get_heads_msg);
@@ -140,9 +198,12 @@ dafka_consumer_destroy (dafka_consumer_t **self_p) {
     }
 }
 
+//  Static helper functions
+
+//  Sends a GET_HEADS message for a given topic to all connected peers
 
 static void
-s_send_get_heads_msg (dafka_consumer_t *self, const char *topic) {
+s_send_get_heads_msg (dafka_consumer_actor_t *self, const char *topic) {
     assert (self);
     assert (topic);
     if (self->verbose)
@@ -152,9 +213,10 @@ s_send_get_heads_msg (dafka_consumer_t *self, const char *topic) {
     dafka_proto_send (self->get_heads_msg, self->consumer_pub);
 }
 
+//  Sends a CONSUMER_HELLO message to a connected store
 
 static void
-s_send_consumer_hello_msg (dafka_consumer_t *self, const char *store_address) {
+s_send_consumer_hello_msg (dafka_consumer_actor_t *self, const char *store_address) {
     assert (self);
     assert (store_address);
 
@@ -171,11 +233,10 @@ s_send_consumer_hello_msg (dafka_consumer_t *self, const char *store_address) {
 }
 
 
-//  Subscribe this actor to an topic. Return a value greater or equal to zero if
-//  was successful. Otherwise -1.
+//  Subscribes this actor to an topic.
 
 static void
-s_subscribe (dafka_consumer_t *self, const char *topic) {
+s_subscribe (dafka_consumer_actor_t *self, const char *topic) {
     assert (self);
     if (self->verbose)
         zsys_debug ("Consumer: Subscribe to topic %s", topic);
@@ -189,12 +250,26 @@ s_subscribe (dafka_consumer_t *self, const char *topic) {
     zlist_append (self->subjects, (void *) topic);
 }
 
+//  Unsubscribe this actor from a previously subscribed topic.
+
+static void
+s_unsubscribe (dafka_consumer_actor_t *self, const char *topic) {
+    assert (self);
+    if (self->verbose)
+        zsys_debug ("Consumer: Unsubscribe from topic %s", topic);
+
+    dafka_proto_unsubscribe (self->consumer_sub, DAFKA_PROTO_RECORD, topic);
+    dafka_proto_unsubscribe (self->consumer_sub, DAFKA_PROTO_HEAD, topic);
+
+    zlist_remove (self->subjects, (void *) topic);
+}
+
 
 // Sets the initial offset depending on whether the consumer is configured to
 // reset latest or earliest.
 
 static uint64_t
-s_set_inital_offset (dafka_consumer_t *self, char *sequence_key, uint64_t current_sequence) {
+s_set_inital_offset (dafka_consumer_actor_t *self, char *sequence_key, uint64_t current_sequence) {
     if (self->reset_latest) {
         current_sequence -= 1;
         if (self->verbose)
@@ -221,7 +296,7 @@ s_set_inital_offset (dafka_consumer_t *self, char *sequence_key, uint64_t curren
 //  Here we handle incoming message from the subscribtions
 
 static void
-dafka_consumer_recv_sub (dafka_consumer_t *self) {
+dafka_consumer_actor_recv_sub (dafka_consumer_actor_t *self) {
     char sequence_key[256 + 1 + 256 + 1];
 
     zmq_msg_t content;
@@ -246,12 +321,11 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
 
         snprintf (sequence_key, sizeof (sequence_key), "%s/%s", subject, address);
 
-        // TODO: Get partition tail through EARLIEST message
         bool last_sequence_known = zhashx_lookup (self->sequence_index, sequence_key) != NULL;
         if (!last_sequence_known)
             s_set_inital_offset (self, sequence_key, current_sequence);
 
-        uint64_t *last_known_sequence_p = (uint64_t *) zhashx_lookup(self->sequence_index, sequence_key);
+        uint64_t *last_known_sequence_p = (uint64_t *) zhashx_lookup (self->sequence_index, sequence_key);
         uint64_t last_known_sequence = *last_known_sequence_p;
 
         switch (dafka_proto_id (self->consumer_msg)) {
@@ -265,10 +339,10 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
                     if (self->verbose)
                         zsys_debug("Consumer: Send message %u to client", current_sequence);
 
-                    zhashx_update(self->sequence_index, sequence_key, &current_sequence);
-                    zstr_sendm (self->pipe, subject);
-                    zstr_sendm (self->pipe, address);
-                    zmq_msg_send (&content, zsock_resolve (self->pipe), 0);
+                    zhashx_update (self->sequence_index, sequence_key, &current_sequence);
+                    zstr_sendm (self->consumer_msg_sink, subject);
+                    zstr_sendm (self->consumer_msg_sink, address);
+                    zmq_msg_send (&content, zsock_resolve (self->consumer_msg_sink), 0);
                 }
                 break;
             }
@@ -286,7 +360,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
                 if (self->verbose)
                     zsys_info("Consumer: Consumer is connected to store %s", store_address);
 
-                s_send_consumer_hello_msg(self, store_address);
+                s_send_consumer_hello_msg (self, store_address);
 
                 break;
             }
@@ -302,7 +376,7 @@ dafka_consumer_recv_sub (dafka_consumer_t *self) {
 //  Here we handle incoming message from the node
 
 static void
-dafka_consumer_recv_api (dafka_consumer_t *self) {
+dafka_consumer_actor_recv_api (dafka_consumer_actor_t *self) {
     //  Get the whole message of the pipe in one go
     zmsg_t *request = zmsg_recv (self->pipe);
     if (!request)
@@ -314,9 +388,20 @@ dafka_consumer_recv_api (dafka_consumer_t *self) {
         s_subscribe (self, topic);
         zstr_free (&topic);
     }
-    else if (streq (command, "GET ADDRESS"))
-        zsock_bsend (self->pipe, "p", dafka_proto_address(self->get_heads_msg));
-    else if (streq (command, "$TERM"))
+    else
+    if (streq (command, "UNSUBSCRIBE")) {
+        char *topic = zmsg_popstr (request);
+        s_unsubscribe (self, topic);
+        zstr_free (&topic);
+    }
+    else
+    if (streq (command, "SUBSCRIPTION"))
+        zsock_bsend (self->pipe, "p", self->subjects);
+    else
+    if (streq (command, "GET ADDRESS"))
+        zsock_bsend (self->pipe, "p", dafka_proto_address (self->get_heads_msg));
+    else
+    if (streq (command, "$TERM"))
         //  The $TERM command is send by zactor_destroy() method
         self->terminated = true;
     else {
@@ -330,7 +415,7 @@ dafka_consumer_recv_api (dafka_consumer_t *self) {
 // Here we handle subscriptions from xpub
 
 static void
-dafka_consumer_recv_pub (dafka_consumer_t *self) {
+dafka_consumer_actor_recv_pub (dafka_consumer_actor_t *self) {
     int rc = dafka_proto_recv (self->pub_msg, self->consumer_pub);
     if (rc == -1)
         return;
@@ -353,8 +438,8 @@ dafka_consumer_recv_pub (dafka_consumer_t *self) {
 //  This is the actor which runs in its own thread.
 
 void
-dafka_consumer (zsock_t *pipe, void *args) {
-    dafka_consumer_t *self = dafka_consumer_new (pipe, (zconfig_t *) args);
+dafka_consumer_actor (zsock_t *pipe, void *args) {
+    dafka_consumer_actor_t *self = dafka_consumer_actor_new (pipe, (dafka_consumer_args_t *) args);
     if (!self)
         return;          //  Interrupted
 
@@ -367,16 +452,16 @@ dafka_consumer (zsock_t *pipe, void *args) {
     while (!self->terminated) {
         void *which = (zsock_t *) zpoller_wait (self->poller, -1);
         if (which == self->consumer_sub)
-            dafka_consumer_recv_sub (self);
+            dafka_consumer_actor_recv_sub (self);
         if (which == self->pipe)
-            dafka_consumer_recv_api (self);
+            dafka_consumer_actor_recv_api (self);
         if (which == self->beacon)
             dafka_beacon_recv (self->beacon, self->consumer_sub, self->verbose, "Consumer");
         if (which == self->consumer_pub)
-            dafka_consumer_recv_pub (self);
+            dafka_consumer_actor_recv_pub (self);
     }
     bool verbose = self->verbose;
-    dafka_consumer_destroy (&self);
+    dafka_consumer_actor_destroy (&self);
 
     if (verbose)
         zsys_info ("Consumer: stopped");
@@ -386,8 +471,29 @@ dafka_consumer (zsock_t *pipe, void *args) {
 //  Subscribe to a topic
 
 int
-dafka_consumer_subscribe (zactor_t *actor, const char *subject) {
-    return zsock_send (actor, "ss", "SUBSCRIBE", subject);
+dafka_consumer_subscribe (dafka_consumer_t *self, const char *subject) {
+    return zsock_send (self->actor, "ss", "SUBSCRIBE", subject);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Unsubscribe from a topic
+
+int
+dafka_consumer_unsubscribe (dafka_consumer_t *self, const char *subject) {
+    return zsock_send (self->actor, "ss", "UNSUBSCRIBE", subject);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get the current subscription
+
+zlist_t *
+dafka_consumer_subscription (dafka_consumer_t *self) {
+    zstr_send (self->actor, "SUBSCRIPTION");
+    zlist_t *subscription;
+    zsock_brecv (self->actor, "p", &subscription);
+    return subscription;
 }
 
 
@@ -395,12 +501,22 @@ dafka_consumer_subscribe (zactor_t *actor, const char *subject) {
 //  Get the address of the consumer
 
 const char *
-dafka_consumer_address (zactor_t *actor) {
-    zstr_send (actor, "GET ADDRESS");
+dafka_consumer_address (dafka_consumer_t *self) {
+    zstr_send (self->actor, "GET ADDRESS");
     const char *address;
-    zsock_brecv (actor, "p", &address);
+    zsock_brecv (self->actor, "p", &address);
     return address;
 }
+
+
+//  --------------------------------------------------------------------------
+//  Get the record sink's socket
+
+zsock_t *
+dafka_consumer_record_source (dafka_consumer_t *self) {
+    return self->record_pipe;
+}
+
 
 //  --------------------------------------------------------------------------
 //  Self test of this actor.
@@ -419,7 +535,7 @@ dafka_consumer_address (zactor_t *actor) {
 #define SELFTEST_DIR_RW "src/selftest-rw"
 
 void
-t_subscribe_to_topic (zactor_t *consumer, char* topic, zactor_t *test_peer,
+t_subscribe_to_topic (dafka_consumer_t *consumer, char* topic, zactor_t *test_peer,
                       zconfig_t *config)
 {
     //  WHEN consumer subscribes to topic 'hello'
@@ -476,9 +592,12 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer with no subscription
-    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_t *consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
+
+    zlist_t *subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 0);
 
     //  WHEN a STORE-HELLO command is send by a store
     dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
@@ -487,7 +606,7 @@ dafka_consumer_test (bool verbose) {
     dafka_proto_t *msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 0);
 
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zactor_destroy (&test_peer);
 
     // Scenario: STORE-HELLO -> CONSUMER-HELLO with subscription
@@ -500,12 +619,18 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer with a subscription to topic "hello"
-    consumer = zactor_new (dafka_consumer, config);
+    consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
 
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 0);
+
     t_subscribe_to_topic (consumer, "hello", test_peer, config);
     zclock_sleep (250);
+
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 1);
 
     //  WHEN a STORE-HELLO command is send by a store
     dafka_test_peer_send_store_hello (test_peer, dafka_consumer_address (consumer));
@@ -514,7 +639,7 @@ dafka_consumer_test (bool verbose) {
     msg = dafka_test_peer_recv (test_peer);
     assert_consumer_hello_msg (msg, 1);
 
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zactor_destroy (&test_peer);
 
     // Scenario: First record for topic with offset reset earliest
@@ -529,11 +654,17 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer subscribed to topic 'hello'
-    consumer = zactor_new (dafka_consumer, config);
+    consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 0);
+
     t_subscribe_to_topic (consumer, "hello", test_peer, config);
+
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 1);
 
     //  WHEN a RECORD msg with sequence larger 0 is sent on topic 'hello'
     dafka_test_peer_send_record (test_peer, "hello", 1, "CONTENT");
@@ -551,8 +682,9 @@ dafka_consumer_test (bool verbose) {
     assert_consumer_msg (c_msg, "hello", "CONTENT");
 
     dafka_consumer_msg_destroy (&c_msg);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zactor_destroy (&test_peer);
+
 
     // Scenario: First record for topic with offset reset latest
     //   Given a dafka consumer subscribed to topic 'hello'
@@ -564,11 +696,17 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer subscribed to topic 'hello'
-    consumer = zactor_new (dafka_consumer, config);
+    consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 0);
+
     t_subscribe_to_topic (consumer, "hello", test_peer, config);
+
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 1);
 
     zclock_sleep (250); //  Wait until subscription is active
 
@@ -581,7 +719,7 @@ dafka_consumer_test (bool verbose) {
     assert_consumer_msg (c_msg, "hello", "CONTENT");
 
     dafka_consumer_msg_destroy (&c_msg);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zactor_destroy (&test_peer);
 
     // ---------
@@ -599,7 +737,7 @@ dafka_consumer_test (bool verbose) {
     zactor_t *store = zactor_new (dafka_store_actor, config);
     assert (store);
 
-    consumer = zactor_new (dafka_consumer, config);
+    consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250);
 
@@ -609,9 +747,15 @@ dafka_consumer_test (bool verbose) {
     assert (rc == 0);
     zclock_sleep (100);  // Make sure message is published before consumer subscribes
 
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 0);
+
     rc = dafka_consumer_subscribe (consumer, "hello");
     assert (rc == 0);
     zclock_sleep (250);  // Make sure subscription is active before sending the next message
+
+    subscription = dafka_consumer_subscription (consumer);
+    assert (zlist_size (subscription) == 1);
 
     // This message is discarded but triggers a FETCH from the store
     dafka_producer_msg_set_content_str (p_msg, "HELLO ATEM");
@@ -638,11 +782,14 @@ dafka_consumer_test (bool verbose) {
     dafka_consumer_msg_recv (c_msg, consumer);
     assert_consumer_msg (c_msg, "hello", "HELLO TEMA");
 
+    rc = dafka_consumer_unsubscribe (consumer, "hello");
+    assert (rc == 0);
+
     dafka_producer_msg_destroy (&p_msg);
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&producer);
     zactor_destroy (&store);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
 
     // Test with Producer + Store and consumer.offset.reset = latest
     // --------------------------------------------------------------
@@ -651,7 +798,7 @@ dafka_consumer_test (bool verbose) {
     producer = zactor_new (dafka_producer, &pub_args);
     assert (producer);
 
-    consumer = zactor_new (dafka_consumer, config);
+    consumer = dafka_consumer_new (config);
     assert (consumer);
     zclock_sleep (250);
 
@@ -680,12 +827,13 @@ dafka_consumer_test (bool verbose) {
     store = zactor_new (dafka_store_actor, config);
     assert (store);
 
+
     dafka_producer_msg_destroy (&p_msg);
     dafka_consumer_msg_destroy (&c_msg);
     zactor_destroy (&tower);
     zactor_destroy (&producer);
     zactor_destroy (&store);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zconfig_destroy (&config);
     //  @end
 
