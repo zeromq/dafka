@@ -200,7 +200,7 @@ dafka_store_test (bool verbose) {
     zactor_destroy (&producer);
 
     // Starting a consumer and check that consumer recv all 3 messages
-    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_t *consumer = dafka_consumer_new (config);
     dafka_consumer_subscribe (consumer, "TEST");
 
     dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();
@@ -214,7 +214,7 @@ dafka_store_test (bool verbose) {
     assert (dafka_consumer_msg_streq (c_msg, "3"));
 
     dafka_consumer_msg_destroy (&c_msg);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     dafka_producer_msg_destroy (&p_msg);
     zactor_destroy (&store);
     zactor_destroy (&tower);

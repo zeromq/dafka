@@ -56,7 +56,7 @@ DAFKA_EXPORT zframe_t *
 //  Receive a message from a consumer actor.
 //  Return 0 on success and -1 on error.
 DAFKA_EXPORT int
-    dafka_consumer_msg_recv (dafka_consumer_msg_t *self, zactor_t *consumer);
+    dafka_consumer_msg_recv (dafka_consumer_msg_t *self, dafka_consumer_t *consumer);
 
 //  Return frame data copied into freshly allocated string
 //  Caller must free string when finished with it.

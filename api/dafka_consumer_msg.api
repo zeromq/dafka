@@ -34,7 +34,7 @@
     <method name = "recv">
         Receive a message from a consumer actor.
         Return 0 on success and -1 on error.
-        <argument type = "zactor" name = "consumer" />
+        <argument type = "dafka_consumer" name = "consumer" />
         <return type = "integer" />
     </method>
 

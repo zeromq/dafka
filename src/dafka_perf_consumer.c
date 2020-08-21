@@ -57,7 +57,7 @@ int main (int argc, char *argv [])
     int size = atoi (zargs_next (args));
 
     // Creating the consumer
-    zactor_t *consumer = zactor_new (dafka_consumer, config);
+    dafka_consumer_t *consumer = dafka_consumer_new (config);
     dafka_consumer_subscribe (consumer, "$STORE_PERF");
 
     dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
@@ -85,7 +85,7 @@ int main (int argc, char *argv [])
     printf ("mean throughput: %.3f [Mb/s]\n", megabits);
 
     dafka_consumer_msg_destroy (&msg);
-    zactor_destroy (&consumer);
+    dafka_consumer_destroy (&consumer);
     zargs_destroy (&args);
     zconfig_destroy (&config);
 

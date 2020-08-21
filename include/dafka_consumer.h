@@ -23,17 +23,34 @@ extern "C" {
 //  @interface
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
-//
+//  Creates a new dafka consumer client that runs in its own background thread.
+DAFKA_EXPORT dafka_consumer_t *
+    dafka_consumer_new (zconfig_t *config);
+
+//  Destroys an instance of dafka consumer client by gracefully stopping its
+//  background thread.
 DAFKA_EXPORT void
-    dafka_consumer (zsock_t *pipe, void *args);
+    dafka_consumer_destroy (dafka_consumer_t **self_p);
 
-//
+//  Subscribe to a given topic.
 DAFKA_EXPORT int
-    dafka_consumer_subscribe (zactor_t *self, const char *subject);
+    dafka_consumer_subscribe (dafka_consumer_t *self, const char *subject);
 
-//
+//  Unsubscribe from a topic currently subscribed to.
+DAFKA_EXPORT int
+    dafka_consumer_unsubscribe (dafka_consumer_t *self, const char *subject);
+
+//  Returns the address of the consumer instance.
 DAFKA_EXPORT const char *
-    dafka_consumer_address (zactor_t *self);
+    dafka_consumer_address (dafka_consumer_t *self);
+
+//  Get the current subscription as list of strings.
+DAFKA_EXPORT zlist_t *
+    dafka_consumer_subscription (dafka_consumer_t *self);
+
+//  Returns the internal record source socket.
+DAFKA_EXPORT zsock_t *
+    dafka_consumer_record_source (dafka_consumer_t *self);
 
 //  Self test of this class.
 DAFKA_EXPORT void

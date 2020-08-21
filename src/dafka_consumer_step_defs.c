@@ -20,7 +20,7 @@ struct _dafka_consumer_state {
     zconfig_t *config;
     zactor_t *tower;
     zactor_t *test_peer;
-    zactor_t *consumer;
+    dafka_consumer_t *consumer;
 };
 
 dafka_consumer_state_t *
@@ -67,7 +67,7 @@ dafka_consumer_state_destroy (dafka_consumer_state_t **self_p)
         //  Free class properties
         zactor_destroy (&self->tower);
         zactor_destroy (&self->test_peer);
-        zactor_destroy (&self->consumer);
+        dafka_consumer_destroy (&self->consumer);
         zconfig_destroy (&self->config);
         //  Free object itself
         free (self);
@@ -84,7 +84,7 @@ given_a_dafka_consumer_with_offset_reset (cucumber_step_def_t *self, void *state
 
     zconfig_put (state->config, "consumer/offset/reset", offset_reset);
 
-    state->consumer = zactor_new (dafka_consumer, state->config);
+    state->consumer = dafka_consumer_new (state->config);
     assert (state->consumer);
     zclock_sleep (250); // Make sure consumer is connected to test_peer before continuing
 }
