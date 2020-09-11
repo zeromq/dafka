@@ -200,7 +200,8 @@ dafka_store_test (bool verbose) {
     zactor_destroy (&producer);
 
     // Starting a consumer and check that consumer recv all 3 messages
-    dafka_consumer_t *consumer = dafka_consumer_new (config);
+    dafka_consumer_args_t consumer_args = { .config = config };
+    dafka_consumer_t *consumer = dafka_consumer_new (&consumer_args);
     dafka_consumer_subscribe (consumer, "TEST");
 
     dafka_consumer_msg_t *c_msg = dafka_consumer_msg_new ();

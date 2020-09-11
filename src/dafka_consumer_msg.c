@@ -112,29 +112,38 @@ dafka_consumer_msg_get_content (dafka_consumer_msg_t *self) {
 //  Receive a msg from a consumer actor.
 //  Return 0 on success and -1 on error.
 DAFKA_EXPORT int
-dafka_consumer_msg_recv (dafka_consumer_msg_t *self, dafka_consumer_t * consumer) {
+dafka_consumer_msg_recv (dafka_consumer_msg_t *self, dafka_consumer_t *consumer) {
     assert (self);
     assert (consumer);
     zsock_t *record_source = dafka_consumer_record_source (consumer);
 
+    return dafka_consumer_msg_recv_from_socket (self, record_source);
+}
+
+DAFKA_EXPORT int
+dafka_consumer_msg_recv_from_socket (dafka_consumer_msg_t *self, zsock_t *socket) {
+    assert (self);
+    assert (socket);
+
     zmq_msg_t msg;
     zmq_msg_init (&msg);
 
-    int count = zmq_msg_recv (&msg, zsock_resolve (record_source), 0);
+    int count = zmq_msg_recv (&msg, zsock_resolve (socket), 0);
     if (count < 0)
         return -1;
 
     memcpy (self->subject, zmq_msg_data (&msg), count);
     self->subject[count] = '\0';
 
-    count = zmq_msg_recv (&msg, zsock_resolve (record_source), 0);
+    count = zmq_msg_recv (&msg, zsock_resolve (socket), 0);
     memcpy (self->address, zmq_msg_data (&msg), count);
     self->address[count] = '\0';
 
     zframe_destroy (&self->content);
-    self->content = zframe_recv (record_source);
+    self->content = zframe_recv (socket);
 
     return 0;
+
 }
 
 

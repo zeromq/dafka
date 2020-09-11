@@ -54,7 +54,8 @@ int main (int argc, char *argv [])
 
     const char *topic = zargs_first (args);
 
-    dafka_consumer_t *consumer = dafka_consumer_new (config);
+    dafka_consumer_args_t consumer_args = { .config = config };
+    dafka_consumer_t *consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
 
     // Give time until connected to pubs and stores

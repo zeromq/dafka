@@ -38,6 +38,13 @@
         <return type = "integer" />
     </method>
 
+    <method name = "recv from socket">
+        Receive a message from a custom socket.
+        Return 0 on success and -1 on error.
+        <argument type = "zsock" name = "socket" />
+        <return type = "integer" />
+    </method>
+
     <method name = "strdup">
         Return frame data copied into freshly allocated string
         Caller must free string when finished with it.

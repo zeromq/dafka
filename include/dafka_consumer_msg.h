@@ -58,6 +58,11 @@ DAFKA_EXPORT zframe_t *
 DAFKA_EXPORT int
     dafka_consumer_msg_recv (dafka_consumer_msg_t *self, dafka_consumer_t *consumer);
 
+//  Receive a message from a custom socket.
+//  Return 0 on success and -1 on error.
+DAFKA_EXPORT int
+    dafka_consumer_msg_recv_from_socket (dafka_consumer_msg_t *self, zsock_t *socket);
+
 //  Return frame data copied into freshly allocated string
 //  Caller must free string when finished with it.
 //  Caller owns return value and must destroy it when done.
