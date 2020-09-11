@@ -61,18 +61,24 @@ void dafka_consumer_actor (zsock_t *pipe, void *args);
 //  Create a new dafka_consumer instance
 
 dafka_consumer_t *
-dafka_consumer_new (zconfig_t *config) {
+dafka_consumer_new (dafka_consumer_args_t *args) {
     dafka_consumer_t *self = (dafka_consumer_t *) zmalloc (sizeof (dafka_consumer_t));
     assert (self);
-    assert (config);
+    assert (args);
+    assert (args->config);
 
-    dafka_consumer_args_t args = { zsys_create_pipe (&self->record_pipe), config };
-    self->actor = zactor_new (dafka_consumer_actor, &args);
+    if (!args->record_sink) {
+        args->record_sink = zsys_create_pipe (&self->record_pipe);
+        assert (self->record_pipe);
+    }
 
-    assert (self->record_pipe);
+    self->actor = zactor_new (dafka_consumer_actor, args);
+
     assert (self->actor);
 
-    zsock_wait (self->record_pipe);
+    if (self->record_pipe) {
+        zsock_wait (self->record_pipe);
+    }
 
     return self;
 }
@@ -592,7 +598,8 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer with no subscription
-    dafka_consumer_t *consumer = dafka_consumer_new (config);
+    dafka_consumer_args_t consumer_args = { .config = config };
+    dafka_consumer_t *consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
 
@@ -619,7 +626,8 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer with a subscription to topic "hello"
-    consumer = dafka_consumer_new (config);
+    consumer_args.record_sink = NULL;
+    consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250); // Make sure both peers are connected to each other
 
@@ -654,7 +662,8 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer subscribed to topic 'hello'
-    consumer = dafka_consumer_new (config);
+    consumer_args.record_sink = NULL;
+    consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
@@ -696,7 +705,8 @@ dafka_consumer_test (bool verbose) {
     assert (test_peer);
 
     //  GIVEN a dafka consumer subscribed to topic 'hello'
-    consumer = dafka_consumer_new (config);
+    consumer_args.record_sink = NULL;
+    consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250); //  Make sure both peers are connected to each other
 
@@ -737,7 +747,8 @@ dafka_consumer_test (bool verbose) {
     zactor_t *store = zactor_new (dafka_store_actor, config);
     assert (store);
 
-    consumer = dafka_consumer_new (config);
+    consumer_args.record_sink = NULL;
+    consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250);
 
@@ -798,7 +809,8 @@ dafka_consumer_test (bool verbose) {
     producer = zactor_new (dafka_producer, &pub_args);
     assert (producer);
 
-    consumer = dafka_consumer_new (config);
+    consumer_args.record_sink = NULL;
+    consumer = dafka_consumer_new (&consumer_args);
     assert (consumer);
     zclock_sleep (250);
 

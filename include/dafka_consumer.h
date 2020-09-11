@@ -24,8 +24,27 @@ extern "C" {
 //  This is a stable class, and may not change except for emergencies. It
 //  is provided in stable builds.
 //  Creates a new dafka consumer client that runs in its own background thread.
+//
+//  The args parameter consists of configuration and record sink.
+//
+//  If a record sink is provided this socket will be used the send the consumer
+//  messages to.
+//
+//  The configuration argument takes settings for both the consumer and the
+//  beacon, see below.
+//
+//  Consumer configuration:
+//    * consumer/offset/reset = earliest|latest (default: latest)
+//    * consumer/high_watermark (default: 1.000.000)
+//    * consumer/verbose = 0|1 (default: 0 -> false)
+//
+//  Beacon configuration:
+//    * beacon/interval (default: 1000) in ms
+//    * beacon/verbose = 0|1 (default: 0 -> false)
+//    * beacon/sub_address (default: tcp://127.0.0.1:5556)
+//    * beacon/pub_address (default: tcp://127.0.0.1:5557)
 DAFKA_EXPORT dafka_consumer_t *
-    dafka_consumer_new (zconfig_t *config);
+    dafka_consumer_new (dafka_consumer_args_t *args);
 
 //  Destroys an instance of dafka consumer client by gracefully stopping its
 //  background thread.

@@ -81,6 +81,10 @@ typedef struct _dafka_tower_t dafka_tower_t;
 typedef struct _dafka_store_t dafka_store_t;
 #define DAFKA_STORE_T_DEFINED
 
+typedef struct {
+    zconfig_t *config;
+    zsock_t *record_sink;
+} dafka_consumer_args_t;
 
 //  Public classes, each with its own header file
 #include "dafka_consumer_msg.h"

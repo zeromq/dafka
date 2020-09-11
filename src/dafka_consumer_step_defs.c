@@ -84,7 +84,8 @@ given_a_dafka_consumer_with_offset_reset (cucumber_step_def_t *self, void *state
 
     zconfig_put (state->config, "consumer/offset/reset", offset_reset);
 
-    state->consumer = dafka_consumer_new (state->config);
+    dafka_consumer_args_t args = { .config = state->config };
+    state->consumer = dafka_consumer_new (&args);
     assert (state->consumer);
     zclock_sleep (250); // Make sure consumer is connected to test_peer before continuing
 }

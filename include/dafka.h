@@ -20,11 +20,6 @@
 //  Add your own public definitions here, if you need them
 
 typedef struct {
-    zsock_t *record_sink;
-    zconfig_t *config;
-} dafka_consumer_args_t;
-
-typedef struct {
     const char *topic;
     zconfig_t *config;
 } dafka_producer_args_t;

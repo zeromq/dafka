@@ -57,7 +57,8 @@ int main (int argc, char *argv [])
     int size = atoi (zargs_next (args));
 
     // Creating the consumer
-    dafka_consumer_t *consumer = dafka_consumer_new (config);
+    dafka_consumer_args_t consumer_args = { .config = config };
+    dafka_consumer_t *consumer = dafka_consumer_new (&consumer_args);
     dafka_consumer_subscribe (consumer, "$STORE_PERF");
 
     dafka_consumer_msg_t *msg = dafka_consumer_msg_new ();
